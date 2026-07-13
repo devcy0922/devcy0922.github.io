@@ -46,16 +46,22 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
-    Agent->>Sandbox Manager: Execute (command: 'curl http://malicious.url')
-    Sandbox Manager->>gVisor: Create lightweight runsc sandbox
-    Sandbox Manager->>gVisor: Launch command within container
-    gVisor->>Host Kernel: System call (SYS_SOCKET)
-    Host Kernel->>eBPF Monitor: Trigger syscall probe
-    eBPF Monitor->>eBPF Monitor: Evaluate policy (Strict deny network outbound)
+    participant Agent as AI Agent
+    participant Manager as Sandbox Manager
+    participant gVisor as gVisor Runtime
+    participant Kernel as Host Kernel
+    participant Monitor as eBPF Monitor
+
+    Agent->>Manager: Execute (command: 'curl http://malicious.url')
+    Manager->>gVisor: Create lightweight runsc sandbox
+    Manager->>gVisor: Launch command within container
+    gVisor->>Kernel: System call (SYS_SOCKET)
+    Kernel->>Monitor: Trigger syscall probe
+    Monitor->>Monitor: Evaluate policy (Strict deny network outbound)
     alt Outbound Blocked
-        eBPF Monitor->>Sandbox Manager: Security Threat Alert
-        Sandbox Manager->>gVisor: SIGKILL container process
-        Sandbox Manager-->>Agent: 403 Forbidden (Blocked: Network access denied)
+        Monitor->>Manager: Security Threat Alert
+        Manager->>gVisor: SIGKILL container process
+        Manager-->>Agent: 403 Forbidden (Blocked: Network access denied)
     end
 ```
 

@@ -7,7 +7,6 @@ export default defineConfig({
   cleanUrls: true,
   
   themeConfig: {
-    logo: { src: '/favicon.svg', alt: 'devcy0922 logo' },
     siteTitle: 'devcy0922',
     
     nav: [

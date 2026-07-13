@@ -1,0 +1,254 @@
+/* ---------------------------------
+   DESIGN SYSTEM TOKENS (custom.css)
+   --------------------------------- */
+
+:root {
+  /* HSL의 기본 의미 기반 디자인 토큰 정의 (Dark Mode Default) */
+  --surface-base: hsl(240, 10%, 4%);
+  --surface-raised: hsl(240, 10%, 8%);
+  --surface-muted: hsl(240, 6%, 12%);
+  
+  --border-default: hsl(240, 6%, 15%);
+  --border-strong: hsl(240, 6%, 25%);
+  
+  --text-primary: hsl(0, 0%, 95%);
+  --text-secondary: hsl(240, 5%, 70%);
+  --text-muted: hsl(240, 5%, 50%);
+  
+  --accent-primary: hsl(263, 60%, 55%);
+  --accent-soft: rgba(138, 43, 226, 0.08);
+  
+  --status-stable: hsl(142, 60%, 40%);
+  --status-experimental: hsl(38, 85%, 45%);
+  --status-archived: hsl(240, 5%, 45%);
+  
+  /* VitePress 기본 내장 CSS 변수 오버라이딩 (다크 모드 강제 및 기본 연동) */
+  --vp-c-bg: var(--surface-base);
+  --vp-c-bg-soft: var(--surface-raised);
+  --vp-c-bg-alt: var(--surface-muted);
+  
+  --vp-c-text-1: var(--text-primary);
+  --vp-c-text-2: var(--text-secondary);
+  --vp-c-text-3: var(--text-muted);
+  
+  --vp-c-border: var(--border-default);
+  --vp-c-divider: var(--border-default);
+  
+  --vp-c-brand-1: var(--accent-primary);
+  --vp-c-brand-2: hsl(263, 60%, 65%);
+  --vp-c-brand-3: hsl(263, 60%, 45%);
+  
+  /* 레이아웃 제약 */
+  --vp-layout-max-width: 1200px;
+}
+
+/* 라이트 모드 오버라이딩 (VitePress 클래스 체계와 정합성) */
+:root:not(.dark) {
+  --surface-base: hsl(0, 0%, 98%);
+  --surface-raised: hsl(0, 0%, 100%);
+  --surface-muted: hsl(240, 5%, 93%);
+  
+  --border-default: hsl(240, 5%, 88%);
+  --border-strong: hsl(240, 5%, 75%);
+  
+  --text-primary: hsl(240, 10%, 4%);
+  --text-secondary: hsl(240, 5%, 25%);
+  --text-muted: hsl(240, 5%, 45%);
+  
+  --accent-primary: hsl(263, 70%, 45%);
+  --accent-soft: rgba(138, 43, 226, 0.04);
+  
+  --status-stable: hsl(142, 70%, 35%);
+  --status-experimental: hsl(38, 90%, 40%);
+  --status-archived: hsl(240, 5%, 45%);
+}
+
+/* ---------------------------------
+   CUSTOM COMPONENT STYLING
+   --------------------------------- */
+
+/* Project Card */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.project-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.project-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.project-card h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.project-card p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.2rem;
+}
+
+.project-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.tech-tags {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tech-tag {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Status Badge */
+.status-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-stable {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--status-stable);
+  border: 1px solid var(--status-stable);
+}
+
+.status-experimental {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--status-experimental);
+  border: 1px solid var(--status-experimental);
+}
+
+.status-archived {
+  background: rgba(156, 163, 175, 0.1);
+  color: var(--status-archived);
+  border: 1px solid var(--status-archived);
+}
+
+/* Selected Projects List (Compact) */
+.compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 2rem;
+}
+
+.compact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  padding: 1rem 1.5rem;
+  border-radius: 6px;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: border-color 0.15s ease;
+}
+
+.compact-item:hover {
+  border-color: var(--border-strong);
+}
+
+.compact-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.compact-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 1rem;
+}
+
+/* Engineering Focus Section */
+.focus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.focus-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  padding: 1.2rem;
+  border-radius: 8px;
+}
+
+.focus-card h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.focus-card p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Callouts */
+.decision-callout {
+  background: var(--surface-raised);
+  border-left: 3px solid var(--accent-primary);
+  padding: 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.security-notice {
+  background: rgba(239, 68, 68, 0.03);
+  border-left: 3px solid hsl(0, 84%, 60%);
+  padding: 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* Accessibility Focus State */
+a:focus-visible, button:focus-visible {
+  outline: 2px dashed var(--accent-primary);
+  outline-offset: 2px;
+}

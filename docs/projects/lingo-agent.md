@@ -48,6 +48,14 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
+    participant Client as Client
+    participant API as API Gateway
+    participant Agent as LingoAgent Executor
+    participant LLM as vLLM Gateway
+    participant Linter as Static ICU Parser
+    participant Judge as LLM QA Judge
+    participant LocalFiles as Local Output Files
+
     Client->>API: POST /api/jobs (Submit source JSON)
     API-->>Client: Return Job ID (PENDING)
     Note over Agent: Background loop activated
@@ -63,7 +71,7 @@ sequenceDiagram
         Agent->>Agent: Record QA feedback & increment attempt
         Agent->>LLM: Retry with QA critique feedback (Max 3 times)
     end
-    Agent->>API: Status -> REVIEW_READY
+    Agent->>API: Status: REVIEW_READY
     Client->>API: GET /api/jobs/{id}/approve
     API->>LocalFiles: Write clean en-US.json, ja-JP.json
 ```

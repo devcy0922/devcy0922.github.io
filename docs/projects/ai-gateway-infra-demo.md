@@ -45,12 +45,17 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
+    participant Client as Client App
+    participant Gateway as NGINX Gateway
+    participant GPU1 as vLLM Node 1
+    participant Backup as OpenAI API (Backup)
+
     Client->>Gateway: Request Chat Completions
     Gateway->>Gateway: Evaluate Upstream status
-    alt GPU Node 1 is Online (latency < 500ms)
+    alt GPU Node 1 is Online
         Gateway->>GPU1: Route payload to GPU Node 1
         GPU1-->>Gateway: Response
-    else GPU Node 1 is Offline / Error
+    else GPU Node 1 is Offline
         Note over Gateway: Switch to Backup node (Failover)
         Gateway->>Backup: Route payload to OpenAI API
         Backup-->>Gateway: Response

@@ -45,15 +45,18 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
-    DevOps->>Target Server: Run ansible-playbook playbook.yml
-    Target Server->>Target Server: Check default SSH authentication
+    participant DevOps as DevOps Engineer
+    participant Target as Target Server
+
+    DevOps->>Target: Run ansible-playbook playbook.yml
+    Target->>Target: Check default SSH authentication
     alt Password authentication enabled
-        Target Server->>Target Server: Set PasswordAuthentication no
-        Target Server->>Target Server: Restart sshd service
+        Target->>Target: Set PasswordAuthentication no
+        Target->>Target: Restart sshd service
     end
-    Target Server->>Target Server: Apply IPTables rules (Block Docker default NAT)
-    Target Server->>Target Server: Audit current open ports
-    Target Server-->>DevOps: Return system security health check report
+    Target->>Target: Apply IPTables rules (Block Docker default NAT)
+    Target->>Target: Audit current open ports
+    Target-->>DevOps: Return system security health check report
 ```
 
 ---

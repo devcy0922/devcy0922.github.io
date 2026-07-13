@@ -33,3 +33,5 @@ features:
     details: "Claude/Cursor 등 AI 에디터 툴체인이 호스트의 데이터베이스 및 파일 자원에 접근하도록 규격화한 Model Context Protocol 서버입니다."
     link: /projects/aperture-mcp
 ---
+
+

@@ -45,19 +45,23 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
-    Client->>Aegis-LLM: POST /v1/chat/completions (Prompt + API Key)
-    Aegis-LLM->>Aegis-LLM: API Key 유효성 및 RPM 한도 조회
+    participant Client as Client
+    participant Aegis as Aegis-LLM
+    participant Upstream as vLLM Upstream
+
+    Client->>Aegis: POST /v1/chat/completions (Prompt + API Key)
+    Aegis->>Aegis: API Key 유효성 및 RPM 한도 조회
     alt RPM 한도 초과
-        Aegis-LLM-->>Client: 429 Too Many Requests
+        Aegis-->>Client: 429 Too Many Requests
     end
-    Aegis-LLM->>Aegis-LLM: PII 마스킹 및 프롬프트 인젝션 키워드 스캔
+    Aegis->>Aegis: PII 마스킹 및 프롬프트 인젝션 키워드 스캔
     alt 인젝션 탐지
-        Aegis-LLM-->>Client: 400 Bad Request (Blocked)
+        Aegis-->>Client: 400 Bad Request (Blocked)
     end
-    Aegis-LLM->>vLLM Upstream: 전달 (Adaptated payload)
-    vLLM Upstream-->>Aegis-LLM: Response
-    Aegis-LLM->>Aegis-LLM: 감사로그 적재 (audit.jsonl)
-    Aegis-LLM-->>Client: 200 OK Response
+    Aegis->>Upstream: 전달 (Adaptated payload)
+    Upstream-->>Aegis: Response
+    Aegis->>Aegis: 감사로그 적재 (audit.jsonl)
+    Aegis-->>Client: 200 OK Response
 ```
 
 ---

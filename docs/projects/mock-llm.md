@@ -48,17 +48,20 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
-    Client->>Mock LLM: POST /v1/chat/completions (with Prompt)
-    Mock LLM->>Mock LLM: Match prompt against simulation rules
-    alt Prompt contains 'Simulate Error 502'
-        Mock LLM-->>Client: 502 Bad Gateway
+    participant Client as Client Agent
+    participant Mock as Mock LLM Server
+
+    Client->>Mock: POST /v1/chat/completions (with Prompt)
+    Mock->>Mock: Match prompt against simulation rules
+    alt Prompt contains Simulate Error 502
+        Mock-->>Client: 502 Bad Gateway
     else stream is true
-        loop Each Token Chunk (Simulated delay: 5ms)
-            Mock LLM-->>Client: data: {"choices": [{"delta": {"content": "Token"}}]}
+        loop Each Token Chunk
+            Mock-->>Client: data: {"choices": [{"delta": {"content": "Token"}}]}
         end
-        Mock LLM-->>Client: data: [DONE]
+        Mock-->>Client: data: [DONE]
     else Standard Completion
-        Mock LLM-->>Client: 200 OK (Clean Mock JSON)
+        Mock-->>Client: 200 OK (Clean Mock JSON)
     end
 ```
 

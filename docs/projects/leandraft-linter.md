@@ -45,14 +45,18 @@ graph TD
 ```mermaid
 sequenceDiagram
     autonumber
+    participant Developer as Developer
+    participant Git as Git Repository
+    participant Linter as Linter CLI
+
     Developer->>Git: git commit -m "docs: add architecture spec"
-    Git->>Linter CLI: Run pre-commit Hook (leandraft-linter docs/)
-    Linter CLI->>Linter CLI: Parse markdown files into AST
-    Linter CLI->>Linter CLI: Scan AST Nodes for blocked keywords
-    alt Security violation detected (Private IP found)
-        Linter CLI-->>Developer: Exit code 1 (Print error line & Block commit)
+    Git->>Linter: Run pre-commit Hook
+    Linter->>Linter: Parse markdown files into AST
+    Linter->>Linter: Scan AST Nodes for blocked keywords
+    alt Security violation detected
+        Linter-->>Developer: Exit code 1 (Print error line and block commit)
     else Validate OK
-        Linter CLI-->>Developer: Exit code 0 (Commit allowed)
+        Linter-->>Developer: Exit code 0 (Commit allowed)
     end
 ```
 

@@ -2,8 +2,8 @@
 layout: home
 hero:
   name: "devcy0922"
-  text: "AI 시스템을 연결하고, 통제하고, 관찰하는 도구를 만듭니다."
-  tagline: "LLM Gateway, 보안 정책, RAG 파이프라인과 개발자 자동화 도구를 설계하고 구현한 기록입니다. 과장되지 않은 엔지니어링 팩트와 구현 증거만을 명세합니다."
+  text: "AI Platform & Infrastructure"
+  tagline: "LLM 게이트웨이, 보안 필터링, RAG Retrieval 및 개발 자동화 도구 개발 이력."
   actions:
     - theme: brand
       text: Explore Projects

@@ -4,6 +4,11 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 const API_BASE_URL = 'https://local-llm-gateway-d8ikelzd.an.gateway.dev'
 const DEMO_KEY = import.meta.env.VITE_PORTFOLIO_DEMO_KEY as string | undefined
 const MAX_PROMPT_CHARS = 2000
+const ANALYSIS_MEMO_KEY = 'live-lab:public-analysis:v1'
+const SAFE_EVIDENCE_NOTES = [
+  '원본 코드·로그·구성 자료가 없어 제공된 설명 범위에서 검토합니다.',
+  '입력에서 원본 자료 단서를 확인해 설명과 근거의 일치 여부를 검토합니다.',
+]
 const RESPONSE_GUARDRAIL = '입력에 명시되지 않은 구현 방식, 수치, SLO 또는 장애 원인을 사실처럼 만들지 않는다. 정보가 부족하면 반드시 확인 필요 또는 가정으로 구분한다. 답변은 전체 12개 항목 이내의 번호형 일반 텍스트로 작성한다.'
 
 type DemoStatus = 'checking' | 'online' | 'offline'
@@ -17,7 +22,14 @@ interface Scenario {
   summary: string
   prompt: string
   placeholder: string
+  progressNotes: string[]
   system: string
+}
+
+interface StoredAnalysisMemo {
+  version: 1
+  scenarioId: ScenarioId
+  notes: string[]
 }
 
 const scenarios: Scenario[] = [
@@ -28,6 +40,11 @@ const scenarios: Scenario[] = [
     summary: '설계 결정과 검증 경계를 정리합니다.',
     prompt: '팀별로 서로 다른 모델을 사용하는 사내 AI 플랫폼을 준비하고 있습니다. 인증, 비용 통제, 장애 대응까지 고려할 때 초기 설계에서 먼저 결정해야 할 사항을 검토해 주세요.',
     placeholder: '설계하려는 시스템과 중요 제약을 입력해 주세요.',
+    progressNotes: [
+      '입력에서 확인된 요구사항과 제약을 분리하고 있습니다.',
+      '명시되지 않은 구현 방식과 운영 수치는 확인 필요로 구분합니다.',
+      '설계 경계, 트레이드오프와 검증 항목 순서로 정리하고 있습니다.',
+    ],
     system: `당신은 시니어 AI 플랫폼 아키텍트다. 1) 입력에서 확인된 요구사항 2) 우선 결정할 설계 경계 3) 주요 트레이드오프와 확인 필요 사항 4) 검증 계획 순서로 답한다. ${RESPONSE_GUARDRAIL}`,
   },
   {
@@ -37,6 +54,11 @@ const scenarios: Scenario[] = [
     summary: '관측 신호에서 조치 순서를 만듭니다.',
     prompt: 'LLM API의 응답 지연과 429 오류가 동시에 증가했습니다. 배포 변경은 없었지만 요청 대기열과 GPU 사용률이 평소보다 높습니다. 먼저 확인할 가설과 즉시 조치를 정리해 주세요.',
     placeholder: '증상, 변경 사항, 주요 메트릭을 입력해 주세요.',
+    progressNotes: [
+      '입력에 포함된 증상, 변경 사항과 관측 신호를 분리하고 있습니다.',
+      '확인된 사실과 아직 검증되지 않은 원인 가설을 구분합니다.',
+      '즉시 조치, 추가 확인 메트릭과 재발 방지 순서를 정리하고 있습니다.',
+    ],
     system: `당신은 시니어 SRE이자 AI 추론 플랫폼 엔지니어다. 1) 확인된 관측 사실 2) 근거와 반증 조건이 있는 원인 가설 3) 안전한 즉시 조치 4) 추가 확인 메트릭과 재발 방지 순서로 답한다. 확인되지 않은 원인은 단정하지 않는다. ${RESPONSE_GUARDRAIL}`,
   },
   {
@@ -46,6 +68,11 @@ const scenarios: Scenario[] = [
     summary: '보안·격리 회귀 위험을 찾습니다.',
     prompt: 'API 인증 결과를 메모리에 캐시해 응답 지연을 줄이려고 합니다. 인증 저장소 장애 시에는 만료된 캐시를 임시로 허용하는 방안도 포함되어 있습니다. 보안과 테넌트 격리 관점에서 위험을 검토해 주세요.',
     placeholder: '검토할 변경 내용과 보안 경계를 입력해 주세요.',
+    progressNotes: [
+      '변경이 영향을 주는 인증, 권한과 테넌트 경계를 확인하고 있습니다.',
+      '입력에 없는 내부 구성과 자격 증명 정보는 검토 대상에서 제외합니다.',
+      '차단 위험, 필수 테스트와 더 안전한 대안 순서로 정리하고 있습니다.',
+    ],
     system: `당신은 보안과 신뢰성을 담당하는 시니어 코드 리뷰어다. 1) 승인 판단과 근거 2) 차단해야 할 보안·격리 위험 3) 머지 전 필수 테스트 4) 더 안전한 대안 순서로 답한다. 자격 증명 수명주기와 멀티테넌트 격리를 우선한다. ${RESPONSE_GUARDRAIL}`,
   },
   {
@@ -55,6 +82,11 @@ const scenarios: Scenario[] = [
     summary: '직접 입력한 문제를 검토합니다.',
     prompt: '',
     placeholder: '검토받고 싶은 AI 플랫폼·운영·보안 문제를 자유롭게 입력해 주세요.',
+    progressNotes: [
+      '질문의 목적과 입력에서 확인 가능한 사실을 분리하고 있습니다.',
+      '근거가 부족한 부분은 가정하지 않고 추가 확인 항목으로 남깁니다.',
+      '판단 근거, 주요 위험과 다음 실행 단계 순서로 정리하고 있습니다.',
+    ],
     system: `당신은 AI 플랫폼, SRE, 보안을 함께 검토하는 시니어 엔지니어다. 질문 의도를 먼저 파악하고 1) 현재 판단 2) 판단 근거 3) 가장 큰 위험 또는 확인 필요 사항 4) 다음 실행 단계 순서로 답한다. ${RESPONSE_GUARDRAIL}`,
   },
 ]
@@ -69,6 +101,7 @@ const errorMessage = ref('')
 const status = ref<DemoStatus>('checking')
 const isSubmitting = ref(false)
 const streamStage = ref<StreamStage>('idle')
+const publicNotes = ref<string[]>([])
 const outputPanel = ref<HTMLElement | null>(null)
 let outputRevealed = false
 
@@ -87,8 +120,16 @@ const streamStageLabel = computed(() => ({
   answer: '답변 생성 중',
   done: '분석 완료',
 })[streamStage.value])
+const outputStatusLabel = computed(() =>
+  !isSubmitting.value && !responseText.value && publicNotes.value.length
+    ? '이 탭의 최근 검토 메모'
+    : streamStageLabel.value,
+)
 
-onMounted(checkHealth)
+onMounted(() => {
+  restoreAnalysisMemo()
+  checkHealth()
+})
 
 function selectScenario(scenario: Scenario) {
   selectedId.value = scenario.id
@@ -96,6 +137,8 @@ function selectScenario(scenario: Scenario) {
   responseText.value = ''
   errorMessage.value = ''
   streamStage.value = 'idle'
+  publicNotes.value = []
+  clearAnalysisMemo()
 }
 
 async function checkHealth() {
@@ -118,12 +161,21 @@ async function submitPrompt() {
   responseText.value = ''
   errorMessage.value = ''
   streamStage.value = 'policy'
+  publicNotes.value = []
   outputRevealed = false
+  const progressNotes = buildPublicNotes(selectedScenario.value, prompt.value)
+  addPublicNote(progressNotes[0])
   const reasoningStageTimer = setTimeout(() => {
     if (isSubmitting.value && streamStage.value === 'policy') {
       streamStage.value = 'reasoning'
+      addPublicNote(progressNotes[1])
     }
   }, 900)
+  const synthesisStageTimer = setTimeout(() => {
+    if (isSubmitting.value) {
+      addPublicNote(progressNotes[2])
+    }
+  }, 8_000)
 
   try {
     const result = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
@@ -170,6 +222,7 @@ async function submitPrompt() {
     await revealOutput()
   } finally {
     clearTimeout(reasoningStageTimer)
+    clearTimeout(synthesisStageTimer)
     isSubmitting.value = false
   }
 }
@@ -223,6 +276,65 @@ async function revealOutput() {
   outputRevealed = true
   await nextTick()
   outputPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+function addPublicNote(note: string) {
+  if (!note || publicNotes.value.includes(note)) return
+  publicNotes.value = [...publicNotes.value, note]
+  saveAnalysisMemo()
+}
+
+function buildPublicNotes(scenario: Scenario, input: string) {
+  const hasSourceEvidence = /https?:\/\/|github\.com|\b(diff|trace|stack)\b|코드|로그|구성 파일|원본/i
+    .test(input)
+  return [
+    scenario.progressNotes[0],
+    hasSourceEvidence ? SAFE_EVIDENCE_NOTES[1] : SAFE_EVIDENCE_NOTES[0],
+    scenario.progressNotes[2],
+  ]
+}
+
+function saveAnalysisMemo() {
+  try {
+    const memo: StoredAnalysisMemo = {
+      version: 1,
+      scenarioId: selectedId.value,
+      notes: publicNotes.value.slice(0, 3),
+    }
+    sessionStorage.setItem(ANALYSIS_MEMO_KEY, JSON.stringify(memo))
+  } catch {
+    // 브라우저 저장소를 사용할 수 없어도 Live Lab 실행은 계속됩니다.
+  }
+}
+
+function restoreAnalysisMemo() {
+  try {
+    const raw = sessionStorage.getItem(ANALYSIS_MEMO_KEY)
+    if (!raw) return
+    const memo = JSON.parse(raw) as Partial<StoredAnalysisMemo>
+    const scenario = scenarios.find((item) => item.id === memo.scenarioId)
+    if (memo.version !== 1 || !scenario || !Array.isArray(memo.notes)) return
+
+    selectedId.value = scenario.id
+    prompt.value = scenario.prompt
+    publicNotes.value = memo.notes
+      .filter((note): note is string =>
+        typeof note === 'string' && (
+          scenario.progressNotes.includes(note) || SAFE_EVIDENCE_NOTES.includes(note)
+        ),
+      )
+      .slice(0, 3)
+  } catch {
+    clearAnalysisMemo()
+  }
+}
+
+function clearAnalysisMemo() {
+  try {
+    sessionStorage.removeItem(ANALYSIS_MEMO_KEY)
+  } catch {
+    // 저장소 접근 실패는 사용자 입력과 분석 흐름에 영향을 주지 않습니다.
+  }
 }
 
 function publicErrorMessage(statusCode: number, data: any) {
@@ -317,16 +429,23 @@ function publicErrorMessage(statusCode: number, data: any) {
           <p>{{ errorMessage }}</p>
         </div>
 
-        <article v-else-if="isSubmitting || responseText" class="live-demo__response">
+        <article v-else-if="isSubmitting || responseText || publicNotes.length" class="live-demo__response">
           <div class="live-demo__response-head">
             <strong>{{ selectedScenario.title }} · Result</strong>
-            <span :data-stage="streamStage">{{ streamStageLabel }}</span>
+            <span :data-stage="streamStage">{{ outputStatusLabel }}</span>
+          </div>
+          <div v-if="publicNotes.length" class="live-demo__memo">
+            <p>PUBLIC REVIEW NOTES</p>
+            <ul>
+              <li v-for="note in publicNotes" :key="note">{{ note }}</li>
+            </ul>
+            <small>이 메모만 현재 탭에 보관하며 원문 입력·응답·추론은 저장하지 않습니다.</small>
           </div>
           <div v-if="isSubmitting && !responseText" class="live-demo__progress">
             <span aria-hidden="true" />
             <div>
               <strong>{{ streamStageLabel }}</strong>
-              <small>분석 과정은 모델 내부에서 처리하고 최종 답변만 표시합니다.</small>
+              <small>내부 추론 원문 대신 공개 가능한 검토 단계만 표시합니다.</small>
             </div>
           </div>
           <pre v-if="responseText">{{ responseText }}</pre>

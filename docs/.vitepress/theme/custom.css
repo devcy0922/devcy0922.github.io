@@ -253,7 +253,7 @@ a:focus-visible, button:focus-visible {
   outline-offset: 2px;
 }
 
-/* Live LLM Demo */
+/* Live LLM Demo Stylesheet */
 .live-demo {
   margin: 32px 0 48px;
   overflow: hidden;
@@ -376,15 +376,36 @@ a:focus-visible, button:focus-visible {
   line-height: 1.45;
 }
 
-.live-demo__workspace {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.35fr);
-  align-items: stretch;
-  gap: 18px;
-  padding: 0 24px 24px;
+.live-demo__notice {
+  margin: 20px 24px 0;
+  border-left: 3px solid var(--status-experimental);
+  background: var(--surface-muted);
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
-.live-demo__form { min-width: 0; }
+/* Workspace Layout (세로 2단 구조) */
+.live-demo__workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+
+/* 상단 컨트롤 영역 (2열 배치) */
+.live-demo__workspace-top {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.live-demo__form {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 
 .live-demo__form-title {
   display: flex;
@@ -416,6 +437,7 @@ a:focus-visible, button:focus-visible {
   padding: 14px;
   color: var(--text-primary);
   font: 14px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 148px;
 }
 
 .live-demo__form textarea:focus {
@@ -455,166 +477,224 @@ a:focus-visible, button:focus-visible {
   cursor: not-allowed;
 }
 
-.live-demo__output {
-  min-width: 0;
-  min-height: 420px;
+/* 브라우저 히스토리 영역 */
+.live-demo__history-panel {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--surface-muted);
-}
-
-.live-demo__proof {
   padding: 16px;
+  min-height: 198px;
+  box-sizing: border-box;
 }
 
-.live-demo__proof > p {
-  margin: 0 0 12px;
-  color: var(--text-muted);
-  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.08em;
+.live-demo__history-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 8px;
 }
 
-.live-demo__proof ul {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.live-demo__proof li {
-  display: grid;
-  gap: 2px;
-}
-
-.live-demo__proof strong {
+.live-demo__history-title strong {
   color: var(--text-primary);
   font-size: 12px;
+  font-weight: 600;
 }
 
-.live-demo__proof li > span {
+.live-demo__history-title span {
+  color: var(--text-muted);
+  font: 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+}
+
+.live-demo__memo-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.live-demo__memo-list ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style-type: disc;
   color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.live-demo__memo-list li {
+  margin-bottom: 6px;
+}
+
+.live-demo__memo-list small {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 8px;
+}
+
+.live-demo__history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+}
+
+.live-demo__history-empty p {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.live-demo__history-empty small {
   font-size: 11px;
+  line-height: 1.4;
 }
 
-.live-demo__notice {
-  margin: 20px 24px 0;
-  border-left: 3px solid var(--status-experimental);
-  background: var(--surface-muted);
-  padding: 12px 14px;
-  color: var(--text-secondary);
-  font-size: 13px;
+/* 하단 결과 및 설명 영역 */
+.live-demo__workspace-bottom {
+  min-height: 240px;
 }
 
 .live-demo__error {
-  height: 100%;
   border-left: 3px solid hsl(0, 72%, 52%);
+  background: var(--surface-muted);
   padding: 16px;
   color: var(--text-secondary);
   font-size: 13px;
+  border-radius: 4px;
 }
 
 .live-demo__error p { margin: 4px 0 0; }
 
-.live-demo__response {
-  box-sizing: border-box;
-  height: 100%;
-  min-height: 418px;
+/* 결과 패널 (가로 전체 너비) */
+.live-demo__result-panel {
   background: var(--surface-base);
-  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-.live-demo__response-head {
+.live-demo__result-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
   color: var(--text-secondary);
   font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
   text-transform: uppercase;
 }
 
-.live-demo__response-head > span {
+.live-demo__result-head > span {
   color: var(--accent-primary);
-  text-align: right;
+  font-weight: 600;
 }
 
-.live-demo__response > pre {
-  overflow: auto;
-  max-height: clamp(320px, 48vh, 520px);
-  margin: 14px 0;
-  background: transparent;
-  padding: 0;
-  color: var(--text-primary);
-  font: 13px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.live-demo__memo {
-  margin-top: 14px;
-  border: 1px solid var(--border-default);
-  border-radius: 7px;
-  background: var(--surface-muted);
-  padding: 12px 14px;
-}
-
-.live-demo__memo > p {
-  margin: 0 0 9px;
-  color: var(--text-muted);
-  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.08em;
-}
-
-.live-demo__memo ul {
-  display: grid;
-  gap: 7px;
-  margin: 0;
-  padding-left: 18px;
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.live-demo__memo small {
-  display: block;
-  margin-top: 10px;
-  border-top: 1px solid var(--border-default);
-  padding-top: 9px;
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.live-demo__progress {
+.live-demo__loading-progress {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 150px;
+  gap: 16px;
+  padding: 32px 16px;
 }
 
-.live-demo__progress > span {
-  width: 9px;
-  height: 9px;
+.live-demo__loading-progress > span {
+  width: 10px;
+  height: 10px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--accent-primary);
   animation: live-demo-pulse 1.2s ease-in-out infinite;
 }
 
-.live-demo__progress div {
+.live-demo__loading-progress div {
   display: grid;
+  gap: 6px;
+}
+
+.live-demo__loading-progress strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.live-demo__loading-progress small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.live-demo__response-content {
+  overflow: auto;
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  font: 14px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+  letter-spacing: -0.01em;
+}
+
+/* 실행 전 대기 상태: 2열 카드 레이아웃 */
+.live-demo__info-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.live-demo__info-card {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.live-demo__info-card h3 {
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.live-demo__info-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-demo__info-card li {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
 
-.live-demo__progress strong {
-  color: var(--text-primary);
-  font-size: 13px;
+.live-demo__info-card li:last-child {
+  margin-bottom: 0;
 }
 
-.live-demo__progress small {
+.live-demo__info-card strong {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.live-demo__info-card span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.5;
 }
 
@@ -625,6 +705,8 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__footer {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px 16px;
   border-top: 1px solid var(--border-default);
@@ -633,18 +715,23 @@ a:focus-visible, button:focus-visible {
   font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.live-demo__footer-links {
+  display: flex;
+  gap: 16px;
+}
+
 .live-demo__footer a {
-  margin-left: auto;
   color: var(--text-secondary);
   text-decoration: none;
 }
 
 .live-demo__footer a:hover { color: var(--text-primary); }
 
+/* 미디어 쿼리를 사용한 유연한 반응형 레이아웃 */
 @media (max-width: 960px) {
-  .live-demo__workspace { grid-template-columns: 1fr; }
-  .live-demo__output { min-height: 360px; }
-  .live-demo__response { min-height: 358px; }
+  .live-demo__workspace-top {
+    gap: 16px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -652,13 +739,27 @@ a:focus-visible, button:focus-visible {
   .live-demo__route { padding-inline: 20px; }
   .live-demo__scenarios { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px 20px; }
   .live-demo__scenarios button > small { display: none; }
-  .live-demo__workspace { padding: 0 20px 20px; }
+  
+  .live-demo__workspace { padding: 20px; gap: 20px; }
+  .live-demo__workspace-top {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .live-demo__history-panel {
+    min-height: 160px;
+  }
+  
+  .live-demo__info-cards {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
   .live-demo__notice { margin-inline: 20px; }
-  .live-demo__footer { padding-inline: 20px; }
-  .live-demo__footer a { width: 100%; margin-left: 0; }
+  .live-demo__footer { padding-inline: 20px; flex-direction: column; align-items: flex-start; }
+  .live-demo__footer-links { width: 100%; flex-direction: column; gap: 8px; margin-top: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .live-demo * { scroll-behavior: auto !important; }
-  .live-demo__progress > span { animation: none; }
+  .live-demo__loading-progress > span { animation: none; }
 }

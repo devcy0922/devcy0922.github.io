@@ -13,6 +13,7 @@ export default withMermaid(
       
       nav: [
         { text: 'Home', link: '/' },
+        { text: 'Live Lab', link: '/live-demo' },
         { text: 'Projects', link: '/projects/aegis-llm' }
       ],
 
@@ -21,6 +22,7 @@ export default withMermaid(
           {
             text: 'Core Projects (대표)',
             items: [
+              { text: 'GoVail Gateway (Live)', link: '/projects/govail-gateway' },
               { text: 'Aegis-LLM (가드레일)', link: '/projects/aegis-llm' },
               { text: 'SliceRAG (청크 최적화)', link: '/projects/slicerag' },
               { text: 'LingoAgent (i18n 에이전트)', link: '/projects/lingo-agent' }
@@ -50,7 +52,7 @@ export default withMermaid(
       ],
 
       footer: {
-        message: 'Built with VitePress. All architectural principles honestly claimed.',
+        message: '문서보다 실행 가능한 증거를 우선합니다.',
         copyright: 'Copyright © 2026 devcy0922. All rights reserved.'
       }
     }

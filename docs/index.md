@@ -7,30 +7,49 @@ hero:
   actions:
     - theme: brand
       text: Explore Projects
-      link: /projects/aegis-llm
+      link: /projects/govail-gateway
     - theme: alt
       text: GitHub Profile
       link: https://github.com/devcy0922
       target: _blank
-
-features:
-  - title: "Aegis-LLM — SaaS Control Plane"
-    details: "API Key 인증, 프로젝트별 RPM 제한, DLP, Prompt Security, Audit Log와 Upstream Fallback을 제공하는 Rust 기반 AI Gateway MVP입니다."
-    link: /projects/aegis-llm
-  - title: "SliceRAG — Tenant-isolated Data Plane"
-    details: "Gateway가 확정한 project_id 범위 안에서만 문서를 저장·검색하고 교차 테넌트 접근을 회귀 테스트로 차단하는 내부 RAG 서비스입니다."
-    link: /projects/slicerag
-  - title: "AgentSecOps — Governance E2E"
-    details: "인증, RAG 격리, PII 마스킹, Prompt Injection 차단과 LLM Fallback을 가상 데이터로 자동 검증하는 Docker Compose 기반 하네스입니다."
-    link: /projects/agentsecops-playground
-  - title: "AI Gateway — Inference Routing"
-    details: "LiteLLM으로 vLLM과 MLX를 OpenAI-compatible API로 통합하고 모델 별칭, Least-busy 라우팅, Retry와 Fallback을 선언한 인프라 템플릿입니다."
-    link: /projects/ai-gateway-infra-demo
-  - title: "LingoAgent — Vertical SaaS Prototype"
-    details: "ICU 변수 무결성 검사, LLM-as-a-Judge 재검증, Diff 검토와 승인 배포 흐름을 제공하는 i18n 자동화 제품 프로토타입입니다."
-    link: /projects/lingo-agent
-  - title: "Aperture-MCP — Zero-trust Policy Proxy"
-    details: "MCP tools/call 요청을 가로채 정책 Gateway의 위험도 판정에 따라 고위험 도구 실행을 차단하는 Rust 기반 프록시 MVP입니다."
-    link: /projects/aperture-mcp
+    - theme: alt
+      text: Run Live Lab
+      link: /#live-demo-title
 ---
 
+<LiveLlmDemo />
+
+## Selected Systems
+
+라이브 랩의 실행 경로를 구성하는 대표 시스템만 선별했습니다. 각 문서에는 설계 결정, 실패 경계, 검증 방법을 함께 기록했습니다.
+
+<div class="project-grid">
+  <a class="project-card" href="/projects/govail-gateway">
+    <div>
+      <h3>GoVail Gateway <span class="status-badge status-stable">LIVE</span></h3>
+      <p>SurrealDB Key 인증, 모델·RPM·DLP 정책, LiteLLM 라우팅과 Loki 감사를 실제 사설 LLM 호출 경로에 적용한 Rust Gateway입니다.</p>
+    </div>
+    <div class="project-meta"><span>Execution Gateway</span><span>Rust · SurrealDB · GCP</span></div>
+  </a>
+  <a class="project-card" href="/projects/aegis-llm">
+    <div>
+      <h3>Aegis-LLM <span class="status-badge status-stable">STABLE</span></h3>
+      <p>테넌트 인증, 요청 제한, DLP, Prompt Security와 Upstream Fallback을 하나의 SaaS Control Plane으로 설계했습니다.</p>
+    </div>
+    <div class="project-meta"><span>Control Plane</span><span>Rust · PostgreSQL</span></div>
+  </a>
+  <a class="project-card" href="/projects/slicerag">
+    <div>
+      <h3>SliceRAG <span class="status-badge status-stable">STABLE</span></h3>
+      <p>Gateway가 확정한 프로젝트 범위 안에서만 문서를 저장·검색하고 교차 테넌트 접근을 회귀 테스트로 차단합니다.</p>
+    </div>
+    <div class="project-meta"><span>Data Plane</span><span>FastAPI · Vector Search</span></div>
+  </a>
+  <a class="project-card" href="/projects/agentsecops-playground">
+    <div>
+      <h3>AgentSecOps <span class="status-badge status-experimental">E2E</span></h3>
+      <p>인증, RAG 격리, PII 마스킹, Prompt Injection 차단과 LLM Fallback을 가상 데이터로 자동 검증합니다.</p>
+    </div>
+    <div class="project-meta"><span>Governance Test</span><span>Docker · Security Regression</span></div>
+  </a>
+</div>

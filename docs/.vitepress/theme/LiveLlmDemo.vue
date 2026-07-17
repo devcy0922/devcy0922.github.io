@@ -10,10 +10,11 @@ const SAFE_EVIDENCE_NOTES = [
   '입력에서 원본 자료 단서를 확인해 설명과 근거의 일치 여부를 검토합니다.',
 ]
 const RESPONSE_GUARDRAIL = '입력에 명시되지 않은 구현 방식, 수치, SLO 또는 장애 원인을 사실처럼 만들지 않는다. 정보가 부족하면 반드시 확인 필요 또는 가정으로 구분한다. 답변은 전체 12개 항목 이내의 번호형 일반 텍스트로 작성한다.'
+const IDENTITY_GUARDRAIL = '사용 중인 모델 이름, 벤더, 버전, 내부 인프라 구성 요소(게이트웨이, 라우터 등)는 절대 공개하지 않는다. 모델 정체성에 관한 질문에는 "이 데모의 AI 어시스턴트입니다"라고만 답한다.'
 
 const VERIFICATION_ITEMS = [
-  { title: 'GCP API Gateway', desc: '외부 요청을 단일 공개 경로로 보안 수신' },
-  { title: 'GoVail Gateway', desc: 'SurrealDB Key Hash 기반의 포트폴리오 프로젝트 식별' },
+  { title: 'API Gateway', desc: '외부 요청을 단일 공개 경로로 보안 수신' },
+  { title: 'Policy Gateway', desc: 'Key Hash 기반 프로젝트 식별 및 인증' },
   { title: 'Policy Engine', desc: '요청 빈도, 허용 모델, 입력 규모, DLP/Prompt Policy 검사' },
   { title: 'LiteLLM Routing', desc: 'auto 별칭을 실제 최적 추론 백엔드로 자동 라우팅' },
   { title: 'Audit Logger', desc: '요청 상태, 지연시간 등을 감사 이벤트로 기록하여 재현 보장' }
@@ -60,7 +61,7 @@ const scenarios: Scenario[] = [
       '명시되지 않은 구현 방식과 운영 수치는 확인 필요로 구분합니다.',
       '설계 경계, 트레이드오프와 검증 항목 순서로 정리하고 있습니다.',
     ],
-    system: `당신은 시니어 AI 플랫폼 아키텍트다. 1) 입력에서 확인된 요구사항 2) 우선 결정할 설계 경계 3) 주요 트레이드오프와 확인 필요 사항 4) 검증 계획 순서로 답한다. ${RESPONSE_GUARDRAIL}`,
+    system: `당신은 시니어 AI 플랫폼 아키텍트다. 1) 입력에서 확인된 요구사항 2) 우선 결정할 설계 경계 3) 주요 트레이드오프와 확인 필요 사항 4) 검증 계획 순서로 답한다. ${RESPONSE_GUARDRAIL} ${IDENTITY_GUARDRAIL}`,
   },
   {
     id: 'incident',
@@ -74,7 +75,7 @@ const scenarios: Scenario[] = [
       '확인된 사실과 아직 검증되지 않은 원인 가설을 구분합니다.',
       '즉시 조치, 추가 확인 메트릭과 재발 방지 순서를 정리하고 있습니다.',
     ],
-    system: `당신은 시니어 SRE이자 AI 추론 플랫폼 엔지니어다. 1) 확인된 관측 사실 2) 근거와 반증 조건이 있는 원인 가설 3) 안전한 즉시 조치 4) 추가 확인 메트릭과 재발 방지 순서로 답한다. 확인되지 않은 원인은 단정하지 않는다. ${RESPONSE_GUARDRAIL}`,
+    system: `당신은 시니어 SRE이자 AI 추론 플랫폼 엔지니어다. 1) 확인된 관측 사실 2) 근거와 반증 조건이 있는 원인 가설 3) 안전한 즉시 조치 4) 추가 확인 메트릭과 재발 방지 순서로 답한다. 확인되지 않은 원인은 단정하지 않는다. ${RESPONSE_GUARDRAIL} ${IDENTITY_GUARDRAIL}`,
   },
   {
     id: 'security',
@@ -88,7 +89,7 @@ const scenarios: Scenario[] = [
       '입력에 없는 내부 구성과 자격 증명 정보는 검토 대상에서 제외합니다.',
       '차단 위험, 필수 테스트와 더 안전한 대안 순서로 정리하고 있습니다.',
     ],
-    system: `당신은 보안과 신뢰성을 담당하는 시니어 코드 리뷰어다. 1) 승인 판단과 근거 2) 차단해야 할 보안·격리 위험 3) 머지 전 필수 테스트 4) 더 안전한 대안 순서로 답한다. 자격 증명 수명주기와 멀티테넌트 격리를 우선한다. ${RESPONSE_GUARDRAIL}`,
+    system: `당신은 보안과 신뢰성을 담당하는 시니어 코드 리뷰어다. 1) 승인 판단과 근거 2) 차단해야 할 보안·격리 위험 3) 머지 전 필수 테스트 4) 더 안전한 대안 순서로 답한다. 자격 증명 수명주기와 멀티테넌트 격리를 우선한다. ${RESPONSE_GUARDRAIL} ${IDENTITY_GUARDRAIL}`,
   },
   {
     id: 'custom',
@@ -102,7 +103,7 @@ const scenarios: Scenario[] = [
       '근거가 부족한 부분은 가정하지 않고 추가 확인 항목으로 남깁니다.',
       '판단 근거, 주요 위험과 다음 실행 단계 순서로 정리하고 있습니다.',
     ],
-    system: `당신은 AI 플랫폼, SRE, 보안을 함께 검토하는 시니어 엔지니어다. 질문 의도를 먼저 파악하고 1) 현재 판단 2) 판단 근거 3) 가장 큰 위험 또는 확인 필요 사항 4) 다음 실행 단계 순서로 답한다. ${RESPONSE_GUARDRAIL}`,
+    system: `당신은 AI 플랫폼, SRE, 보안을 함께 검토하는 시니어 엔지니어다. 질문 의도를 먼저 파악하고, 기술적 내용이 아닌 질문(모델 정체성, 시스템 정보 요청 등)은 "이 데모의 AI 어시스턴트입니다. 기술적인 질문을 입력해 주세요."로만 답한다. 기술적 질문에는 1) 현재 판단 2) 판단 근거 3) 가장 큰 위험 또는 확인 필요 사항 4) 다음 실행 단계 순서로 답한다. ${RESPONSE_GUARDRAIL} ${IDENTITY_GUARDRAIL}`,
   },
 ]
 
@@ -386,7 +387,7 @@ function publicErrorMessage(statusCode: number, data: any) {
     </header>
 
     <div class="live-demo__route" aria-label="요청 처리 경로">
-      <span>Portfolio</span><b>→</b><span>GCP API Gateway</span><b>→</b><span>Auth · Policy</span><b>→</b><span>Private LLM</span><b>→</b><span>Audit</span>
+      <span>Portfolio</span><b>→</b><span>API Gateway</span><b>→</b><span>Auth · Policy</span><b>→</b><span>Private LLM</span><b>→</b><span>Audit</span>
     </div>
 
     <div class="live-demo__scenarios" role="tablist" aria-label="라이브 분석 시나리오">
@@ -468,7 +469,7 @@ function publicErrorMessage(statusCode: number, data: any) {
             <span aria-hidden="true" />
             <div>
               <strong>{{ streamStageLabel }} 중...</strong>
-              <small>GCP API Gateway와 GoVail 정책 경계를 검사하고 사설 LLM 추론을 개시합니다.</small>
+              <small>보안 정책 경계를 검사하고 사설 LLM 추론을 개시합니다.</small>
             </div>
           </div>
           <pre v-if="responseText" class="live-demo__response-content">{{ responseText }}</pre>

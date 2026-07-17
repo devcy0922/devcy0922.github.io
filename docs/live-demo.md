@@ -1,9 +1,10 @@
 ---
 title: Live LLM Demo
-description: GCP API Gateway와 GoVail 정책 경계를 통과하는 사설 LLM을 직접 체험합니다.
+description: 보안 정책 경계와 사설 LLM 추론 경로를 직접 체험합니다.
 aside: false
 outline: false
 ---
+
 
 # AI Platform Live Lab
 

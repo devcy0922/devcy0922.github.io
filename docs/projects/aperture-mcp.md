@@ -1,92 +1,102 @@
-# Aperture MCP Server
+# Aperture-MCP
 
-AI 에디터(Cursor 등) 및 개발 툴체인이 호스트 시스템의 데이터베이스와 도메인 자원에 안전하게 접근하여 상호작용할 수 있도록 규격을 표준화한 Model Context Protocol(MCP) 서버 브리지입니다.
+MCP Client와 Target MCP Server 사이에서 `tools/call`을 정책으로 통제하는 Rust 기반 Zero-trust Policy Proxy MVP입니다.
 
 ## 📌 Status & Repository
-- **상태**: `Experimental`
+- **상태**: `MVP`
 - **저장소 주소**: [GitHub (devcy0922/aperture-mcp)](https://github.com/devcy0922/aperture-mcp)
 - **라이선스**: MIT
-- **주요 언어**: TypeScript, Node.js
+- **주요 언어**: Rust
 
 ---
 
 ## 1. Problem
-최근 Claude 3.5 Sonnet 등 강력한 LLM이 에디터(Cursor)나 Agent를 통해 로컬 파일 및 DB 자원을 직접 파악해야 하는 니즈가 늘고 있습니다. 하지만 각 툴마다 로컬 데이터베이스를 읽거나 쿼리하는 커넥터 규격이 통일되어 있지 않아, 에이전트 개발 시마다 호스트 자원 연동 코드를 커스텀 개발해야 하는 비효율이 존재합니다.
+MCP Client가 Target Server의 Tool을 직접 호출하면 실제 실행 직전에 조직 정책이나 사용자 승인 필요 여부를 일관되게 판단할 경계가 없습니다. 각 MCP Server에 정책 코드를 중복 구현하면 Enforcement 결과와 오류 형식도 달라집니다.
 
 ## 2. Why I Built It
-Anthropic이 정의한 표준 MCP(Model Context Protocol) 규격을 구현하여, AI 클라이언트가 표준 API JSON-RPC 인터페이스를 경유해 로컬 데이터베이스 스키마 검색, 파일 메타데이터 스캔, 그리고 제한된 보안 가이드 검사 도구를 일관되게 호출할 수 있는 공통 리소스 허브로 삼기 위해 개발했습니다.
+기존 MCP Server를 수정하지 않고 앞단 Wrapper가 JSON-RPC Stream을 중계하면서 `tools/call`만 Policy Gateway에 질의하고, 고위험 요청을 Child Process에 전달하기 전에 차단하는 구조를 검증하기 위해 만들었습니다.
 
 ## 3. Scope
-- Model Context Protocol(MCP) JSON-RPC 2.0 스펙 기반 통신 인터페이스 구현
-- 로컬 DB 스키마 검색용 전용 도구(Tool) 및 리소스(Resource) 제공
-- 악성 파일 덮어쓰기 방지를 위한 제한적 쓰기(Write) 샌드박스 정책 필터
-- 호스트 상태 메트릭 조회 기능
+- Target MCP Server를 Child Process로 실행
+- stdin/stdout JSON-RPC Line 중계
+- `tools/call` Method와 Tool Name 식별
+- Policy Gateway `/decide` 연동
+- `approval_required` 요청의 선택적 차단
+- 차단 시 JSON-RPC Error Payload 반환
+- Child Process 종료와 Stream 정리
 
 ---
 
 ## 4. Architecture
 
 ```mermaid
-graph TD
-    Client["AI IDE Client (Cursor/Claude Desktop)"] -->|JSON-RPC via Stdio/SSE| MCP["Aperture MCP Server"]
-    subgraph Host_Resources ["Authorized Resources"]
-        MCP -->|Inspect Database| DB["SQLite / Postgres (Schema info)"]
-        MCP -->|Read restricted folder| FS["Local Filesystem (Static Assets)"]
-    </div>
-    MCP -->|Evaluate system load| Metric["System Metric Collector"]
+flowchart LR
+    Client["MCP Client"] --> Proxy["Aperture-MCP Proxy"]
+    Proxy -->|"tools/call risk query"| Policy["Policy Gateway /decide"]
+    Proxy -->|"allowed JSON-RPC"| Server["Target MCP Server"]
+    Server --> Proxy
+    Proxy --> Client
 ```
-
----
 
 ## 5. Request Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    Client IDE->>Aperture MCP: List Tools Request (initialize)
-    Aperture MCP-->>Client IDE: List of tools (inspect_schema, read_file, get_system_load)
-    Client IDE->>Aperture MCP: Call Tool (inspect_schema, args: { db_path })
-    Aperture MCP->>Aperture MCP: Security boundary check
-    Aperture MCP->>Local SQLite: Execute PRAGMA table_info
-    Local SQLite-->>Aperture MCP: Raw schema metadata
-    Aperture MCP-->>Client IDE: JSON Formatted schema representation
+    participant Client as MCP Client
+    participant Proxy as Aperture-MCP
+    participant Policy as Policy Gateway
+    participant Server as Target MCP Server
+    Client->>Proxy: JSON-RPC tools/call
+    Proxy->>Policy: decide(tool_name, arguments)
+    alt approval_required and block enabled
+        Policy-->>Proxy: high risk
+        Proxy-->>Client: JSON-RPC error -32603
+    else allowed
+        Policy-->>Proxy: allow
+        Proxy->>Server: original JSON-RPC request
+        Server-->>Proxy: JSON-RPC response
+        Proxy-->>Client: response relay
+    end
 ```
-
----
 
 ## 6. Key Design Decisions
-- **표준 JSON-RPC Over Stdio 채널 채택**: 복잡한 네트워크 소켓 연결이나 인증 키 노출 없이, 에디터 프로세스가 Aperture 바이너리를 서브 프로세스로 직접 실행하고 Stdio(표준 입출력) 파이프라인으로 안전하게 연동되도록 설계했습니다.
-- **최소 권한의 도구 설계 (Principle of Least Privilege)**: 임의의 SQL execution 도구를 일절 차단하고, 스키마 목록 및 컬럼 정보만 가져올 수 있는 읽기 전용 `inspect_schema` 도구만 제공하여 데이터 변조 리스크를 제거했습니다.
+- **Wrapper 방식**: Target MCP Server의 구현을 변경하지 않고 실행 명령 앞에 Proxy를 배치합니다.
+- **Method 단위 최소 개입**: `tools/call`만 정책 판단 대상으로 삼고 Initialize, List와 일반 응답은 그대로 중계합니다.
+- **환경 기반 Enforcement**: `GOVAIL_ROUTER_DECIDE_URL`과 `GOVAIL_BLOCK_ON_RISK`로 정책 Endpoint와 차단 동작을 분리합니다.
 
 ## 7. Security Considerations
-- 파일 접근 리소스 요청 시, 프로젝트 외부 디렉토리로 우회하려는 상위 디렉토리 탐색 기법(`../..` 경로 트래버설 공격)을 정규 경로(canonical path) 변환을 거쳐 사전에 엄격히 거부합니다.
+- 차단이 활성화된 고위험 요청은 Target Child Process로 전달하지 않습니다.
+- 정책 응답과 JSON-RPC Parsing 실패 시 허용 여부를 명확히 정의해야 하며 운영 적용 전 fail-closed 정책을 강화해야 합니다.
+- 이 프로젝트는 Database Schema나 Local File을 직접 제공하는 MCP Server가 아닙니다.
 
 ## 8. Observability
-- AI 클라이언트의 도구 호출 빈도 및 호출 실패 이벤트를 표준 에러 출력(stderr) 감사 스트림을 통해 호스트 로깅 툴로 전달합니다.
+- Intercept한 Tool Name과 차단 여부를 stderr에 기록해 Host Logging Pipeline에서 수집할 수 있습니다.
+- Client에는 표준 JSON-RPC Error 형태로 차단 결과를 반환합니다.
+- 공개 MVP는 중앙 Metric Backend보다 Policy Decision과 Relay 동작 검증에 초점을 둡니다.
 
 ## 9. Technology Stack
-- **Runtime**: Node.js (TypeScript)
-- **Protocol**: @modelcontextprotocol/sdk
-
----
+- **Runtime**: Rust, Tokio
+- **Protocol**: JSON-RPC over stdin/stdout
+- **Policy Integration**: HTTP `/decide`
+- **Verification**: Mock Policy Gateway, Mock MCP Server
 
 ## 10. Running Locally
-Claude Desktop 또는 Cursor 설정 파일에 Aperture MCP를 서브프로세스로 추가합니다.
 
-```json
-// Cursor / Claude Desktop mcpServers 설정 예시
-{
-  "mcpServers": {
-    "aperture-mcp": {
-      "command": "node",
-      "args": ["<your-project-path>/aperture-mcp/dist/index.js"]
-    }
-  }
-}
+Target MCP Server 실행 명령 앞에 Proxy를 배치합니다.
+
+```bash
+aperture-mcp -- /path/to/target-mcp-server --arg value
 ```
 
+실제 Policy Endpoint와 차단 모드는 실행 환경 변수로 주입합니다.
+
 ## 11. Current Limitations
-- Stdio 파이프 방식으로 작동하여 에디터 툴체인과 1:1 결합되어 있으므로, 다중 에이전트 협업 환경에서 동시 접근 가능한 네트워크 소켓 기반(SSE) 다중 커넥션 기능은 제한적입니다.
+- 현재는 Line-delimited stdin/stdout Transport를 대상으로 하며 Network MCP Transport는 지원하지 않습니다.
+- Policy Gateway 장애와 Timeout에 대한 운영 수준의 Circuit Breaker가 없습니다.
+- 사용자 승인 UI와 Approval Resume Flow는 범위에 포함하지 않습니다.
 
 ## 12. Next Steps
-- HTTP 서버 기능을 탑재하여 다수의 분산 에이전트가 동시에 인증을 통해 접근할 수 있는 SSE(Server-Sent Events) MCP 모드 추가 개발.
+- Policy Timeout과 장애 시 fail-closed 동작 강화
+- Decision Audit Schema와 Prometheus Metric 추가
+- MCP 고위험 Tool 시나리오를 AgentSecOps E2E에 통합

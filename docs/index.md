@@ -2,8 +2,8 @@
 layout: home
 hero:
   name: "devcy0922"
-  text: "AI Platform & Infrastructure"
-  tagline: "LLM 게이트웨이, 보안 필터링, RAG Retrieval 및 개발 자동화 도구 개발 이력."
+  text: "AI SaaS Platform & DevSecOps"
+  tagline: "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계합니다."
   actions:
     - theme: brand
       text: Explore Projects
@@ -14,24 +14,23 @@ hero:
       target: _blank
 
 features:
-  - title: "Aegis-LLM (가드레일)"
-    details: "비용 절감과 인젝션 방어를 위한 엔터프라이즈 레벨의 LLM 보안 가드레일 프록시 엔진입니다. Rust와 Axum으로 고속 필터링을 지원합니다."
+  - title: "Aegis-LLM — SaaS Control Plane"
+    details: "API Key 인증, 프로젝트별 RPM 제한, DLP, Prompt Security, Audit Log와 Upstream Fallback을 제공하는 Rust 기반 AI Gateway MVP입니다."
     link: /projects/aegis-llm
-  - title: "SliceRAG (청크 최적화)"
-    details: "대규모 문서의 동적 청킹 최적화 및 project_id 네임스페이스 기반 검색 격리를 지원하는 RAG Retrieval 엔진입니다. Python과 pgvector를 활용합니다."
+  - title: "SliceRAG — Tenant-isolated Data Plane"
+    details: "Gateway가 확정한 project_id 범위 안에서만 문서를 저장·검색하고 교차 테넌트 접근을 회귀 테스트로 차단하는 내부 RAG 서비스입니다."
     link: /projects/slicerag
-  - title: "LingoAgent (i18n 에이전트)"
-    details: "한국어 원본 리소스로부터 변수를 훼손하지 않는 자동 린팅 및 LLM-as-a-Judge 기반의 다국어 번역 배포 오케스트레이터입니다."
-    link: /projects/lingo-agent
-  - title: "AgentSecOps Playground"
-    details: "에이전트 자율 코드 실행 시 발생하는 보안 위협 행위를 실시간 모니터링하기 위한 gVisor/eBPF 기반 격리 샌드박스입니다."
+  - title: "AgentSecOps — Governance E2E"
+    details: "인증, RAG 격리, PII 마스킹, Prompt Injection 차단과 LLM Fallback을 가상 데이터로 자동 검증하는 Docker Compose 기반 하네스입니다."
     link: /projects/agentsecops-playground
-  - title: "AI Gateway Infra Demo"
-    details: "다중 LLM 추론 서버 백엔드 간의 지연율 기반 부하 분산(Load Balancing) 및 NGINX/Consul 장애 조치 인프라 아키텍처입니다."
+  - title: "AI Gateway — Inference Routing"
+    details: "LiteLLM으로 vLLM과 MLX를 OpenAI-compatible API로 통합하고 모델 별칭, Least-busy 라우팅, Retry와 Fallback을 선언한 인프라 템플릿입니다."
     link: /projects/ai-gateway-infra-demo
-  - title: "Aperture MCP Server"
-    details: "Claude/Cursor 등 AI 에디터 툴체인이 호스트의 데이터베이스 및 파일 자원에 접근하도록 규격화한 Model Context Protocol 서버입니다."
+  - title: "LingoAgent — Vertical SaaS Prototype"
+    details: "ICU 변수 무결성 검사, LLM-as-a-Judge 재검증, Diff 검토와 승인 배포 흐름을 제공하는 i18n 자동화 제품 프로토타입입니다."
+    link: /projects/lingo-agent
+  - title: "Aperture-MCP — Zero-trust Policy Proxy"
+    details: "MCP tools/call 요청을 가로채 정책 Gateway의 위험도 판정에 따라 고위험 도구 실행을 차단하는 Rust 기반 프록시 MVP입니다."
     link: /projects/aperture-mcp
 ---
-
 

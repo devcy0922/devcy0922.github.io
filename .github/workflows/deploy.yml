@@ -39,6 +39,8 @@ jobs:
         run: pnpm install
 
       - name: Build with VitePress
+        env:
+          VITE_PORTFOLIO_DEMO_KEY: ${{ secrets.PORTFOLIO_DEMO_KEY }}
         run: pnpm docs:build
 
       - name: Upload artifact

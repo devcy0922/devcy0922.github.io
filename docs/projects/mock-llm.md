@@ -4,7 +4,7 @@
 
 ## 📌 Status & Repository
 - **상태**: `Stable`
-- **저장소 주소**: [GitHub (devcy0922/mock-llm)](https://github.com/devcy0922/mock-llm)
+- **저장소 공개 범위**: 비공개 구현 저장소
 - **라이선스**: MIT
 - **주요 언어**: Rust, Go
 

@@ -5,7 +5,7 @@
 ## 📌 Status & Repository
 
 - **상태**: `MVP · Live Demo`
-- **저장소 주소**: [GitHub (GoVail/govail-gateway)](https://github.com/GoVail/govail-gateway)
+- **저장소 공개 범위**: 비공개 구현 저장소
 - **직접 체험**: [Portfolio Live LLM](/live-demo)
 - **주요 언어**: Rust
 

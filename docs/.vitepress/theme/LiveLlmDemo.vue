@@ -11,6 +11,21 @@ const SAFE_EVIDENCE_NOTES = [
 ]
 const RESPONSE_GUARDRAIL = '입력에 명시되지 않은 구현 방식, 수치, SLO 또는 장애 원인을 사실처럼 만들지 않는다. 정보가 부족하면 반드시 확인 필요 또는 가정으로 구분한다. 답변은 전체 12개 항목 이내의 번호형 일반 텍스트로 작성한다.'
 
+const VERIFICATION_ITEMS = [
+  { title: 'GCP API Gateway', desc: '외부 요청을 단일 공개 경로로 보안 수신' },
+  { title: 'GoVail Gateway', desc: 'SurrealDB Key Hash 기반의 포트폴리오 프로젝트 식별' },
+  { title: 'Policy Engine', desc: '요청 빈도, 허용 모델, 입력 규모, DLP/Prompt Policy 검사' },
+  { title: 'LiteLLM Routing', desc: 'auto 별칭을 실제 최적 추론 백엔드로 자동 라우팅' },
+  { title: 'Audit Logger', desc: '요청 상태, 지연시간 등을 감사 이벤트로 기록하여 재현 보장' }
+]
+
+const BOUNDARY_ITEMS = [
+  { title: '체험용 범위', desc: 'auto 모델 및 portfolio-demo 프로젝트에만 한정 적용' },
+  { title: '안정성 제어', desc: '체험 안정성을 보장하기 위해 요청 빈도와 입력 크기를 엄격 통제' },
+  { title: '데이터 격리', desc: '프롬프트 및 답변 원문은 방문 분석 목적으로 저장·수집하지 않음' },
+  { title: '데모 제약', desc: '상용 SLA를 제공하지 않으며 자원 상황에 따라 가용성이 변동 가능' }
+]
+
 type DemoStatus = 'checking' | 'online' | 'offline'
 type ScenarioId = 'architecture' | 'incident' | 'security' | 'custom'
 type StreamStage = 'idle' | 'policy' | 'reasoning' | 'answer' | 'done'
@@ -190,7 +205,6 @@ async function submitPrompt() {
           { role: 'system', content: selectedScenario.value.system },
           { role: 'user', content: prompt.value.trim() },
         ],
-        reasoning_effort: 'medium',
         stream: true,
         temperature: 0.6,
         top_p: 0.95,
@@ -396,76 +410,101 @@ function publicErrorMessage(statusCode: number, data: any) {
     </div>
 
     <div class="live-demo__workspace">
-      <form class="live-demo__form" @submit.prevent="submitPrompt">
-        <div class="live-demo__form-title">
-          <label for="live-demo-prompt">분석할 컨텍스트</label>
-          <span>{{ selectedScenario.title }}</span>
-        </div>
-        <textarea
-          id="live-demo-prompt"
-          v-model="prompt"
-          :maxlength="MAX_PROMPT_CHARS"
-          :placeholder="selectedScenario.placeholder"
-          rows="6"
-          autocomplete="off"
-          spellcheck="true"
-        />
-        <div class="live-demo__controls">
-          <span :class="{ 'is-over': remainingChars < 0 }">{{ remainingChars.toLocaleString() }}자 남음</span>
-          <button type="submit" :disabled="!canSubmit">
-            {{ isSubmitting ? streamStageLabel : 'Live Analysis 실행' }}
-          </button>
-        </div>
-      </form>
-
-      <aside
-        ref="outputPanel"
-        class="live-demo__output"
-        aria-label="분석 결과"
-        aria-live="polite"
-      >
-        <div v-if="errorMessage" class="live-demo__error" role="alert">
-          <strong>요청 실패</strong>
-          <p>{{ errorMessage }}</p>
-        </div>
-
-        <article v-else-if="isSubmitting || responseText || publicNotes.length" class="live-demo__response">
-          <div class="live-demo__response-head">
-            <strong>{{ selectedScenario.title }} · Result</strong>
-            <span :data-stage="streamStage">{{ outputStatusLabel }}</span>
+      <!-- 상단 컨트롤 영역 (입력 및 브라우저 히스토리) -->
+      <div class="live-demo__workspace-top">
+        <form class="live-demo__form" @submit.prevent="submitPrompt">
+          <div class="live-demo__form-title">
+            <label for="live-demo-prompt">분석할 컨텍스트</label>
+            <span>{{ selectedScenario.title }}</span>
           </div>
-          <div v-if="publicNotes.length" class="live-demo__memo">
-            <p>PUBLIC REVIEW NOTES</p>
+          <textarea
+            id="live-demo-prompt"
+            v-model="prompt"
+            :maxlength="MAX_PROMPT_CHARS"
+            :placeholder="selectedScenario.placeholder"
+            rows="5"
+            autocomplete="off"
+            spellcheck="true"
+          />
+          <div class="live-demo__controls">
+            <span :class="{ 'is-over': remainingChars < 0 }">{{ remainingChars.toLocaleString() }}자 남음</span>
+            <button type="submit" :disabled="!canSubmit">
+              {{ isSubmitting ? streamStageLabel : 'Live Analysis 실행' }}
+            </button>
+          </div>
+        </form>
+
+        <aside class="live-demo__history-panel" aria-label="최근 검토 메모">
+          <div class="live-demo__history-title">
+            <strong>브라우저 히스토리</strong>
+            <span>Public Review Notes</span>
+          </div>
+          <div v-if="publicNotes.length" class="live-demo__memo-list">
             <ul>
               <li v-for="note in publicNotes" :key="note">{{ note }}</li>
             </ul>
-            <small>이 메모만 현재 탭에 보관하며 원문 입력·응답·추론은 저장하지 않습니다.</small>
+            <small>※ 이 탭의 `sessionStorage`에 임시 보관된 최근 검토 메모입니다.</small>
           </div>
-          <div v-if="isSubmitting && !responseText" class="live-demo__progress">
+          <div v-else class="live-demo__history-empty">
+            <p>최근 분석 이력이 없습니다.</p>
+            <small>상단의 분석 시나리오를 선택하거나 컨텍스트를 직접 입력하여 Live Analysis를 시작해 보세요.</small>
+          </div>
+        </aside>
+      </div>
+
+      <!-- 하단 결과 & 상세 설명 영역 (responseText 또는 Idle 검증 사항 정보 카드) -->
+      <div class="live-demo__workspace-bottom" ref="outputPanel">
+        <div v-if="errorMessage" class="live-demo__error" role="alert">
+          <strong>요청 처리 실패</strong>
+          <p>{{ errorMessage }}</p>
+        </div>
+
+        <article v-else-if="isSubmitting || responseText" class="live-demo__result-panel">
+          <div class="live-demo__result-head">
+            <strong>{{ selectedScenario.title }} · Analysis Result</strong>
+            <span :data-stage="streamStage">{{ streamStageLabel }}</span>
+          </div>
+          <div v-if="isSubmitting && !responseText" class="live-demo__loading-progress">
             <span aria-hidden="true" />
             <div>
-              <strong>{{ streamStageLabel }}</strong>
-              <small>내부 추론 원문 대신 공개 가능한 검토 단계만 표시합니다.</small>
+              <strong>{{ streamStageLabel }} 중...</strong>
+              <small>GCP API Gateway와 GoVail 정책 경계를 검사하고 사설 LLM 추론을 개시합니다.</small>
             </div>
           </div>
-          <pre v-if="responseText">{{ responseText }}</pre>
+          <pre v-if="responseText" class="live-demo__response-content">{{ responseText }}</pre>
         </article>
 
-        <div v-else class="live-demo__proof">
-          <p>WHAT THIS PROVES</p>
-          <ul>
-            <li><strong>Zero-trust</strong><span>전용 Key와 최소 권한</span></li>
-            <li><strong>Policy routing</strong><span>모델·요청·입력 경계</span></li>
-            <li><strong>Private inference</strong><span>사설 모델 실행 경로</span></li>
-            <li><strong>Observable</strong><span>상태·지연·감사 이벤트</span></li>
-          </ul>
+        <!-- 실행 전 대기(Idle) 시 검증 및 경계 노출 -->
+        <div v-else class="live-demo__info-cards">
+          <div class="live-demo__info-card">
+            <h3>이 요청에서 검증되는 것</h3>
+            <ul>
+              <li v-for="(item, idx) in VERIFICATION_ITEMS" :key="idx">
+                <strong>{{ idx + 1 }}. {{ item.title }}</strong>
+                <span>{{ item.desc }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="live-demo__info-card">
+            <h3>공개 체험의 경계 및 제약</h3>
+            <ul>
+              <li v-for="(item, idx) in BOUNDARY_ITEMS" :key="idx">
+                <strong>• {{ item.title }}</strong>
+                <span>{{ item.desc }}</span>
+              </li>
+            </ul>
+          </div>
         </div>
-      </aside>
+      </div>
     </div>
 
     <footer class="live-demo__footer">
       <span>프롬프트·응답 원문 비저장</span>
-      <a href="/live-demo">작동 방식 보기 →</a>
+      <div class="live-demo__footer-links">
+        <a href="/projects/ai-gateway-infra-demo">AI Gateway Infra 설계 →</a>
+        <a href="/projects/aegis-llm">Aegis-LLM 보안 판단 →</a>
+      </div>
     </footer>
   </section>
 </template>

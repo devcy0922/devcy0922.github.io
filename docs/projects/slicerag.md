@@ -1,9 +1,9 @@
 # SliceRAG
 
-대규모 문서의 동적 청킹 최적화 및 멀티테넌트 범위 격리 검색을 위한 RAG Retrieval 파이프라인 엔진입니다.
+Gateway가 확정한 `project_id` 범위 안에서만 문서를 저장·검색하는 Tenant-isolated RAG Data Plane MVP입니다.
 
 ## 📌 Status & Repository
-- **상태**: `Stable`
+- **상태**: `MVP`
 - **저장소 주소**: [GitHub (devcy0922/slicerag)](https://github.com/devcy0922/slicerag)
 - **라이선스**: Apache 2.0
 - **주요 언어**: Python
@@ -11,80 +11,86 @@
 ---
 
 ## 1. Problem
-RAG(Retrieval-Augmented Generation) 시스템 구축 시, 수백 페이지에 달하는 문서들을 단순 길이 기준으로 청킹(Chunking)하면 의미적 맥락이 찢어져 LLM 답변의 품질이 대폭 하락합니다. 또한, 여러 서비스 테넌트가 동일한 인프라를 사용할 경우 테넌트 간의 데이터 격리가 보장되지 않으면 보안 침해 사고가 발생할 수 있습니다.
+여러 프로젝트가 하나의 Vector Store를 공유하면 검색 품질보다 먼저 다른 프로젝트의 문서가 결과에 섞이지 않는 Scope Invariant를 보장해야 합니다. 외부 인증과 내부 검색 책임이 섞이면 RAG 서비스가 사용자 권한까지 중복 구현하게 되고 보안 경계도 불분명해집니다.
 
 ## 2. Why I Built It
-문서의 레이아웃(헤더, 리스트 등)과 문맥 단락을 파악해 의미를 보존하며 최적으로 쪼개는 동적 슬라이싱 모듈을 구현하고, 각 청크를 `project_id` 네임스페이스로 엄격하게 분리하여 PostgreSQL `pgvector`를 통해 격리된 고속 탐색을 수행하기 위해 만들었습니다.
+외부 인증과 정책은 Gateway가 담당하고 SliceRAG는 내부 Token과 `project_id`를 검증한 뒤 동일 Namespace 안에서만 Ingest, Search, Document 조회를 수행하도록 책임을 분리했습니다.
 
 ## 3. Scope
-- PDF, Markdown 문서 파싱 및 문맥 단위 동적 청킹
-- project_id 기반의 메타데이터 필터링을 결합한 격리 유사도 벡터 검색
-- DB 연결이 불가능한 로컬 테스트 환경을 위한 In-Memory 벡터 스토어(`memory`) 제공
-- 대규모 비동기 수집 파이프라인 제어를 위한 Temporal 오케스트레이션 연동
+- Gateway 전용 `/internal/*` API와 Shared Internal Token 검증
+- `project_id`별 Document, Chunk, Search Namespace
+- PostgreSQL + pgvector 또는 In-Memory Store 전환
+- Hash Embedding과 Gateway 경유 OpenAI-compatible Embedding
+- Chunk와 Source 근거를 함께 반환하는 Search Contract
+- 교차 프로젝트 조회와 예약 식별자 차단 테스트
 
 ---
 
 ## 4. Architecture
 
 ```mermaid
-graph TD
-    Client["Client (Ingest API)"] -->|POST docs| API["FastAPI Endpoint"]
-    API -->|Start Workflow| Workflow["Temporal Workflow (orchestrator)"]
-    subgraph Pipeline ["Ingestion & Embed Pipeline"]
-        Workflow --> Parser["Document Parser (Semantic Split)"]
-        Parser --> Embed["Embedding Generator (OpenAI/Local)"]
-    end
-    Embed -->|Upsert Vectors| DB["PostgreSQL (pgvector)"]
-    DB -.->|Isolate Query by project_id| Search["Search Engine"]
+flowchart LR
+    Client["IDE / SaaS Client"] --> Gateway["Auth & Policy Gateway"]
+    Gateway -->|"project_id + internal token"| RAG["SliceRAG Internal API"]
+    RAG --> Scope["Scope Validation"]
+    Scope --> Store["PostgreSQL + pgvector"]
+    Scope -. "Test / Demo" .-> Memory["In-Memory Store"]
+    Gateway --> Embed["OpenAI-compatible Embedding Gateway"]
+    RAG --> Embed
 ```
-
----
 
 ## 5. Data Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    Client->>FastAPI: POST /internal/projects/{project_id}/search (Query)
-    FastAPI->>Embedder: Generate query embedding vector
-    Embedder-->>FastAPI: Vector representation
-    FastAPI->>pgvector: Query vector + Metadata filter (project_id)
-    Note over pgvector: Cosine similarity search in isolated index
-    pgvector-->>FastAPI: Top-K matching chunks
-    FastAPI-->>Client: Context strings + Source metadata
+    participant Gateway
+    participant RAG as SliceRAG
+    participant Store as pgvector
+    Gateway->>RAG: search(project_id, query) + internal token
+    RAG->>RAG: token과 project_id 형식 검증
+    RAG->>Store: WHERE project_id = requested project
+    Store-->>RAG: scoped chunks + sources
+    RAG-->>Gateway: memory_hit + evidence
+    Gateway->>Gateway: 응답 정책과 Audit 적용
 ```
-
----
 
 ## 6. Key Design Decisions
-- **메타데이터 수준의 강제 필터링**: 단순히 유사도만 비교하는 것 대신, SQL 쿼리 레벨에서 `WHERE project_id = :project_id`를 강제하여 다른 테넌트의 청크가 검색 대상에 섞여 들어올 확률을 0%로 만들었습니다.
-- **인메모리 폴백 엔진**: 데이터베이스 연동이 안 된 경량 CLI 데모 시연을 위해, 로컬 메모리 상에서 해시 기반 벡터 거리를 계산해주는 스토어 엔진을 내장했습니다.
+- **Gateway가 Identity를 확정**: SliceRAG는 외부 API Key나 사용자 목록을 다루지 않고 Gateway가 전달한 Project Scope만 검증합니다.
+- **저장소 계층에서도 Scope 강제**: In-Memory와 PostgreSQL 구현 모두 Search와 Document 조회에 `project_id` 조건을 적용합니다.
+- **열거 API 비노출**: Project 목록이나 Cross-project 검색 Endpoint를 제공하지 않고 `all` 같은 예약 식별자를 API와 Migration에서 거부합니다.
 
 ## 7. Security Considerations
-- 비식별화 규정에 의거, 업로드 시점에 개인정보 유출이 감지되면 데이터 마스킹 후 임베딩하고 로그에 원문 텍스트 내용을 직접 출력하지 않습니다.
+- 내부 API는 `X-SliceRAG-Internal-Token` 없이는 실행되지 않습니다.
+- 다른 Project의 Document ID를 직접 입력해도 `project_id`가 일치하지 않으면 조회되지 않습니다.
+- Embedding Provider는 SliceRAG가 직접 외부로 호출하지 않고 Gateway 정책 경계를 경유하도록 구성할 수 있습니다.
 
 ## 8. Observability
-- 임베딩 소요 시간, 데이터베이스 트랜잭션 지연, 청크 생성 총량을 모니터링하기 위한 Prometheus 커스텀 수집 메트릭을 출력합니다.
+- `/health`를 통해 Liveness를 확인합니다.
+- Search 결과에 `project_id`, `memory_hit`, Chunk와 Source ID를 반환해 상위 Gateway가 Audit Metadata를 남길 수 있습니다.
+- 현재 독립 Prometheus Dashboard는 제공하지 않으며 Gateway Audit과 서비스 로그를 주요 추적 경로로 사용합니다.
 
 ## 9. Technology Stack
-- **Framework**: Python (FastAPI), Temporal
-- **Database**: PostgreSQL (pgvector)
-- **Embedding**: OpenAI Embedding API, HuggingFace SentenceTransformers
-
----
+- **API**: Python, FastAPI, Pydantic
+- **Store**: PostgreSQL, pgvector, In-Memory
+- **Quality Gate**: Ruff, Mypy, Pytest
+- **Packaging**: Docker Compose
 
 ## 10. Running Locally
-로컬 실행 시 임베딩 스토어 방식을 선택하여 가볍게 가동할 수 있습니다.
 
 ```bash
-# 로컬 인메모리 스토어로 FastAPI 구동
-export SLICERAG_STORE="memory"
-export SLICERAG_EMBEDDING_PROVIDER="hash"
-pnpm --filter slicerag dev  # 또는 python -m uvicorn src.main:app
+cp .env.example .env
+docker compose up --build
 ```
 
+Compose는 내부 서비스를 Loopback에 바인딩하며 외부 Client는 SliceRAG가 아니라 Gateway에 연결해야 합니다.
+
 ## 11. Current Limitations
-- 실시간으로 대규모의 문서를 처리할 때 Temporal 워크플로우 큐 지연이 발생할 수 있어, 백프레셔(Backpressure) 제어 최적화가 요구됩니다.
+- 외부 사용자 인증, 권한 관리와 Billing은 범위에 포함하지 않습니다.
+- 현재 Chunking은 공개 API Contract와 격리 검증에 필요한 범위이며 PDF Layout 분석이나 Temporal Pipeline을 구현했다고 주장하지 않습니다.
+- 운영 규모의 Backpressure와 Queue Orchestration은 아직 제공하지 않습니다.
 
 ## 12. Next Steps
-- 중복 문서 및 유사 청크를 병합 처리하는 Deduplication 알고리즘 도입.
+- Tenant별 Ingest/Search Metric과 Storage Quota 추가
+- PostgreSQL Row Level Security 적용 가능성 검증
+- 대규모 Ingestion Queue와 Deduplication 설계

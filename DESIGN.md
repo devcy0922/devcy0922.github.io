@@ -107,12 +107,12 @@
 
 ## 11. Home Page
 - **Hero**:
-  - Eyebrow: `Backend · Infrastructure · AI Platform`
-  - H1: `AI 시스템을 연결하고, 통제하고, 관찰하는 도구를 만듭니다.`
-  - Description: `LLM Gateway, 보안 정책, RAG 파이프라인과 개발자 자동화 도구를 설계하고 구현한 기록입니다.`
+  - Eyebrow: `Multi-tenant SaaS · DevSecOps · AI Platform`
+  - H1: `AI SaaS의 요청 경계부터 추론 운영까지 설계합니다.`
+  - Description: `인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 실제 코드로 구현한 기록입니다.`
   - CTA Buttons: [Explore Projects], [GitHub Profile]
 - **Selected Projects**:
-  - 상단 3개 대표 프로젝트 (Aegis-LLM, SliceRAG, LingoAgent)는 넓은 레이아웃의 Feature Card 배치.
+  - 상단 대표 프로젝트는 Aegis-LLM, SliceRAG, AgentSecOps Playground 순서로 배치한다.
   - 하단 6개 프로젝트는 2열 컴팩트 카드 또는 리스트 타입으로 분리하여 위계 규정.
 - **Engineering Focus**:
   - 기술 나열 대신 역량 단위 요약: `AI Request Routing`, `Security & Policy Enforcement`, `Retrieval Pipeline` 등.

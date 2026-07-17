@@ -1,6 +1,6 @@
 # LingoAgent
 
-개발자가 한국어(`ko-KR`) 로캘 파일만 직접 관리하면 AI 에이전트가 다국어 번역, ICU 포맷 검증 및 품질 평가를 수행하는 국제화(i18n) 자동화 오케스트레이터입니다.
+개발자가 한국어(`ko-KR`) 원본을 제출하면 번역, ICU 포맷 검증, 품질 평가, Diff 검토와 승인 배포까지 연결하는 Vertical AI SaaS Prototype입니다.
 
 ## 📌 Status & Repository
 - **상태**: `Experimental`
@@ -108,6 +108,7 @@ pnpm start:backend
 
 ## 11. Current Limitations
 - 에이전트의 린트 기작이 ICU 포맷 파싱에 집중되어 있어, 다국어 교체에 따른 전체 웹 디자인 레이아웃 깨짐(Pixel Overflow)은 눈으로 직접 검사해야 합니다.
+- 현재 SQLite 기반 단일 인스턴스 데모이며 Workspace·Tenant 격리와 Billing은 구현 범위에 포함하지 않습니다.
 
 ## 12. Next Steps
 - Playwright 브라우저 렌더링 스크린샷과 Pixel Diff 분석 엔진을 연동하여 레이아웃이 터져 나가는 것까지 자동 감지하는 기능을 추가할 예정입니다.

@@ -1,9 +1,9 @@
 # Aegis-LLM
 
-비용 절감과 인젝션 방어를 위한 엔터프라이즈 레벨의 LLM 보안 가드레일 프록시 엔진입니다.
+API 인증, 프로젝트별 사용량 제한, DLP와 감사 추적을 LLM 요청 경계에서 검증하는 Rust 기반 AI Gateway MVP입니다.
 
 ## 📌 Status & Repository
-- **상태**: `Stable`
+- **상태**: `MVP`
 - **저장소 주소**: [GitHub (devcy0922/aegis-llm)](https://github.com/devcy0922/aegis-llm)
 - **라이선스**: MIT
 - **주요 언어**: Rust
@@ -11,90 +11,98 @@
 ---
 
 ## 1. Problem
-외부 LLM 공급자(OpenAI 등)를 직접 연동할 경우, 내부 직원의 실수나 외부 공격자의 프롬프트 인젝션(Prompt Injection) 시도로 인해 시스템 명령어 권한이 탈취되거나, 이메일/주민등록번호 등의 개인정보(PII)가 외부로 유출될 위험이 상존합니다. 또한 무제한적인 API 호출로 인한 오남용 비용 리스크가 큽니다.
+클라이언트가 LLM Provider를 직접 호출하면 API Key별 정책, 개인정보 유출 방지, Prompt Injection 차단, 사용량 제한과 장애 추적을 각 애플리케이션에서 반복 구현해야 합니다. 이 구조에서는 보안 정책이 분산되고 요청이 차단된 이유와 Upstream 장애 경로를 일관되게 감사하기 어렵습니다.
 
 ## 2. Why I Built It
-성능 오버헤드가 적은 Rust 언어를 사용해 API 경계면(Edge)에서 초고속으로 트래픽을 중계하며, 요청 전달 전에 인젝션 위협을 실시간 필터링하고 데이터 유출(DLP) 방지 및 API Key 기반 사용량 제한(Rate Limiting)을 단일 바이너리 내에서 효율적으로 수행하기 위해 구축했습니다.
+Aegis-LLM은 OpenAI-compatible API 앞단에 공통 Control Plane을 두고 인증, Rate Limit, 요청 보안, 모델 정책, Retry/Fallback과 Audit을 하나의 경계에서 처리할 수 있는지 검증하기 위해 만들었습니다.
 
 ## 3. Scope
-- 프롬프트 인젝션 탐지 및 400 Bad Request 조기 차단
-- 주민등록번호, 이메일, 평문 API Key 등의 PII 정보 감지 및 마스킹
-- API Key별 분당 요청 수(RPM) 제한 (Sliding Window 방식)
-- OpenAI Responses API 규격을 Chat Completions 규격으로 자동Adaptation 중계
+- Static Config, SurrealDB, JWT를 순차 적용하는 3-Tier 인증
+- API Key의 `project`, `role`, RPM 기준 Sliding Window 제한
+- 이메일, 주민등록번호, 평문 Secret 탐지와 마스킹
+- Prompt Injection 및 추가 Deny Pattern 조기 차단
+- Chat Completions, Responses, Embeddings, Models API 중계
+- Primary Upstream Retry와 Fallback Route
+- Prometheus Metric과 JSONL Audit Log
 
 ---
 
 ## 4. Architecture
 
 ```mermaid
-graph TD
-    Client["Client (SDK/CLI)"] -->|HTTPS Request| Aegis["Aegis-LLM Proxy"]
-    subgraph Core ["Aegis-LLM Pipeline"]
-        Aegis --> Auth["Auth & RateLimiter (auth.rs)"]
-        Auth --> Safety["PII & Injection Filter (security.rs)"]
-        Safety --> Adapter["OpenAI Format Adapter (responses_adapter.rs)"]
-    end
-    Adapter -->|Clean Request| LLM["LLM Upstream (vLLM)"]
-    Aegis -.->|Stream Output| Audit["Audit Log (audit.jsonl)"]
+flowchart LR
+    Client["Client / SaaS App"] --> Gateway["Aegis-LLM"]
+    Gateway --> Auth["Auth · Project · RPM"]
+    Auth --> Policy["DLP · Prompt Policy"]
+    Policy --> Adapter["OpenAI API Adapter"]
+    Adapter --> Primary["Primary LLM Upstream"]
+    Adapter -. "Retry / Fallback" .-> Fallback["Fallback Upstream"]
+    Gateway --> Metrics["Prometheus Metrics"]
+    Gateway --> Audit["JSONL Audit Log"]
 ```
-
----
 
 ## 5. Request Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client as Client
+    participant Client
     participant Aegis as Aegis-LLM
-    participant Upstream as vLLM Upstream
-
-    Client->>Aegis: POST /v1/chat/completions (Prompt + API Key)
-    Aegis->>Aegis: API Key 유효성 및 RPM 한도 조회
-    alt RPM 한도 초과
-        Aegis-->>Client: 429 Too Many Requests
+    participant LLM as LLM Upstream
+    Client->>Aegis: OpenAI-compatible request + API Key
+    Aegis->>Aegis: 인증, project/role 확인, RPM 검사
+    Aegis->>Aegis: DLP와 Prompt Policy 적용
+    alt 정책 위반
+        Aegis-->>Client: 400 또는 429 + trace_id
+    else 정책 통과
+        Aegis->>LLM: 정제된 요청 + trace header
+        alt Primary 장애
+            Aegis->>LLM: Retry 후 Fallback Route
+        end
+        LLM-->>Aegis: OpenAI-compatible response
+        Aegis-->>Client: Response + trace header
     end
-    Aegis->>Aegis: PII 마스킹 및 프롬프트 인젝션 키워드 스캔
-    alt 인젝션 탐지
-        Aegis-->>Client: 400 Bad Request (Blocked)
-    end
-    Aegis->>Upstream: 전달 (Adaptated payload)
-    Upstream-->>Aegis: Response
-    Aegis->>Aegis: 감사로그 적재 (audit.jsonl)
-    Aegis-->>Client: 200 OK Response
+    Aegis->>Aegis: Metric과 Audit Event 기록
 ```
-
----
 
 ## 6. Key Design Decisions
-- **정규식 배제 고속 스캔**: 프롬프트 인젝션 1차 스캔 시 정규식(Regex)을 배제하고 `contains` 키워드 매칭(O(n·m))을 통해 지연율(latency) 증가를 2ms 이하로 극도로 제한했습니다.
-- **3-Tier 인증 아키텍처**: static config, SurrealDB, JWT 토큰 방식을 단계별로 시도하여 대규모 실시간 요청 처리와 정적 로컬 시연 모두 안정적으로 지원합니다.
+- **API Key를 SaaS 경계로 사용**: Key별 `project`, `role`, RPM 정보를 인증 결과에 결합해 요청 정책과 사용량 제한을 같은 Principal 기준으로 처리합니다.
+- **Fail-closed 보안 필터**: 차단 대상 Payload는 Upstream으로 전송하기 전에 종료해 정보 유출과 불필요한 추론 비용을 줄입니다.
+- **Provider 장애 격리**: 네트워크 오류와 5xx 응답에 Retry를 적용하고 설정된 Fallback Upstream으로 전환합니다.
 
 ## 7. Security Considerations
-- 외부 위협 탐지 시 Upstream LLM으로 페이로드를 전달하지 않고 에지 단에서 즉시 커넥션을 차단하여 불필요한 LLM 추론 비용 소모와 프롬프트 전파를 원천 봉쇄합니다.
+- 평문 API Key는 설정 예시와 로그에 기록하지 않습니다.
+- 보안 차단과 인증 실패도 `trace_id`, 프로젝트, 차단 사유를 포함한 Audit Event로 남깁니다.
+- 현재 Prompt Injection 탐지는 Keyword와 Deny Pattern 중심이므로 의미론적 우회까지 완전하게 방어한다고 주장하지 않습니다.
 
 ## 8. Observability
-- 실시간 Prometheus 텔레메트리 `/metrics` 엔드포인트를 제공하여 RPM 소비량, 차단 횟수, 레이턴시 분포를 관측 가능하게 제공합니다.
-- 매 요청마다 UUID 기반의 `trace_id`를 부여해 `logs/audit.jsonl` 감사 로그에 비동기 플러시합니다.
+- `/metrics`에서 요청, 차단, 오류, Fallback 관련 Prometheus Metric을 제공합니다.
+- 모든 요청 경로에 `trace_id`를 부여하고 `logs/audit.jsonl`에 비동기로 기록합니다.
+- 응답에도 Trace Header를 전달해 Client 오류와 Gateway Audit을 연결할 수 있습니다.
 
 ## 9. Technology Stack
-- **Framework**: Rust (Axum, Tower-HTTP)
-- **Database**: SurrealDB (Config caching & API key store)
-- **Metrics**: Prometheus
-
----
+- **Gateway**: Rust, Axum, Tower HTTP
+- **Authentication**: Static Config, SurrealDB, JWT
+- **Observability**: Prometheus, Structured JSONL Audit
+- **Packaging**: Docker
 
 ## 10. Running Locally
-설정 파일 경로를 환경변수로 지정한 후 바이너리를 실행합니다.
 
 ```bash
-# 가상 설정 파일 생성 및 실행
-export GOVAIL_CONFIG="configs/gateway.toml"
-cargo run --release -- --config $GOVAIL_CONFIG
+docker build -t aegis-llm:local .
+docker run --rm -p 8080:8080 \
+  -v ./configs/gateway.example.toml:/app/configs/gateway.toml:ro \
+  aegis-llm:local
 ```
 
+실제 Secret과 Upstream 주소는 이미지나 저장소에 포함하지 않고 실행 환경에서 주입합니다.
+
 ## 11. Current Limitations
-- 정밀한 의미 기반 인젝션(Semantic Injection) 탐지를 위한 임베딩 분석 레이어가 아직 포함되지 않아, 키워드 우회 기법에 취약할 수 있습니다.
+- 현재 Rate Limit 상태는 단일 프로세스 메모리에 유지되므로 다중 Replica의 전역 Quota로 사용할 수 없습니다.
+- Keyword 기반 Prompt Injection 탐지는 의미론적 우회에 취약할 수 있습니다.
+- 공개 버전은 운영 SLA를 보장하는 제품이 아니라 Control Plane 설계를 검증하는 MVP입니다.
 
 ## 12. Next Steps
-- 벡터 데이터베이스를 활용한 의미론적 유사도 기반 프롬프트 인젝션 방어 기법 도입.
+- Tenant별 Daily/Monthly Quota와 Usage Event 저장
+- API Key 발급, 폐기, Rotation 관리 경계 추가
+- 분산 Rate Limit 저장소와 재현 가능한 Failure Drill 추가

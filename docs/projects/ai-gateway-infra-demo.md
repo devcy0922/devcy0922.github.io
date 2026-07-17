@@ -1,99 +1,105 @@
 # AI Gateway Infra Demo
 
-다중 LLM 추론 서버 백엔드 간의 지연율 기반 부하 분산(Load Balancing) 및 자동 장애 장애 조치(Failover)를 제공하는 AI 관제 인프라 아키텍처 데모입니다.
+LiteLLM을 중심으로 vLLM과 MLX 추론 Endpoint를 하나의 OpenAI-compatible API로 통합하는 Multi-node Inference Routing 템플릿입니다.
 
 ## 📌 Status & Repository
-- **상태**: `Stable`
+- **상태**: `Prototype`
 - **저장소 주소**: [GitHub (devcy0922/ai-gateway-infra-demo)](https://github.com/devcy0922/ai-gateway-infra-demo)
 - **라이선스**: MIT
-- **주요 언어**: Docker Compose, Shell Script, Nginx Config
+- **주요 구성**: Docker Compose, LiteLLM, Promtail
 
 ---
 
 ## 1. Problem
-다양한 LLM 서비스(OpenAI, vLLM 로컬 추론 노드 등)를 대규모 상용 환경에 배포할 때, 특정 노드가 불통이 되거나(GPU 메모리 초과 등), 응답 지연(Time to First Token)이 치솟는 장애가 발생하면 전체 서비스 장애로 확산됩니다. 특정 공급업체의 API 상태에 단일 실패 지점(SPOF)을 노출하지 않는 이중화 게이트웨이 인프라가 필수적입니다.
+GPU 추론 노드와 로컬 추론 노드가 서로 다른 Model ID와 Endpoint를 제공하면 Client가 Provider별 연결 정보와 장애 처리 로직을 알아야 합니다. 특정 노드의 지연이나 장애가 전체 애플리케이션으로 전파되지 않도록 공통 Routing과 Fallback 경계가 필요합니다.
 
 ## 2. Why I Built It
-NGINX와 Consul을 조합하여 실시간으로 다중 Upstream LLM 노드의 응답성과 liveness 헬스 체크를 모니터링하고, 응답 속도가 비정상적으로 느리거나 에러율이 급증하는 노드를 업스트림 풀에서 자동 축출 및 백업 노드로 장애 조치(Failover)해주는 고가용성 프록시 게이트웨이 인프라를 프로토타입화하기 위해 설계했습니다.
+LiteLLM의 Provider Adapter와 Router를 이용해 `auto`, `fast`, `thinking`, `embedding` 같은 안정적인 Model Alias를 제공하고, vLLM과 MLX의 차이를 Client에서 숨기는 구성을 검증하기 위해 만들었습니다.
 
 ## 3. Scope
-- NGINX 로드 밸런싱을 통한 다중 vLLM 노드 라우팅
-- 백엔드 헬스 체크 스크립트를 통한 실시간 Liveness 감시 및 Consul 서비스 등록
-- 특정 vLLM 노드 오프라인 시 다른 로컬 노드 또는 외부 OpenAI API 백업 노드로의 Failover 시나리오 구현
-- Grafana/Prometheus 연동용 모니터링 수집 스택 셋업
+- vLLM과 MLX를 OpenAI-compatible Endpoint로 통합
+- Model Alias별 Timeout과 Token 상한 설정
+- Least-busy Routing, Retry, Fast/Thinking Fallback 선언
+- PostgreSQL 기반 LiteLLM Spend Log 연결 설정
+- Promtail을 이용한 Container/Audit Log의 Loki 전송
+- Optional Prompt Enricher와 Workflow Component 연결점
 
 ---
 
 ## 4. Architecture
 
 ```mermaid
-graph TD
-    Client["Client App"] -->|1. LLM API Request| Gateway["NGINX Proxy (Gateway)"]
-    subgraph Upstream_Pool ["LLM Backend Upstream"]
-        Gateway -->|Active node| GPU1["vLLM Node 1 (GPU Server)"]
-        Gateway -->|Active node| GPU2["vLLM Node 2 (GPU Server)"]
-        Gateway -->|Failover Backup| Backup["OpenAI External API"]
-    end
-    Consul["Consul Service Registry"] -.->|2. Health Check Poll| GPU1 & GPU2
-    Consul -->|3. Dynamic Config Reload| Gateway
+flowchart LR
+    Client["Client / Application"] --> Front["Front Policy Gateway"]
+    Front --> LiteLLM["LiteLLM Router"]
+    LiteLLM -->|"fast · thinking"| vLLM["vLLM GPU Endpoint"]
+    LiteLLM -. "Fallback" .-> MLX["MLX Endpoint"]
+    LiteLLM -->|"embedding"| Embed["Embedding Endpoint"]
+    LiteLLM --> DB["PostgreSQL Spend Log"]
+    Logs["Container & Audit Logs"] --> Promtail["Promtail"]
+    Promtail --> Loki["Loki / Grafana"]
 ```
-
----
 
 ## 5. Request Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client as Client App
-    participant Gateway as NGINX Gateway
-    participant GPU1 as vLLM Node 1
-    participant Backup as OpenAI API (Backup)
-
-    Client->>Gateway: Request Chat Completions
-    Gateway->>Gateway: Evaluate Upstream status
-    alt GPU Node 1 is Online
-        Gateway->>GPU1: Route payload to GPU Node 1
-        GPU1-->>Gateway: Response
-    else GPU Node 1 is Offline
-        Note over Gateway: Switch to Backup node (Failover)
-        Gateway->>Backup: Route payload to OpenAI API
-        Backup-->>Gateway: Response
+    participant Client
+    participant Gateway as Front Gateway
+    participant Router as LiteLLM
+    participant GPU as vLLM
+    participant Local as MLX
+    Client->>Gateway: model=fast, OpenAI-compatible request
+    Gateway->>Router: 인증된 요청 전달
+    Router->>GPU: Least-busy route
+    alt Primary 실패
+        Router->>GPU: Retry
+        Router->>Local: Configured fallback
+        Local-->>Router: Response
+    else Primary 정상
+        GPU-->>Router: Response
     end
-    Gateway-->>Client: Return result
+    Router-->>Gateway: Unified response
+    Gateway-->>Client: OpenAI-compatible response
 ```
-
----
 
 ## 6. Key Design Decisions
-- **동적 가중치 최소 연결 방식 (Least Connections with Dynamic Weight)**: 정적인 라운드 로빈 방식 대신, 처리 중인 활성 커넥션 수가 가장 적은 노드에 우선적으로 가중치를 배분하여 GPU 병목으로 인한 병렬 추론 레이턴시 튀는 현상을 최소화했습니다.
-- **Consul을 통한 동적 백엔드 리로드**: 서버 추가 시 NGINX를 재부팅하지 않고도 Upstream 리스트를 실시간으로 리로드할 수 있도록 서비스 디스커버리를 결합했습니다.
+- **Client와 Provider 분리**: Client는 실제 Model ID나 Node 주소가 아니라 `fast`, `thinking` 같은 안정적인 Alias를 사용합니다.
+- **설정 기반 복구 경로**: Retry 횟수, Timeout과 Fallback Mapping을 LiteLLM Config에 선언해 애플리케이션 코드에서 분리합니다.
+- **로그 수집 분리**: Promtail이 Runtime Log를 Loki로 전달하고 추론 서비스는 로그 Backend의 구현을 알지 않도록 구성합니다.
 
 ## 7. Security Considerations
-- 외부로 노출되지 않고 사내 내부망 안에서 가동되는 사설 망 게이트웨이 프레임워크를 기반으로 하며, Upstream 백업으로 API Key를 전달할 때 NGINX Variable을 암호화하여 기록 보관하는 설정을 수록했습니다.
+- 실제 API Key, Database URL과 Node 주소는 `.env`에만 두고 저장소에는 `.env.example`만 제공합니다.
+- LiteLLM은 내부 Master Key를 요구하고 외부 Client 인증과 세부 정책은 Front Gateway 책임으로 분리합니다.
+- Prompt Enricher의 Soft Check를 보안 경계로 과장하지 않으며 최종 차단 정책은 별도 Gateway에서 수행해야 합니다.
 
 ## 8. Observability
-- NGINX Prometheus Exporter를 연동하여 요청 성공률, 활성 커넥션 수, 5xx 에러 비율을 실시간 스크랩하여 모니터링하도록 구성했습니다.
+- LiteLLM Request/Spend Log를 PostgreSQL에 저장할 수 있도록 구성합니다.
+- Promtail은 Docker stdout과 Mount된 Audit Log를 Loki로 전송합니다.
+- 이 저장소는 관측 Backend 자체보다 수집과 Routing 연결 설정을 제공하는 Template입니다.
 
 ## 9. Technology Stack
-- **Gateway**: NGINX (with OpenResty)
-- **Service Discovery**: HashiCorp Consul
-- **Metrics**: Prometheus, Grafana
-
----
+- **Router**: LiteLLM Proxy
+- **Inference**: vLLM, MLX, OpenAI-compatible Endpoints
+- **Logs**: Promtail, Loki, Grafana
+- **Runtime Definition**: Docker Compose
 
 ## 10. Running Locally
-Docker Compose를 통해 로컬에 다중 모사 LLM 백엔드 풀을 띄우고 게이트웨이를 구동해볼 수 있습니다.
 
 ```bash
-# NGINX + Mock LLM Node 이중화 클러스터 구동
-docker-compose up -d --build
-# 게이트웨이 정상 동작 체크 (Port 9091)
-curl http://localhost:9091/health
+cp .env.example .env
+docker compose config
 ```
 
+구성 검증 후 실제 환경의 vLLM, MLX, PostgreSQL, Loki Endpoint를 연결합니다. 공개 저장소에 포함되지 않은 Optional Build Context는 해당 Profile 또는 Service를 제외하고 검증해야 합니다.
+
 ## 11. Current Limitations
-- 세션 스티키니스(Session Stickiness) 설정이 포함되지 않아, 다중 턴 대화 시 캐시 공유가 되지 않아 레이턴시 낭비가 발생할 수 있습니다.
+- 현재 저장소는 운영 Cluster 전체가 아니라 Routing과 Log Collection 구성을 보여주는 Prototype입니다.
+- 일부 Optional Component의 Source/Build Context는 공개 저장소에 포함되지 않습니다.
+- Immutable Image Tag, 자동 장애 주입 Test와 SLO는 아직 제공하지 않습니다.
 
 ## 12. Next Steps
-- Prefix Caching 공유 기능이 켜진 vLLM 업스트림의 컨텍스트 분배 친화적 로드 밸런싱 알고리즘 추가 도입.
+- Mock Upstream 기반 Routing/Fallback CI 추가
+- Image Version 고정과 SBOM·Vulnerability Scan 추가
+- Failover Time, Error Rate와 p95 Latency를 측정하는 재현 가능한 Failure Drill 추가

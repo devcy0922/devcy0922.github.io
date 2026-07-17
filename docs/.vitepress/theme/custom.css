@@ -333,9 +333,9 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__scenarios {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  padding: 20px 24px;
+  padding: 16px 24px;
 }
 
 .live-demo__scenarios button {
@@ -346,7 +346,7 @@ a:focus-visible, button:focus-visible {
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: transparent;
-  padding: 14px;
+  padding: 12px;
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
@@ -378,7 +378,7 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   padding: 0 24px 24px;
 }
@@ -454,11 +454,16 @@ a:focus-visible, button:focus-visible {
   cursor: not-allowed;
 }
 
-.live-demo__proof {
+.live-demo__output {
+  min-width: 0;
+  min-height: 242px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--surface-muted);
-  padding: 14px;
+}
+
+.live-demo__proof {
+  padding: 16px;
 }
 
 .live-demo__proof > p {
@@ -491,8 +496,7 @@ a:focus-visible, button:focus-visible {
   font-size: 11px;
 }
 
-.live-demo__notice,
-.live-demo__error {
+.live-demo__notice {
   margin: 20px 24px 0;
   border-left: 3px solid var(--status-experimental);
   background: var(--surface-muted);
@@ -501,27 +505,42 @@ a:focus-visible, button:focus-visible {
   font-size: 13px;
 }
 
-.live-demo__error { border-left-color: hsl(0, 72%, 52%); }
+.live-demo__error {
+  height: 100%;
+  border-left: 3px solid hsl(0, 72%, 52%);
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .live-demo__error p { margin: 4px 0 0; }
 
 .live-demo__response {
-  margin: 0 24px 24px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 240px;
   background: var(--surface-base);
   padding: 16px;
 }
 
 .live-demo__response-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   color: var(--text-secondary);
   font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
   text-transform: uppercase;
 }
 
+.live-demo__response-head > span {
+  color: var(--accent-primary);
+  text-align: right;
+}
+
 .live-demo__response > pre {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 230px;
   margin: 14px 0;
   background: transparent;
   padding: 0;
@@ -531,24 +550,41 @@ a:focus-visible, button:focus-visible {
   word-break: break-word;
 }
 
-.live-demo__response dl {
+.live-demo__progress {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 0;
-  border-top: 1px solid var(--border-default);
-  padding-top: 12px;
+  align-items: center;
+  gap: 12px;
+  min-height: 176px;
 }
 
-.live-demo__response dl div { display: flex; gap: 6px; }
-.live-demo__response dt { color: var(--text-muted); }
-.live-demo__response dd {
-  max-width: 280px;
-  overflow: hidden;
-  margin: 0;
+.live-demo__progress > span {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  animation: live-demo-pulse 1.2s ease-in-out infinite;
+}
+
+.live-demo__progress div {
+  display: grid;
+  gap: 4px;
+}
+
+.live-demo__progress strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.live-demo__progress small {
   color: var(--text-secondary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@keyframes live-demo-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 .live-demo__footer {
@@ -572,15 +608,15 @@ a:focus-visible, button:focus-visible {
 @media (max-width: 768px) {
   .live-demo__header { flex-direction: column; padding: 20px; }
   .live-demo__route { padding-inline: 20px; }
-  .live-demo__scenarios { grid-template-columns: 1fr; padding: 16px 20px; }
+  .live-demo__scenarios { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px 20px; }
+  .live-demo__scenarios button > small { display: none; }
   .live-demo__workspace { grid-template-columns: 1fr; padding: 0 20px 20px; }
-  .live-demo__notice,
-  .live-demo__error,
-  .live-demo__response { margin-inline: 20px; }
+  .live-demo__notice { margin-inline: 20px; }
   .live-demo__footer { padding-inline: 20px; }
   .live-demo__footer a { width: 100%; margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .live-demo * { scroll-behavior: auto !important; }
+  .live-demo__progress > span { animation: none; }
 }

@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 const API_BASE_URL = 'https://local-llm-gateway-d8ikelzd.an.gateway.dev'
 const DEMO_KEY = import.meta.env.VITE_PORTFOLIO_DEMO_KEY as string | undefined
 const MAX_PROMPT_CHARS = 2000
-const MAX_TOKENS = 384
+const MAX_TOKENS = 512
 
 type DemoStatus = 'checking' | 'online' | 'offline'
 type ScenarioId = 'architecture' | 'incident' | 'pr-risk'
@@ -25,7 +25,7 @@ const scenarios: Scenario[] = [
     title: 'Architecture Review',
     summary: '요구사항을 운영 가능한 경계와 검증 항목으로 바꿉니다.',
     prompt: '월 5천만 건의 요청을 처리하는 멀티테넌트 AI API를 설계한다. 프로젝트별 모델과 RPM이 다르고, 프롬프트 원문은 저장할 수 없다. 장애 시 사설 vLLM에서 MLX로 전환해야 한다.',
-    system: '당신은 시니어 AI 플랫폼 아키텍트다. 입력 요구사항을 검토하고 반드시 1) 핵심 설계 결정 2) 가장 큰 운영 리스크 3) 검증 가능한 테스트 또는 SLO 순서로 간결하게 답한다. 추상적인 조언보다 구체적인 경계와 트레이드오프를 제시한다.',
+    system: '당신은 시니어 AI 플랫폼 아키텍트다. 입력 요구사항을 검토하고 반드시 1) 핵심 설계 결정 2) 가장 큰 운영 리스크 3) 검증 가능한 테스트 또는 SLO 순서로 500토큰 이내에서 간결하게 답한다. 추상적인 조언보다 구체적인 경계와 트레이드오프를 제시한다. Markdown 표, 제목, 강조 기호 없이 번호형 일반 텍스트만 사용한다.',
   },
   {
     id: 'incident',
@@ -33,7 +33,7 @@ const scenarios: Scenario[] = [
     title: 'Incident Triage',
     summary: '운영 신호를 원인 가설, 즉시 조치, 재발 방지로 정리합니다.',
     prompt: '14:02부터 LLM API p95가 12초에서 47초로 상승했다. Gateway 5xx는 2%이고 vLLM 429가 증가했으며 queue depth는 18에서 240으로 늘었다. GPU 사용률은 96%, KV cache hit rate는 41%다. 최근 모델 배포는 없었다.',
-    system: '당신은 시니어 SRE이자 AI 추론 플랫폼 엔지니어다. 관측값만 근거로 반드시 1) 우선순위가 있는 원인 가설 2) 15분 내 즉시 조치 3) 추가 확인 메트릭 4) 재발 방지 항목 순서로 답한다. 확인되지 않은 사실은 단정하지 않는다.',
+    system: '당신은 시니어 SRE이자 AI 추론 플랫폼 엔지니어다. 관측값만 근거로 반드시 1) 우선순위가 있는 원인 가설 2) 15분 내 즉시 조치 3) 추가 확인 메트릭 4) 재발 방지 항목 순서로 500토큰 이내에서 답한다. 확인되지 않은 사실은 단정하지 않는다. Markdown 표, 제목, 강조 기호 없이 번호형 일반 텍스트만 사용한다.',
   },
   {
     id: 'pr-risk',
@@ -41,7 +41,7 @@ const scenarios: Scenario[] = [
     title: 'PR Risk Review',
     summary: '변경 설명에서 보안·격리·운영 회귀 위험을 찾아냅니다.',
     prompt: 'PR 요약: Gateway 인증 결과를 5분간 메모리 캐시하도록 변경했다. 캐시 키는 API Key의 앞 8글자이고, SurrealDB 장애 시 만료된 캐시도 허용한다. 목표는 인증 지연 감소와 DB 장애 전파 차단이다.',
-    system: '당신은 보안과 신뢰성을 담당하는 시니어 코드 리뷰어다. 변경 설명을 검토하고 반드시 1) 위험도와 승인 판단 2) 치명적 회귀 가능성 3) 머지 전 필수 테스트 4) 더 안전한 대안 순서로 답한다. 멀티테넌트 격리와 자격 증명 수명주기를 우선한다.',
+    system: '당신은 보안과 신뢰성을 담당하는 시니어 코드 리뷰어다. 변경 설명을 검토하고 반드시 1) 위험도와 승인 판단 2) 치명적 회귀 가능성 3) 머지 전 필수 테스트 4) 더 안전한 대안 순서로 500토큰 이내에서 답한다. 멀티테넌트 격리와 자격 증명 수명주기를 우선한다. Markdown 표, 제목, 강조 기호 없이 번호형 일반 텍스트만 사용한다.',
   },
 ]
 
@@ -267,7 +267,7 @@ function publicErrorMessage(statusCode: number, data: any) {
     <footer class="live-demo__footer">
       <span>실제 GCP HTTPS 경로</span>
       <span>분당 4회</span>
-      <span>최대 384 tokens</span>
+      <span>최대 512 tokens</span>
       <span>프롬프트·응답 원문 비저장</span>
       <a href="/live-demo">작동 방식 보기 →</a>
     </footer>

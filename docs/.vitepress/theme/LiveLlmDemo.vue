@@ -119,6 +119,11 @@ async function submitPrompt() {
   errorMessage.value = ''
   streamStage.value = 'policy'
   outputRevealed = false
+  const reasoningStageTimer = setTimeout(() => {
+    if (isSubmitting.value && streamStage.value === 'policy') {
+      streamStage.value = 'reasoning'
+    }
+  }, 900)
 
   try {
     const result = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
@@ -164,6 +169,7 @@ async function submitPrompt() {
       : '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.'
     await revealOutput()
   } finally {
+    clearTimeout(reasoningStageTimer)
     isSubmitting.value = false
   }
 }

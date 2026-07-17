@@ -378,7 +378,8 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__workspace {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.35fr);
+  align-items: stretch;
   gap: 18px;
   padding: 0 24px 24px;
 }
@@ -456,7 +457,7 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__output {
   min-width: 0;
-  min-height: 242px;
+  min-height: 420px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -518,7 +519,7 @@ a:focus-visible, button:focus-visible {
 .live-demo__response {
   box-sizing: border-box;
   height: 100%;
-  min-height: 240px;
+  min-height: 418px;
   background: var(--surface-base);
   padding: 16px;
 }
@@ -540,7 +541,7 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__response > pre {
   overflow: auto;
-  max-height: 230px;
+  max-height: clamp(320px, 48vh, 520px);
   margin: 14px 0;
   background: transparent;
   padding: 0;
@@ -550,11 +551,46 @@ a:focus-visible, button:focus-visible {
   word-break: break-word;
 }
 
+.live-demo__memo {
+  margin-top: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  padding: 12px 14px;
+}
+
+.live-demo__memo > p {
+  margin: 0 0 9px;
+  color: var(--text-muted);
+  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
+
+.live-demo__memo ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.live-demo__memo small {
+  display: block;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-default);
+  padding-top: 9px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .live-demo__progress {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 176px;
+  min-height: 150px;
 }
 
 .live-demo__progress > span {
@@ -605,12 +641,18 @@ a:focus-visible, button:focus-visible {
 
 .live-demo__footer a:hover { color: var(--text-primary); }
 
+@media (max-width: 960px) {
+  .live-demo__workspace { grid-template-columns: 1fr; }
+  .live-demo__output { min-height: 360px; }
+  .live-demo__response { min-height: 358px; }
+}
+
 @media (max-width: 768px) {
   .live-demo__header { flex-direction: column; padding: 20px; }
   .live-demo__route { padding-inline: 20px; }
   .live-demo__scenarios { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px 20px; }
   .live-demo__scenarios button > small { display: none; }
-  .live-demo__workspace { grid-template-columns: 1fr; padding: 0 20px 20px; }
+  .live-demo__workspace { padding: 0 20px 20px; }
   .live-demo__notice { margin-inline: 20px; }
   .live-demo__footer { padding-inline: 20px; }
   .live-demo__footer a { width: 100%; margin-left: 0; }

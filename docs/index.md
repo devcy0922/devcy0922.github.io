@@ -1,55 +1,9 @@
 ---
-layout: home
-hero:
-  name: "devcy0922"
-  text: "AI SaaS Platform & DevSecOps"
-  tagline: "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계합니다."
-  actions:
-    - theme: brand
-      text: Explore Projects
-      link: /projects/govail-gateway
-    - theme: alt
-      text: GitHub Profile
-      link: https://github.com/devcy0922
-      target: _blank
-    - theme: alt
-      text: Run Live Lab
-      link: /#live-demo-title
+layout: page
+title: "devcy0922 — AI SaaS Platform & DevSecOps"
+description: "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계하는 포트폴리오"
 ---
 
+<PortfolioHome />
+
 <LiveLlmDemo />
-
-## Selected Systems
-
-라이브 랩의 실행 경로를 구성하는 대표 시스템만 선별했습니다. 각 문서에는 설계 결정, 실패 경계, 검증 방법을 함께 기록했습니다.
-
-<div class="project-grid">
-  <a class="project-card" href="/projects/govail-gateway">
-    <div>
-      <h3>GoVail Gateway <span class="status-badge status-stable">LIVE</span></h3>
-      <p>SurrealDB Key 인증, 모델·RPM·DLP 정책, LiteLLM 라우팅과 Loki 감사를 실제 사설 LLM 호출 경로에 적용한 Rust Gateway입니다.</p>
-    </div>
-    <div class="project-meta"><span>Execution Gateway</span><span>Rust · SurrealDB · GCP</span></div>
-  </a>
-  <a class="project-card" href="/projects/aegis-llm">
-    <div>
-      <h3>Aegis-LLM <span class="status-badge status-stable">STABLE</span></h3>
-      <p>테넌트 인증, 요청 제한, DLP, Prompt Security와 Upstream Fallback을 하나의 SaaS Control Plane으로 설계했습니다.</p>
-    </div>
-    <div class="project-meta"><span>Control Plane</span><span>Rust · PostgreSQL</span></div>
-  </a>
-  <a class="project-card" href="/projects/slicerag">
-    <div>
-      <h3>SliceRAG <span class="status-badge status-stable">STABLE</span></h3>
-      <p>Gateway가 확정한 프로젝트 범위 안에서만 문서를 저장·검색하고 교차 테넌트 접근을 회귀 테스트로 차단합니다.</p>
-    </div>
-    <div class="project-meta"><span>Data Plane</span><span>FastAPI · Vector Search</span></div>
-  </a>
-  <a class="project-card" href="/projects/agentsecops-playground">
-    <div>
-      <h3>AgentSecOps <span class="status-badge status-experimental">E2E</span></h3>
-      <p>인증, RAG 격리, PII 마스킹, Prompt Injection 차단과 LLM Fallback을 가상 데이터로 자동 검증합니다.</p>
-    </div>
-    <div class="project-meta"><span>Governance Test</span><span>Docker · Security Regression</span></div>
-  </a>
-</div>

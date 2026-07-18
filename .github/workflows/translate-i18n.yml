@@ -1,0 +1,103 @@
+name: "LingoAgent — Auto Translate i18n"
+
+# ────────────────────────────────────────────────
+# 트리거: ko.json 변경 시 또는 수동 실행
+# ────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/public/locales/ko.json"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run (파일 저장 없이 검증만)"
+        type: boolean
+        default: false
+
+# 동시 실행 방지 (이전 번역 Job이 완료될 때까지 대기)
+concurrency:
+  group: lingo-translate
+  cancel-in-progress: false
+
+jobs:
+  translate:
+    name: "Translate ko.json → en / ja"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 번역 결과 커밋을 위해 필요
+
+    steps:
+      # ── 1. 소스 체크아웃 ──
+      - name: "Checkout portfolio repo"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. lingo-agent 레포 체크아웃 (translate.py 사용) ──
+      - name: "Checkout lingo-agent"
+        uses: actions/checkout@v4
+        with:
+          repository: devcy0922/lingo-agent
+          path: .lingo-agent
+          sparse-checkout: |
+            translate.py
+            requirements-translate.txt
+
+      # ── 3. Python 설정 ──
+      - name: "Setup Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: ".lingo-agent/requirements-translate.txt"
+
+      # ── 4. 의존성 설치 ──
+      - name: "Install LingoAgent dependencies"
+        run: pip install -r .lingo-agent/requirements-translate.txt
+
+      # ── 5. 번역 실행 ──
+      #    LLM_GATEWAY_URL, LLM_API_KEY, LLM_MODEL 은 GitHub Secrets에서 주입
+      #    Fallback 번역 발생 시 exit(1) → Job 실패 → 커밋 차단
+      - name: "Run LingoAgent translation pipeline"
+        env:
+          LLM_GATEWAY_URL: ${{ secrets.LLM_GATEWAY_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'auto' }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          python .lingo-agent/translate.py \
+            --source docs/public/locales/ko.json \
+            --langs en-US ja-JP \
+            --output docs/public/locales/ \
+            $DRY_RUN_FLAG
+
+      # ── 6. 번역 결과 커밋 ──
+      #    [skip ci] 태그: 커밋으로 인한 무한 트리거 방지
+      - name: "Commit translated locale files"
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config --global user.name  "LingoAgent[bot]"
+          git config --global user.email "lingo-agent@devcy0922.github.io"
+
+          git add docs/public/locales/en.json
+          git add docs/public/locales/ja.json
+
+          # 변경사항이 있을 때만 커밋
+          if git diff --cached --quiet; then
+            echo "번역 파일에 변경사항 없음 — 커밋 생략"
+          else
+            git commit -m "chore(i18n): auto-translate via LingoAgent [skip ci]
+
+            Source: docs/public/locales/ko.json
+            Langs: en-US, ja-JP
+            Pipeline: lint + LLM QA (score >= 85)
+            Triggered by: ${{ github.sha }}"
+
+            git push
+          fi

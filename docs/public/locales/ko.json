@@ -1,0 +1,56 @@
+{
+  "hero.name": "devcy0922",
+  "hero.text": "AI SaaS Platform & DevSecOps",
+  "hero.tagline": "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계합니다.",
+  "hero.cta.explore": "프로젝트 보기",
+  "hero.cta.github": "GitHub 프로필",
+  "hero.cta.demo": "라이브 랩 실행",
+
+  "nav.home": "홈",
+  "nav.liveLab": "라이브 랩",
+  "nav.projects": "프로젝트",
+
+  "section.selectedSystems": "대표 시스템",
+  "section.selectedSystems.desc": "라이브 랩의 실행 경로를 구성하는 대표 시스템만 선별했습니다. 각 문서에는 설계 결정, 실패 경계, 검증 방법을 함께 기록했습니다.",
+
+  "project.govail.title": "GoVail Gateway",
+  "project.govail.desc": "SurrealDB Key 인증, 모델·RPM·DLP 정책, LiteLLM 라우팅과 Loki 감사를 실제 사설 LLM 호출 경로에 적용한 Rust Gateway입니다.",
+  "project.govail.meta.type": "Execution Gateway",
+  "project.govail.meta.stack": "Rust · SurrealDB · GCP",
+
+  "project.aegis.title": "Aegis-LLM",
+  "project.aegis.desc": "테넌트 인증, 요청 제한, DLP, Prompt Security와 Upstream Fallback을 하나의 SaaS Control Plane으로 설계했습니다.",
+  "project.aegis.meta.type": "Control Plane",
+  "project.aegis.meta.stack": "Rust · PostgreSQL",
+
+  "project.slicerag.title": "SliceRAG",
+  "project.slicerag.desc": "Gateway가 확정한 프로젝트 범위 안에서만 문서를 저장·검색하고 교차 테넌트 접근을 회귀 테스트로 차단합니다.",
+  "project.slicerag.meta.type": "Data Plane",
+  "project.slicerag.meta.stack": "FastAPI · Vector Search",
+
+  "project.agentsecops.title": "AgentSecOps",
+  "project.agentsecops.desc": "인증, RAG 격리, PII 마스킹, Prompt Injection 차단과 LLM Fallback을 가상 데이터로 자동 검증합니다.",
+  "project.agentsecops.meta.type": "Governance Test",
+  "project.agentsecops.meta.stack": "Docker · Security Regression",
+
+  "project.lingo.title": "LingoAgent",
+  "project.lingo.desc": "이 페이지의 번역은 LingoAgent가 수행했습니다. ko.json 변경 → LLM 번역 + ICU 검증 → GitHub Action 자동 커밋 파이프라인입니다.",
+  "project.lingo.meta.type": "i18n Pipeline",
+  "project.lingo.meta.stack": "Python · GitHub Actions",
+
+  "status.live": "LIVE",
+  "status.stable": "STABLE",
+  "status.experimental": "E2E",
+  "status.pipeline": "PIPELINE",
+
+  "locale.ko": "한국어",
+  "locale.en": "English",
+  "locale.ja": "日本語",
+
+  "footer.message": "문서보다 실행 가능한 증거를 우선합니다.",
+  "footer.copyright": "Copyright © 2026 devcy0922. All rights reserved.",
+
+  "lingo.banner.title": "LingoAgent가 번역한 페이지입니다",
+  "lingo.banner.desc": "이 페이지의 UI 텍스트는 ko.json을 원본으로 LingoAgent 파이프라인(ICU 검증 + LLM QA)을 거쳐 자동 생성되었습니다.",
+  "lingo.banner.badge": "AI 번역됨"
+}

@@ -63,8 +63,9 @@ jobs:
       - name: "Run LingoAgent translation pipeline"
         env:
           LLM_GATEWAY_URL: ${{ secrets.LLM_GATEWAY_URL }}
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL || 'auto' }}
+          # PORTFOLIO_DEMO_KEY: Live Demo와 동일한 GCP API Gateway 키 재사용
+          LLM_API_KEY: ${{ secrets.PORTFOLIO_DEMO_KEY }}
+          LLM_MODEL: "auto"
         run: |
           DRY_RUN_FLAG=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then

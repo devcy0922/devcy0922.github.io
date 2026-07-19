@@ -650,13 +650,6 @@ textarea:focus-visible {
 
 .prompt-console { margin-top: 0; }
 
-.prompt-console textarea.is-locked {
-  resize: none;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  cursor: default;
-}
-
 .request-contract {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

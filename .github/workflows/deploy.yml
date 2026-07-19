@@ -3,6 +3,10 @@ name: Deploy VitePress site to Pages
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["LingoAgent — Auto Translate i18n"]
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -15,6 +19,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

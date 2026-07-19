@@ -26,7 +26,7 @@ const experienceAreas = [
   {
     titleKey: 'home.experience.operations.title',
     descKey: 'home.experience.operations.desc',
-    skills: 'Docker · CI/CD · AWS · Redis',
+    skillsKey: 'home.experience.operations.skills',
   },
 ]
 
@@ -119,7 +119,7 @@ onMounted(async () => {
           <article v-for="area in experienceAreas" :key="area.titleKey">
             <h3>{{ t(area.titleKey) }}</h3>
             <p>{{ t(area.descKey) }}</p>
-            <small>{{ area.skills }}</small>
+            <small>{{ t(area.skillsKey) }}</small>
           </article>
         </div>
       </section>

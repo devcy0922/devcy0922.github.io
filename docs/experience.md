@@ -8,9 +8,13 @@ outline: [2, 3]
 
 ## 기업용 백엔드 경험을 AI 플랫폼으로 확장합니다
 
-10년 차 **Backend / AI Platform Engineer**입니다. 기업 내부 시스템을 개발하고 운영하며 다뤄온 인증·권한, 감사, 배포, 클라우드 운영과 레거시 연동 문제를 생성형 AI 요청 경계에 맞게 다시 설계하고 있습니다.
+10년 차 **SaaS · DevOps · Backend / AI Platform Engineer**입니다. SaaS와 기업 내부 시스템을 개발하고 운영하며 다뤄온 인증·권한, 감사, 배포, AWS·RDB 운영, 로드밸런싱·고가용성과 레거시 연동 문제를 생성형 AI 요청 경계에 맞게 다시 설계하고 있습니다.
 
 현재 포트폴리오의 중심은 모델 학습이 아니라 **기업이 AI를 안전하게 연결하고 운영하는 플랫폼 경계**입니다. [GoVail Gateway](/projects/govail-gateway)를 대표 시스템으로 두고, 공개 저장소와 [Live Lab](/live-demo)에서 구현 범위와 한계를 검증할 수 있게 구성했습니다.
+
+## 공개 범위
+
+회사에서 수행한 SaaS·DevOps 작업의 소스 코드와 세부 운영 수치는 공개할 수 없습니다. 이 페이지에서는 실제 책임 범위와 설계·운영 원칙을 설명하고, 공개 가능한 개인 프로젝트는 별도 링크로 구현 근거를 제공합니다. 비공개 회사 작업을 공개 코드로 대체하거나 검증되지 않은 수치로 과장하지 않습니다.
 
 ## 실무 문제와 AI 플랫폼 설계의 연결
 
@@ -19,7 +23,7 @@ outline: [2, 3]
 | SSO, 인증과 역할 기반 권한 | API Key를 Project·Role·RPM·Allowed Models가 포함된 Principal로 변환 | [GoVail Gateway](/projects/govail-gateway), [Aegis-LLM](/projects/aegis-llm) |
 | 감사 대응과 Key 관리 | 원문과 Secret을 남기지 않는 Audit Event, Trace ID 기반 추적 | [GoVail Gateway](/projects/govail-gateway) |
 | CI/CD와 Docker 실행 환경 표준화 | 재현 가능한 통합 환경과 보안 회귀 테스트 | [AgentSecOps Playground](/projects/agentsecops-playground), [AI Gateway Infra Demo](/projects/ai-gateway-infra-demo) |
-| AWS 운영과 장애 대응 | Gateway, Upstream, Data Plane의 실패 경계와 관측 신호 분리 | [Live Lab](/live-demo), [Infra Security](/projects/infra-security) |
+| AWS·RDB 운영, 로드밸런싱과 고가용성 구성 | Gateway, Upstream, Data Plane의 실패 경계와 관측 신호 분리 | [Live Lab](/live-demo), [Infra Security](/projects/infra-security) |
 | 레거시 데이터와 외부 API 연동 | Project 단위 RAG 격리와 MCP Tool 실행 전 정책 검사 | [SliceRAG](/projects/slicerag), [Aperture MCP](/projects/aperture-mcp) |
 
 ## 책임 범위
@@ -33,7 +37,8 @@ outline: [2, 3]
 ### Delivery & Cloud Operations
 
 - CI/CD와 Docker 기반 실행 환경 표준화
-- AWS 환경의 배포·운영과 장애 원인 추적
+- AWS 환경에서 RDB·Redis를 포함한 서비스 배포·운영과 장애 원인 추적
+- 로드밸런싱과 고가용성 구성을 고려한 서비스 운영
 - 변경 위험을 줄이기 위한 자동화와 운영 절차 정리
 
 ### Security & Auditability

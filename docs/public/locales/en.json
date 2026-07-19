@@ -31,7 +31,7 @@
   "home.projects.title": "Extending My Work into AI Platforms",
   "home.projects.desc": "Three representative projects covering Gateway, security boundaries, and RAG isolation. Each document outlines the implementation scope and current limitations.",
   "home.demo.label": "Working Demo",
-  "home.demo.title": "See AI Request Boundaries in Action",
+  "home.demo.title": "See how AI request boundaries work in practice",
   "home.demo.desc": "The Runtime Demo shows how public requests pass authentication and policy checks, reach a private LLM, and generate audit events.",
   "home.demo.cta": "Open Runtime Demo",
   "home.demo.pathLabel": "Runtime Demo Execution Path Preview",

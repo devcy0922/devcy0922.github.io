@@ -88,6 +88,18 @@
         "en-US": ["10-Year Engineer"],
         "ja-JP": ["10年目のエンジニア"]
       }
+    },
+    {
+      "source": "요청 경계",
+      "keys": ["home.demo.title"],
+      "targets": {
+        "en-US": "request boundaries",
+        "ja-JP": "リクエストの境界"
+      },
+      "forbidden": {
+        "en-US": ["request pipeline"],
+        "ja-JP": ["リクエスト処理フロー"]
+      }
     }
   ]
 }

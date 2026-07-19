@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: devcy0922/lingo-agent
-          ref: 721601026a3c124b46d2ca293ab91d9a7a4cf50b
+          ref: ca71843221ace030f94387e30b9c7a983d510944
           path: .lingo-agent
           sparse-checkout: |
             translate.py
@@ -148,7 +148,7 @@ jobs:
 
             Source: docs/public/locales/ko.json
             Langs: en-US, ja-JP
-            LingoAgent: 721601026a3c124b46d2ca293ab91d9a7a4cf50b
+            LingoAgent: ca71843221ace030f94387e30b9c7a983d510944
             Updated source keys: $UPDATED
             Preserved existing keys: $PRESERVED
             Reviewed translations: $REVIEWED

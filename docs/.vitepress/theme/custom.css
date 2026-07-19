@@ -140,6 +140,7 @@
   color: var(--status-stable);
 }
 
+.status-mvp,
 .status-experimental,
 .status-pipeline {
   border: 1px solid color-mix(in srgb, var(--status-experimental) 60%, transparent);
@@ -151,6 +152,36 @@
   border: 1px solid var(--status-archived);
   background: rgba(156, 163, 175, 0.08);
   color: var(--status-archived);
+}
+
+.portfolio-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 40px;
+  border-top: 1px solid var(--border-default);
+  padding-top: 24px;
+}
+
+.portfolio-page-actions a {
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  padding: 9px 13px;
+  color: var(--text-primary) !important;
+  font-size: 12px;
+  font-weight: 620;
+  text-decoration: none !important;
+}
+
+.portfolio-page-actions a:first-child {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: white !important;
+}
+
+.portfolio-page-actions a:hover {
+  border-color: var(--accent-primary);
 }
 
 .compact-list {

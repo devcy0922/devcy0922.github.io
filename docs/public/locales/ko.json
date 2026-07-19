@@ -1,7 +1,7 @@
 {
   "hero.name": "devcy0922",
   "hero.text": "AI SaaS Platform & DevSecOps",
-  "hero.tagline": "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계합니다.",
+  "hero.tagline": "인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 하나의 운영 경계로 설계합니다. (LingoAgent 파이프라인으로 실시간 자동 번역 및 배포가 검증되었습니다.)",
   "hero.cta.explore": "프로젝트 보기",
   "hero.cta.github": "GitHub 프로필",
   "hero.cta.demo": "라이브 랩 실행",

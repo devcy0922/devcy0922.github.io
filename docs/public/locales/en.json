@@ -1,7 +1,7 @@
 {
   "hero.name": "devcy0922",
   "hero.text": "AI SaaS Platform & DevSecOps",
-  "hero.tagline": "Designed to unify authentication, tenant isolation, model routing, auditability, and security regression testing into a single operational boundary.",
+  "hero.tagline": "Designed to unify authentication, tenant isolation, model routing, auditability, and security regression testing into a single operational boundary. (Real-time auto-translation and deployment have been validated via the LingoAgent pipeline.)",
   "hero.cta.explore": "View Projects",
   "hero.cta.github": "GitHub Profile",
   "hero.cta.demo": "Run Live Lab",
@@ -9,7 +9,7 @@
   "nav.liveLab": "Live Lab",
   "nav.projects": "Projects",
   "section.selectedSystems": "Featured Systems",
-  "section.selectedSystems.desc": "We've curated only the core systems that form the execution path of the Live Lab. Each document includes design decisions, failure boundaries, and validation methods.",
+  "section.selectedSystems.desc": "We've selected only the core systems that form the execution path of the Live Lab. Each document includes design decisions, failure boundaries, and validation methods.",
   "project.govail.title": "GoVail Gateway",
   "project.govail.desc": "A Rust Gateway that applies SurrealDB Key authentication, model/RPM/DLP policies, LiteLLM routing, and Loki auditing to actual private LLM invocation paths.",
   "project.govail.meta.type": "Execution Gateway",
@@ -27,7 +27,7 @@
   "project.agentsecops.meta.type": "Governance Test",
   "project.agentsecops.meta.stack": "Docker · Security Regression",
   "project.lingo.title": "LingoAgent",
-  "project.lingo.desc": "This page was translated by LingoAgent via an automated pipeline: ko.json changes → LLM translation + ICU validation → GitHub Action auto-commit.",
+  "project.lingo.desc": "This page was translated by LingoAgent. It follows a pipeline: ko.json change → LLM translation + ICU validation → GitHub Action auto-commit.",
   "project.lingo.meta.type": "i18n Pipeline",
   "project.lingo.meta.stack": "Python · GitHub Actions",
   "status.live": "LIVE",
@@ -40,6 +40,6 @@
   "footer.message": "Prioritize executable evidence over documentation.",
   "footer.copyright": "Copyright © 2026 devcy0922. All rights reserved.",
   "lingo.banner.title": "Translated by LingoAgent",
-  "lingo.banner.desc": "The UI text on this page was automatically generated from ko.json through the LingoAgent pipeline (ICU validation + LLM QA).",
+  "lingo.banner.desc": "The UI text on this page was automatically generated from ko.json via the LingoAgent pipeline (ICU validation + LLM QA).",
   "lingo.banner.badge": "AI Translated"
 }

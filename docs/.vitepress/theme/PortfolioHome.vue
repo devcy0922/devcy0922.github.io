@@ -5,11 +5,12 @@
  * ko.json 원본과 LingoAgent가 생성한 en.json / ja.json을 런타임에 로드합니다.
  * 기존 VitePress hero 레이아웃 대신 커스텀 레이아웃으로 렌더링합니다.
  */
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useLocale } from './useLocale'
 import LocaleSwitcher from './LocaleSwitcher.vue'
 
-const { t, setLocale, detectInitialLocale } = useLocale()
+const { t, setLocale, detectInitialLocale, loading } = useLocale()
+const isMounted = ref(false)
 
 const projects = [
   {
@@ -62,6 +63,7 @@ const projects = [
 onMounted(async () => {
   const initial = detectInitialLocale()
   await setLocale(initial)
+  isMounted.value = true
 })
 </script>
 
@@ -71,44 +73,52 @@ onMounted(async () => {
     <LocaleSwitcher />
   </div>
 
-  <!-- 히어로 섹션 -->
-  <div class="portfolio-hero">
-    <div class="hero-content">
-      <h1 class="hero-name">{{ t('hero.name') }}</h1>
-      <p class="hero-text">{{ t('hero.text') }}</p>
-      <p class="hero-tagline">{{ t('hero.tagline') }}</p>
-      <div class="hero-actions">
-        <a href="/projects/govail-gateway" class="btn-primary">{{ t('hero.cta.explore') }}</a>
-        <a href="https://github.com/devcy0922" class="btn-secondary" target="_blank" rel="noopener">{{ t('hero.cta.github') }}</a>
-        <a href="/#live-demo-title" class="btn-secondary">{{ t('hero.cta.demo') }}</a>
-      </div>
-    </div>
+  <div v-if="!isMounted" class="loading-skeleton-container">
+    <div class="skeleton skeleton-title"></div>
+    <div class="skeleton skeleton-subtitle"></div>
+    <div class="skeleton skeleton-text"></div>
   </div>
 
-  <!-- 대표 시스템 섹션 -->
-  <div class="systems-section">
-    <h2 class="section-title">{{ t('section.selectedSystems') }}</h2>
-    <p class="section-desc">{{ t('section.selectedSystems.desc') }}</p>
+  <div v-else class="portfolio-container">
+    <!-- 히어로 섹션 -->
+    <div class="portfolio-hero">
+      <div class="hero-content">
+        <h1 class="hero-name">{{ t('hero.name') }}</h1>
+        <p class="hero-text">{{ t('hero.text') }}</p>
+        <p class="hero-tagline">{{ t('hero.tagline') }}</p>
+        <div class="hero-actions">
+          <a href="/projects/govail-gateway" class="btn-primary">{{ t('hero.cta.explore') }}</a>
+          <a href="https://github.com/devcy0922" class="btn-secondary" target="_blank" rel="noopener">{{ t('hero.cta.github') }}</a>
+          <a href="/#live-demo-title" class="btn-secondary">{{ t('hero.cta.demo') }}</a>
+        </div>
+      </div>
+    </div>
 
-    <div class="project-grid">
-      <a
-        v-for="proj in projects"
-        :key="proj.href"
-        class="project-card"
-        :href="proj.href"
-      >
-        <div>
-          <h3>
-            {{ t(proj.titleKey) }}
-            <span :class="`status-badge status-${proj.status}`">{{ t(proj.statusKey) }}</span>
-          </h3>
-          <p>{{ t(proj.descKey) }}</p>
-        </div>
-        <div class="project-meta">
-          <span>{{ t(proj.typeKey) }}</span>
-          <span>{{ t(proj.stackKey) }}</span>
-        </div>
-      </a>
+    <!-- 대표 시스템 섹션 -->
+    <div class="systems-section">
+      <h2 class="section-title">{{ t('section.selectedSystems') }}</h2>
+      <p class="section-desc">{{ t('section.selectedSystems.desc') }}</p>
+
+      <div class="project-grid">
+        <a
+          v-for="proj in projects"
+          :key="proj.href"
+          class="project-card"
+          :href="proj.href"
+        >
+          <div>
+            <h3>
+              {{ t(proj.titleKey) }}
+              <span :class="`status-badge status-${proj.status}`">{{ t(proj.statusKey) }}</span>
+            </h3>
+            <p>{{ t(proj.descKey) }}</p>
+          </div>
+          <div class="project-meta">
+            <span>{{ t(proj.typeKey) }}</span>
+            <span>{{ t(proj.stackKey) }}</span>
+          </div>
+        </a>
+      </div>
     </div>
   </div>
 </template>
@@ -215,5 +225,46 @@ onMounted(async () => {
   color: var(--vp-c-text-2);
   margin: 0 0 28px;
   line-height: 1.6;
+}
+
+/* loading-skeleton */
+.loading-skeleton-container {
+  padding: 64px 24px 48px;
+  max-width: 1152px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--vp-c-bg-mute) 25%, var(--vp-c-bg-soft) 37%, var(--vp-c-bg-mute) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  width: 40%;
+  height: 48px;
+}
+
+.skeleton-subtitle {
+  width: 60%;
+  height: 32px;
+}
+
+.skeleton-text {
+  width: 80%;
+  height: 24px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 </style>

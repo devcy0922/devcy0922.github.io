@@ -40,7 +40,7 @@ flowchart LR
     Auth --> Policy["RPM · Model · DLP"]
     Policy --> Router["LiteLLM Router"]
     Router --> Primary["Primary Private LLM"]
-    Router -. "Fallback" .-> Secondary["Secondary Private LLM"]
+    Router -.-> Secondary["Secondary Private LLM"]
     GoVail --> Metrics["Prometheus"]
     GoVail --> Audit["Audit · Loki"]
 ```
@@ -51,14 +51,14 @@ flowchart LR
 sequenceDiagram
     autonumber
     participant Client
-    participant Gateway as GoVail Gateway
-    participant DB as SurrealDB
-    participant Router as LiteLLM
-    participant LLM as Private LLM
-    Client->>Gateway: Chat request + Bearer Key
+    participant Gateway
+    participant DB
+    participant Router
+    participant LLM
+    Client->>Gateway: Chat request and Bearer Key
     Gateway->>DB: Key Hash로 Principal 조회
-    DB-->>Gateway: Project, Role, RPM, Allowed Models
-    Gateway->>Gateway: Rate Limit, Model Policy, DLP 검사
+    DB-->>Gateway: Project Role RPM Allowed Models
+    Gateway->>Gateway: Rate Limit과 요청 정책 검사
     alt 정책 위반
         Gateway-->>Client: 4xx + Trace ID
     else 정책 통과

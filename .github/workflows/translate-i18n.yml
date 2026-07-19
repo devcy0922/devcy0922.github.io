@@ -15,6 +15,10 @@ on:
         description: "Dry-run (파일 저장 없이 검증만)"
         type: boolean
         default: false
+      sync_all:
+        description: "전체 키 재번역 (수동 유지보수 전용)"
+        type: boolean
+        default: false
 
 # 동시 실행 방지 (이전 번역 Job이 완료될 때까지 대기)
 concurrency:
@@ -33,61 +37,14 @@ jobs:
       - name: "Checkout portfolio repo"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 3
-
-      # 소스와 번역본이 같은 커밋에 함께 제공된 경우에는 키 정합성만 검증한다.
-      # ko.json만 변경된 일반 흐름에서는 기존 LingoAgent 번역을 그대로 실행한다.
-      - name: "Check supplied locale coverage"
-        id: locale-coverage
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import subprocess
-          from pathlib import Path
-
-          locale_paths = {
-              "ko": Path("docs/public/locales/ko.json"),
-              "en": Path("docs/public/locales/en.json"),
-              "ja": Path("docs/public/locales/ja.json"),
-          }
-          source_commit = subprocess.check_output(
-              ["git", "log", "-1", "--format=%H", "--", str(locale_paths["ko"])],
-              text=True,
-          ).strip()
-          changed = set(
-              subprocess.check_output(
-                  ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", source_commit],
-                  text=True,
-              ).splitlines()
-          )
-          required = {str(path) for path in locale_paths.values()}
-          source_keys = set(json.loads(locale_paths["ko"].read_text()).keys())
-          keys_match = all(
-              set(json.loads(locale_paths[lang].read_text()).keys()) == source_keys
-              for lang in ("en", "ja")
-          )
-          supplied = required.issubset(changed) and keys_match
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip_translation={'true' if supplied else 'false'}\n")
-
-          if supplied:
-              print("ko/en/ja가 함께 제공되었고 locale key가 일치합니다.")
-          else:
-              print("LingoAgent 자동 번역이 필요합니다.")
-          PY
-
-      - name: "Accept supplied locale files"
-        if: ${{ steps.locale-coverage.outputs.skip_translation == 'true' }}
-        run: echo "번역본이 원문과 함께 검증되어 LLM 번역을 생략합니다."
+          fetch-depth: 0
 
       # ── 2. lingo-agent 레포 체크아웃 (translate.py 사용) ──
       - name: "Checkout lingo-agent"
-        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         uses: actions/checkout@v4
         with:
           repository: devcy0922/lingo-agent
+          ref: 850237478d9ca2c2711332f02d99402bd7808bcc
           path: .lingo-agent
           sparse-checkout: |
             translate.py
@@ -95,7 +52,6 @@ jobs:
 
       # ── 3. Python 설정 ──
       - name: "Setup Python 3.11"
-        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -104,36 +60,72 @@ jobs:
 
       # ── 4. 의존성 설치 ──
       - name: "Install LingoAgent dependencies"
-        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         run: pip install -r .lingo-agent/requirements-translate.txt
 
-      # ── 5. 번역 실행 ──
+      # ── 5. 변경 범위 기준 원본 준비 ──
+      - name: "Prepare source diff baseline"
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p .lingo/runtime
+
+          if [ "$EVENT_NAME" = "push" ] \
+            && [ -n "$BEFORE_SHA" ] \
+            && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$BEFORE_SHA:docs/public/locales/ko.json" 2>/dev/null; then
+            git show "$BEFORE_SHA:docs/public/locales/ko.json" > .lingo/runtime/ko.previous.json
+            echo "이전 ko.json을 기준으로 added/changed/missing 키를 계산합니다."
+          else
+            cp docs/public/locales/ko.json .lingo/runtime/ko.previous.json
+            echo "기준 커밋이 없어 현재 ko.json을 사용합니다. 누락 키만 자동 번역합니다."
+          fi
+
+      # ── 6. 번역 실행 ──
       #    LLM_GATEWAY_URL, LLM_API_KEY, LLM_MODEL 은 GitHub Secrets에서 주입
       #    Fallback 번역 발생 시 exit(1) → Job 실패 → 커밋 차단
       - name: "Run LingoAgent translation pipeline"
-        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         env:
           LLM_GATEWAY_URL: ${{ secrets.LLM_GATEWAY_URL }}
           # PORTFOLIO_DEMO_KEY: Live Demo와 동일한 GCP API Gateway 키 재사용
           LLM_API_KEY: ${{ secrets.PORTFOLIO_DEMO_KEY }}
-          LLM_MODEL: "auto"
+          LLM_TRANSLATION_MODEL: ${{ vars.LINGO_TRANSLATION_MODEL || 'auto' }}
+          LLM_REVIEW_MODEL: ${{ vars.LINGO_REVIEW_MODEL || 'auto' }}
         run: |
+          set -euo pipefail
           DRY_RUN_FLAG=""
+          SYNC_ALL_FLAG=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             DRY_RUN_FLAG="--dry-run"
+          fi
+          if [ "${{ github.event.inputs.sync_all }}" = "true" ]; then
+            SYNC_ALL_FLAG="--sync-all"
           fi
 
           python .lingo-agent/translate.py \
             --source docs/public/locales/ko.json \
+            --base-source .lingo/runtime/ko.previous.json \
             --langs en-US ja-JP \
             --output docs/public/locales/ \
-            $DRY_RUN_FLAG
+            --glossary .lingo/glossary.json \
+            --report .lingo/runtime/report.json \
+            $DRY_RUN_FLAG \
+            $SYNC_ALL_FLAG
 
-      # ── 6. 번역 결과 커밋 ──
-      #    [skip ci] 태그: 커밋으로 인한 무한 트리거 방지
+      - name: "Upload LingoAgent QA evidence"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingo-agent-qa-${{ github.run_id }}
+          path: .lingo/runtime/report.json
+          if-no-files-found: warn
+
+      # ── 7. 번역 결과 커밋 ──
       - name: "Commit translated locale files"
-        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' && github.event.inputs.dry_run != 'true' }}
+        if: ${{ success() && github.event.inputs.dry_run != 'true' }}
         run: |
+          set -euo pipefail
           git config --global user.name  "LingoAgent[bot]"
           git config --global user.email "lingo-agent@devcy0922.github.io"
 
@@ -144,11 +136,21 @@ jobs:
           if git diff --cached --quiet; then
             echo "번역 파일에 변경사항 없음 — 커밋 생략"
           else
+            EN_QA="$(jq -r '.languages[] | select(.language == "en-US") | "\(.qa_status)(\(.qa_score))"' .lingo/runtime/report.json)"
+            JA_QA="$(jq -r '.languages[] | select(.language == "ja-JP") | "\(.qa_status)(\(.qa_score))"' .lingo/runtime/report.json)"
+            UPDATED="$(jq '[.languages[].scope.selected[]] | unique | length' .lingo/runtime/report.json)"
+            PRESERVED="$(jq '[.languages[].scope.preserved_count] | min' .lingo/runtime/report.json)"
+            REVIEWED="$(jq '[.languages[].reviewed_keys] | add' .lingo/runtime/report.json)"
+
             git commit -m "chore(i18n): auto-translate via LingoAgent
 
             Source: docs/public/locales/ko.json
             Langs: en-US, ja-JP
-            Pipeline: lint + LLM QA (score >= 85)
+            LingoAgent: 850237478d9ca2c2711332f02d99402bd7808bcc
+            Updated source keys: $UPDATED
+            Preserved existing keys: $PRESERVED
+            Reviewed translations: $REVIEWED
+            QA: en-US=$EN_QA, ja-JP=$JA_QA
             Triggered by: ${{ github.sha }}"
 
             git push

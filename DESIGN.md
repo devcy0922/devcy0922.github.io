@@ -102,20 +102,24 @@
 
 ## 10. Navigation
 - **좌측**: 이름 또는 워드마크 (`devcy0922`)
-- **우측**: Projects, About, GitHub(아이콘 링크), 다크/라이트 테마 토글 버튼.
+- **우측**: 소개, 경력, 프로젝트, GitHub, 다크/라이트 테마 토글 버튼.
+- Runtime Demo는 전체 포트폴리오의 독립 메뉴가 아니라 대표 AI 플랫폼 사례의 검증 링크로 제공한다.
 - NGINX와 같은 프록시나 외부 설정에 의존하지 않는 VitePress 기본 CSS 레이아웃 구조 활용.
 
 ## 11. Home Page
 - **Hero**:
-  - Eyebrow: `Multi-tenant SaaS · DevSecOps · AI Platform`
-  - H1: `AI SaaS의 요청 경계부터 추론 운영까지 설계합니다.`
-  - Description: `인증, 테넌트 격리, 모델 라우팅, 감사 가능성과 보안 회귀 검증을 실제 코드로 구현한 기록입니다.`
-  - CTA Buttons: [Explore Projects], [GitHub Profile]
+  - Eyebrow: `Enterprise Systems · Platform Engineering`
+  - H1: `10년 차 Backend / AI Platform Engineer`
+  - Description: 백엔드 개발, 인증·연동, 배포 자동화와 장애 대응을 포함한 10년의 책임 범위를 설명한다.
+  - CTA Buttons: [실무 경험 보기], [대표 프로젝트 보기], [GitHub]
 - **Selected Projects**:
-  - 상단 대표 프로젝트는 Aegis-LLM, SliceRAG, AgentSecOps Playground 순서로 배치한다.
-  - 하단 6개 프로젝트는 2열 컴팩트 카드 또는 리스트 타입으로 분리하여 위계 규정.
-- **Engineering Focus**:
-  - 기술 나열 대신 역량 단위 요약: `AI Request Routing`, `Security & Policy Enforcement`, `Retrieval Pipeline` 등.
+  - 대표 작업은 GoVail Gateway, LingoAgent, Leandraft Linter 순서로 배치한다.
+  - GoVail 관련 컴포넌트는 프로젝트 목록의 `AI 플랫폼 구현과 실험` 그룹에서 별도 정리한다.
+- **Experience**:
+  - 기업용 백엔드와 연동, 인증·데이터, 배포·신뢰성의 세 책임 영역을 먼저 보여준다.
+- **Evidence**:
+  - 공개 가능한 저장소, 설계 판단 기록과 제한된 Runtime Demo를 서로 다른 검증 수단으로 제시한다.
+  - Runtime Demo의 내부 실행 단계는 홈에서 반복하지 않는다.
 
 ## 12. Project Page
 모든 프로젝트 상세 소개 페이지는 아래 15단계 표준 정보 뼈대를 강제 통일 적용한다.
@@ -168,6 +172,8 @@
 ## 19. Content Voice
 - "혁신적인", "강력한", "차세대" 같은 무분별한 마케팅 형용사를 쓰지 않는다.
 - 성능에 관한 주장은 반드시 데이터(예: "평균 지연시간 24% 감소")로 제시하며, 증거 없는 과장 표현은 불허한다.
+- 홈과 경력 페이지의 주어는 제품명이 아니라 엔지니어의 책임과 문제 해결 방식으로 유지한다.
+- 기술 키워드 나열은 상세 근거에서 사용하고, 소개 문장은 담당한 문제와 결과 중심으로 작성한다.
 
 ## 20. Security and Redaction (DLP)
 - **절대 노출 금지**: 사설 IP, 사내 도메인, 로컬 절대경로, API Key, JWT 토큰 등.

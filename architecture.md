@@ -1,73 +1,74 @@
-# Portfolio · Live Lab 아키텍처
+# Engineering Portfolio 아키텍처
 
 ## 포트폴리오 목표
 
-10년 차 기업용 백엔드·플랫폼 경험을 AI 요청 경계로 확장한 포트폴리오다. 채용 검토자는 첫 30초 안에 제작자의 직무 정체성과 경력의 연결을 이해하고, 이후 공개 코드와 실행 가능한 데모로 주장을 검증할 수 있어야 한다.
+10년 차 기업용 백엔드·플랫폼 엔지니어의 책임 범위와 문제 해결 방식을 보여주는 포트폴리오다. 채용 검토자는 첫 30초 안에 제작자의 직무 정체성, 경력의 폭과 현재 집중 영역을 이해하고, 이후 대표 프로젝트의 코드·설계 기록·실행 결과로 주장을 검증할 수 있어야 한다.
 
-1. **직무 정체성:** SaaS · DevOps · Backend / AI Platform Engineer
-2. **경력 연결:** 인증·권한·감사·CI/CD·AWS·RDB·로드밸런싱·고가용성 운영 경험을 AI Gateway 설계로 확장
-3. **대표 시스템:** 하나의 GoVail Platform과 이를 검증하는 공개 컴포넌트
-4. **실행 증거:** 보안·관측·실패 경계를 실제 요청 경로와 공개 저장소에서 확인
+1. **직무 정체성:** Backend / AI Platform Engineer
+2. **경력 중심:** 기업용 백엔드, 인증·권한, 외부 연동, 데이터와 성능, 배포 자동화와 안정적인 운영
+3. **대표 작업:** 서로 다른 문제를 해결한 GoVail Gateway, LingoAgent, Leandraft Linter
+4. **검증 근거:** 공개 가능한 코드, 설계 판단, 현재 한계와 실행 결과
 
-Live Lab은 단순한 LLM 질문 폼이 아니라 정상 요청과 정책 차단을 직접 비교하고, 실제 HTTP 결과로 요청 경계를 검증하는 실행 가능한 포트폴리오 증거다.
+GoVail과 Runtime Demo는 전체 포트폴리오의 정체성이 아니라 AI 플랫폼 역량을 증명하는 하나의 대표 사례다. 다른 프로젝트와 경력은 GoVail의 하위 서사로 편입하지 않는다.
 
 ## 경로별 역할
 
-홈페이지와 Runtime Demo는 같은 콘텐츠를 반복하지 않는다.
+각 페이지는 같은 내용을 반복하지 않고 다음 질문에 답한다.
 
 | 경로 | 방문자가 답을 얻어야 하는 질문 | 주요 콘텐츠 |
 |---|---|---|
-| `/` | 이 사람은 누구이며 어떤 경험과 강점을 가졌는가 | 직무 정체성, 10년 경력, 대표 프로젝트 3개, Demo 미리보기 |
-| `/live-demo` | AI 요청 경계를 실제로 어떻게 설계하고 검증했는가 | 실제 요청, 정책 차단, 브라우저 관찰값, 실행 결과 |
-| `/experience` | 기존 실무 경험이 현재 AI 플랫폼 설계와 어떻게 이어지는가 | 인증·권한·감사·배포·AWS·RDB·로드밸런싱·고가용성·레거시 연동 경험 |
+| `/` | 이 사람은 누구이며 어떤 시스템 문제를 해결해 왔는가 | 직무 정체성, 10년 경력, 책임 영역, 성격이 다른 대표 작업 3개 |
+| `/experience` | 실제로 어떤 책임을 맡아왔고 현재 강점은 무엇인가 | 백엔드·연동, 인증·데이터, 배포·신뢰성 경험과 현재 집중 영역 |
+| `/projects/` | 어떤 구현으로 역량을 확인할 수 있는가 | 대표 작업 3개, AI 플랫폼 관련 구현, 지원 도구 |
 | `/projects/*` | 각 프로젝트에서 무엇을 구현했고 어디까지 보장하는가 | 문제, 범위, 설계 결정, 검증 근거, 한계와 Next Steps |
+| `/live-demo` | 대표 AI 플랫폼 사례를 실제로 어떻게 검증하는가 | 정상 요청, 정책 차단, 브라우저 관찰값, 실행 결과 |
 
 ## 홈페이지 정보 구조
 
 ```mermaid
 flowchart TB
-    Hero["Identity · 10년 차 Backend / AI Platform Engineer"] --> Stats["10년 · 6+ Projects · Live Demo"]
-    Stats --> Experience["Production Experience · 실무 책임과 기술 범위"]
-    Experience --> Projects["AI Platform Projects · 대표작 3개"]
-    Projects --> Preview["Live Architecture Demo · 짧은 실행 경로 미리보기"]
-    Preview --> DemoLink["/live-demo로 이동"]
+    Hero["Identity · Backend / AI Platform Engineer"] --> Scope["10년 · Backend · Platform"]
+    Scope --> Experience["Experience · 실무 책임과 문제 영역"]
+    Experience --> Projects["Selected Work · 성격이 다른 대표 작업 3개"]
+    Projects --> Evidence["Evidence · 코드, 설계 판단, 실행 결과"]
+    Evidence --> ProjectIndex["/projects/로 이동"]
 ```
 
-홈은 채용 검토자가 첫 5초 안에 경력 연차, 직무, 강점과 대표 결과물을 이해하도록 구성한다. Runtime의 Interface Contract, Failure Boundary, Observable Signal과 Request Trace는 홈에서 제거하고 `/live-demo`에서만 제공한다. 홈의 Demo 영역은 `Gateway → Policy → Private LLM → Audit` 수준의 미리보기와 이동 버튼만 보여준다.
+홈은 채용 검토자가 첫 5초 안에 경력 연차, 직무, 강점과 대표 결과물을 이해하도록 구성한다. Runtime의 Interface Contract, Failure Boundary, Observable Signal과 Request Trace는 `/live-demo`에서만 제공한다. 홈에서는 데모 자체를 홍보하지 않고 프로젝트 주장을 확인하는 여러 증거 중 하나로만 소개한다.
 
 ## 홈페이지 콘텐츠 원칙
 
 - 한국어 설명을 기본으로 하고 영어는 직무명, 기술명과 프로젝트명처럼 필요한 고유 용어에만 사용한다.
 - 영어 대문자 UI Label을 연속 배치하지 않는다.
-- 첫 화면에는 제품 아키텍처 패널 대신 사람의 경력과 역할을 배치한다.
-- 대표 프로젝트는 GoVail, Aegis-LLM, SliceRAG 세 개만 노출한다.
-- 상세 운영 증거와 나머지 컴포넌트는 Experience, Operational Evidence와 Project 문서에서 단계적으로 공개한다.
+- 첫 화면의 주어는 제품이 아니라 엔지니어의 경력과 책임으로 유지한다.
+- 기술 키워드를 한 문장에 나열하지 않고 문제 영역과 맡은 책임을 설명한다.
+- 대표 작업은 GoVail Gateway, LingoAgent, Leandraft Linter처럼 서로 다른 역량을 보여주는 세 개만 노출한다.
+- Aegis-LLM, Aperture MCP, SliceRAG와 AgentSecOps Playground는 AI 플랫폼 관련 구현 묶음에서 단계적으로 공개한다.
+- Runtime Demo는 상단 내비게이션의 독립 목적지가 아니라 GoVail 사례의 검증 수단으로 연결한다.
 
 ## 프로젝트 정보 계층
 
 ```mermaid
 flowchart TB
-    GoVail["대표 시스템 · GoVail AI Platform"]
-    Aegis["Aegis-LLM · LLM Gateway"]
-    Aperture["Aperture MCP · Tool Policy"]
-    SliceRAG["SliceRAG · RAG Isolation"]
-    Playground["AgentSecOps Playground · E2E 검증"]
+    Portfolio["Engineering Portfolio"]
+    GoVail["GoVail Gateway · AI Platform Case"]
+    Lingo["LingoAgent · Automation Pipeline"]
+    Leandraft["Leandraft Linter · Developer Tool"]
+    Components["AI Platform 관련 구현과 실험"]
 
-    GoVail --> Aegis
-    GoVail --> Aperture
-    GoVail --> SliceRAG
-    Aegis --> Playground
-    Aperture --> Playground
-    SliceRAG --> Playground
+    Portfolio --> GoVail
+    Portfolio --> Lingo
+    Portfolio --> Leandraft
+    Portfolio --> Components
 ```
 
-- **대표 시스템:** GoVail AI Platform이 전체 문제와 운영 경계를 설명한다.
-- **검증 가능한 핵심 컴포넌트:** Aegis-LLM, Aperture MCP, SliceRAG가 공개 구현 근거를 제공한다.
-- **실험·지원 도구:** AgentSecOps Playground와 나머지 도구는 통합 검증 또는 개발 지원 역할로 구분한다.
+- **대표 작업:** 서로 다른 문제와 해결 방식을 보여주는 세 사례를 같은 위계로 소개한다.
+- **AI 플랫폼 관련 구현:** Aegis-LLM, Aperture MCP, SliceRAG와 AgentSecOps Playground는 별도 그룹으로 구분한다.
+- **인프라·지원 도구:** AI Gateway Infra Demo, Infra Security와 Mock LLM Server는 운영 또는 검증 지원 역할로 구분한다.
 
 ## 경력 연결 원칙
 
-경력 페이지는 회사명이나 확인되지 않은 수치를 과장하지 않고, 다음의 문제 경험이 현재 AI 플랫폼 설계 판단으로 어떻게 이어졌는지 설명한다.
+경력 페이지는 회사명이나 확인되지 않은 수치를 과장하지 않고, 실제 책임 범위를 먼저 설명한다. AI 플랫폼과의 연결은 경력 전체를 재해석하는 프레임이 아니라 현재 집중 영역을 설명하는 마지막 섹션으로 둔다.
 
 | 기존 실무 경험 | AI 플랫폼에서의 확장 |
 |---|---|

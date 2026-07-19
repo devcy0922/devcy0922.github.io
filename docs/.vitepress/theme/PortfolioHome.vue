@@ -16,12 +16,12 @@ const experienceAreas = [
   {
     titleKey: 'home.experience.backend.title',
     descKey: 'home.experience.backend.desc',
-    skills: 'Backend · Legacy · Integration',
+    skillsKey: 'home.experience.backend.skills',
   },
   {
     titleKey: 'home.experience.identity.title',
     descKey: 'home.experience.identity.desc',
-    skills: 'SSO · Keycloak · Audit',
+    skillsKey: 'home.experience.identity.skills',
   },
   {
     titleKey: 'home.experience.operations.title',
@@ -39,26 +39,25 @@ const projects = [
     stackKey: 'project.govail.meta.stack',
   },
   {
-    href: '/projects/aegis-llm',
-    titleKey: 'project.aegis.title',
-    descKey: 'project.aegis.desc',
-    typeKey: 'project.aegis.meta.type',
-    stackKey: 'project.aegis.meta.stack',
+    href: '/projects/lingo-agent',
+    titleKey: 'project.lingo.title',
+    descKey: 'project.lingo.desc',
+    typeKey: 'project.lingo.meta.type',
+    stackKey: 'project.lingo.meta.stack',
   },
   {
-    href: '/projects/slicerag',
-    titleKey: 'project.slicerag.title',
-    descKey: 'project.slicerag.desc',
-    typeKey: 'project.slicerag.meta.type',
-    stackKey: 'project.slicerag.meta.stack',
+    href: '/projects/leandraft-linter',
+    titleKey: 'project.leandraft.title',
+    descKey: 'project.leandraft.desc',
+    typeKey: 'project.leandraft.meta.type',
+    stackKey: 'project.leandraft.meta.stack',
   },
 ]
 
-const demoPath = [
-  { titleKey: 'home.demo.gateway', meta: 'Gateway' },
-  { titleKey: 'home.demo.policy', meta: 'Policy' },
-  { titleKey: 'home.demo.runtime', meta: 'Private LLM' },
-  { titleKey: 'home.demo.audit', meta: 'Audit' },
+const evidenceItems = [
+  { titleKey: 'home.evidence.repository', meta: '01 · Repository' },
+  { titleKey: 'home.evidence.decisions', meta: '02 · Design record' },
+  { titleKey: 'home.evidence.runtime', meta: '03 · Live validation' },
 ]
 
 onMounted(async () => {
@@ -88,8 +87,8 @@ onMounted(async () => {
         <p class="hero-context">{{ t('hero.context') }}</p>
 
         <div class="hero-actions">
-          <a href="#projects" class="btn-primary">{{ t('hero.cta.explore') }}</a>
-          <a href="/live-demo" class="btn-secondary">{{ t('hero.cta.demo') }}</a>
+          <a href="/experience" class="btn-primary">{{ t('hero.cta.experience') }}</a>
+          <a href="#projects" class="btn-secondary">{{ t('hero.cta.explore') }}</a>
           <a href="https://github.com/devcy0922" class="btn-text" target="_blank" rel="noopener">
             GitHub ↗
           </a>
@@ -145,20 +144,23 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="demo-preview" aria-labelledby="demo-preview-title">
-        <div class="demo-preview__copy">
-          <p>{{ t('home.demo.label') }}</p>
-          <h2 id="demo-preview-title">{{ t('home.demo.title') }}</h2>
-          <p>{{ t('home.demo.desc') }}</p>
-          <a href="/live-demo" class="btn-primary">{{ t('home.demo.cta') }} →</a>
+      <section class="evidence-preview" aria-labelledby="evidence-preview-title">
+        <div class="evidence-preview__copy">
+          <p>{{ t('home.evidence.label') }}</p>
+          <h2 id="evidence-preview-title">{{ t('home.evidence.title') }}</h2>
+          <p>{{ t('home.evidence.desc') }}</p>
+          <div class="evidence-actions">
+            <a href="/projects/" class="btn-primary">{{ t('home.evidence.cta') }} →</a>
+            <a href="/live-demo" class="btn-text">{{ t('home.evidence.demo') }} →</a>
+          </div>
         </div>
 
-        <ol class="demo-path" :aria-label="t('home.demo.pathLabel')">
-          <li v-for="(step, index) in demoPath" :key="step.titleKey">
+        <ol class="evidence-list" :aria-label="t('home.evidence.listLabel')">
+          <li v-for="(item, index) in evidenceItems" :key="item.titleKey">
             <span>{{ index + 1 }}</span>
             <div>
-              <small>{{ step.meta }}</small>
-              <strong>{{ t(step.titleKey) }}</strong>
+              <small>{{ item.meta }}</small>
+              <strong>{{ t(item.titleKey) }}</strong>
             </div>
           </li>
         </ol>
@@ -178,17 +180,17 @@ onMounted(async () => {
 
 .portfolio-hero { max-width: 850px; padding: 104px 0 72px; }
 .hero-role { margin: 0 0 18px; color: var(--accent-primary); font-size: 13px; font-weight: 650; }
-.portfolio-hero h1 { max-width: 820px; margin: 0; border: 0; padding: 0; color: var(--text-primary); font-size: clamp(42px, 6vw, 68px); font-weight: 720; letter-spacing: -.05em; line-height: 1.12; }
+.portfolio-hero h1 { max-width: 900px; margin: 0; border: 0; padding: 0; color: var(--text-primary); font-size: clamp(40px, 5.4vw, 64px); font-weight: 720; letter-spacing: -.05em; line-height: 1.12; word-break: keep-all; }
 .hero-lead { max-width: 720px; margin: 28px 0 0; color: var(--text-secondary); font-size: 19px; line-height: 1.7; }
 .hero-context { max-width: 720px; margin: 14px 0 0; color: var(--text-muted); font-size: 14px; line-height: 1.75; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 36px; }
 .hero-actions a,
-.demo-preview__copy > a { border-radius: 7px; padding: 11px 17px; font-size: 13px; font-weight: 650; text-decoration: none; }
+.evidence-actions a { border-radius: 7px; padding: 11px 17px; font-size: 13px; font-weight: 650; text-decoration: none; }
 .btn-primary { border: 1px solid var(--accent-primary); background: var(--accent-primary); color: white !important; }
 .btn-secondary { border: 1px solid var(--border-strong); background: var(--surface-raised); color: var(--text-primary) !important; }
 .btn-text { color: var(--text-secondary) !important; }
 .hero-actions a:hover,
-.demo-preview__copy > a:hover { opacity: .84; }
+.evidence-actions a:hover { opacity: .84; }
 
 .career-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); }
 .career-stats article { display: grid; gap: 5px; border-right: 1px solid var(--border-default); padding: 26px 28px; }
@@ -200,9 +202,9 @@ onMounted(async () => {
 .home-section { padding-top: 104px; }
 .section-heading { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1fr); gap: 64px; align-items: end; }
 .section-heading > div:first-child > p,
-.demo-preview__copy > p:first-child { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 650; }
+.evidence-preview__copy > p:first-child { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 650; }
 .section-heading h2,
-.demo-preview h2 { margin: 8px 0 0; border: 0; padding: 0; color: var(--text-primary); font-size: 30px; letter-spacing: -.03em; }
+.evidence-preview h2 { margin: 8px 0 0; border: 0; padding: 0; color: var(--text-primary); font-size: 30px; letter-spacing: -.03em; word-break: keep-all; }
 .section-heading > p,
 .section-heading > div:last-child > p { max-width: 600px; margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
 .section-heading > div:last-child > a { display: inline-block; margin-top: 12px; color: var(--text-primary); font-size: 13px; font-weight: 650; text-decoration: none; }
@@ -214,7 +216,7 @@ onMounted(async () => {
 .featured-project { min-height: 205px; border: 1px solid var(--border-default); border-radius: 9px; background: var(--surface-raised); padding: 24px; }
 .experience-grid article { display: flex; flex-direction: column; }
 .experience-grid h3,
-.featured-project h3 { margin: 0 0 12px; border: 0; padding: 0; color: var(--text-primary); font-size: 17px; }
+.featured-project h3 { margin: 0 0 12px; border: 0; padding: 0; color: var(--text-primary); font-size: 17px; word-break: keep-all; }
 .experience-grid p,
 .featured-project p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
 .experience-grid small { margin-top: auto; padding-top: 24px; color: var(--text-muted); font-size: 10px; }
@@ -224,15 +226,16 @@ onMounted(async () => {
 .featured-project span { display: block; margin-bottom: 18px; color: var(--text-muted); font-size: 10px; }
 .featured-project small { margin-top: 24px; color: var(--text-muted); font-size: 10px; }
 
-.demo-preview { display: grid; grid-template-columns: minmax(0, .9fr) minmax(380px, 1fr); gap: 72px; align-items: center; margin-top: 112px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-raised); padding: 44px; }
-.demo-preview__copy > p:not(:first-child) { margin: 18px 0 28px; color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
-.demo-preview__copy > a { display: inline-block; }
-.demo-path { margin: 0; padding: 0; list-style: none; }
-.demo-path li { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: center; min-height: 66px; border-bottom: 1px solid var(--border-default); }
-.demo-path li:last-child { border-bottom: 0; }
-.demo-path li > span { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--text-muted); font-size: 10px; }
-.demo-path small { display: block; color: var(--text-muted); font-size: 9px; }
-.demo-path strong { display: block; margin-top: 3px; color: var(--text-primary); font-size: 13px; }
+.evidence-preview { display: grid; grid-template-columns: minmax(0, .95fr) minmax(360px, 1fr); gap: 72px; align-items: center; margin-top: 112px; border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); padding: 48px 0; }
+.evidence-preview__copy > p:not(:first-child) { margin: 18px 0 28px; color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
+.evidence-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.evidence-actions .btn-text { padding-right: 4px; }
+.evidence-list { margin: 0; padding: 0; list-style: none; }
+.evidence-list li { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: center; min-height: 74px; border-bottom: 1px solid var(--border-default); }
+.evidence-list li:last-child { border-bottom: 0; }
+.evidence-list li > span { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--text-muted); font-size: 10px; }
+.evidence-list small { display: block; color: var(--text-muted); font-size: 9px; }
+.evidence-list strong { display: block; margin-top: 4px; color: var(--text-primary); font-size: 13px; line-height: 1.55; }
 
 @media (max-width: 860px) {
   .portfolio-hero { padding-top: 76px; }
@@ -241,7 +244,7 @@ onMounted(async () => {
   .featured-projects { grid-template-columns: 1fr; }
   .experience-grid article,
   .featured-project { min-height: 0; }
-  .demo-preview { grid-template-columns: 1fr; gap: 36px; }
+  .evidence-preview { grid-template-columns: 1fr; gap: 36px; }
 }
 
 @media (max-width: 640px) {
@@ -256,7 +259,7 @@ onMounted(async () => {
   .career-stats article:first-child { border-right: 0; border-bottom: 1px solid var(--border-default); padding: 20px 0; }
   .career-stats article:last-child { border-bottom: 0; }
   .home-section { padding-top: 76px; }
-  .demo-preview { margin-top: 84px; padding: 28px 22px; }
+  .evidence-preview { margin-top: 84px; padding: 36px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

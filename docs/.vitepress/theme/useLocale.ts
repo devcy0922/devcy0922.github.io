@@ -41,8 +41,13 @@ function detectInitialLocale(): SupportedLocale {
  * en.json / ja.json 은 LingoAgent가 생성한 파일입니다.
  */
 async function loadMessages(locale: SupportedLocale): Promise<Record<string, string>> {
-  // ko는 번들에서 직접 import하지 않고 fetch (동일 경로 유지)
-  const url = `/locales/${locale}.json`
+  // VitePress의 base path 환경변수 및 window.location을 활용하여 어떤 호스팅 환경(subpath)에서도 정확한 locales 주소를 계산
+  const base = typeof window !== 'undefined' 
+    ? (window.location.origin + (import.meta.env.BASE_URL || '/')) 
+    : '/'
+  const cleanBase = base.endsWith('/') ? base : base + '/'
+  const url = `${cleanBase}locales/${locale}.json`
+  
   try {
     const resp = await fetch(url)
     if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`)
@@ -51,7 +56,8 @@ async function loadMessages(locale: SupportedLocale): Promise<Record<string, str
     console.warn(`[useLocale] ${locale}.json 로드 실패, ko로 폴백:`, e)
     // 번역 파일 로드 실패 시 ko로 폴백
     if (locale !== 'ko') {
-      const fallback = await fetch('/locales/ko.json')
+      const fallbackUrl = `${cleanBase}locales/ko.json`
+      const fallback = await fetch(fallbackUrl)
       return fallback.ok ? fallback.json() : {}
     }
     return {}
@@ -77,7 +83,7 @@ async function setLocale(locale: SupportedLocale) {
 
 /**
  * 번역 함수 t() — 키에 해당하는 UI 텍스트를 반환합니다.
- * 키가 없으면 키 자체를 반환합니다.
+ * messages 가 ref이므로 템플릿에서 t가 호출될 때 messages 의존성이 추적됩니다.
  */
 function t(key: string): string {
   return messages.value[key] ?? key
@@ -87,6 +93,7 @@ export function useLocale() {
   return {
     currentLocale: computed(() => currentLocale.value),
     loading: computed(() => loading.value),
+    messages: computed(() => messages.value), // messages 자체를 반응성 있게 제공
     setLocale,
     detectInitialLocale,
     SUPPORTED,

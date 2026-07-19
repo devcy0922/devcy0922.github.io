@@ -31,7 +31,7 @@
   "home.projects.title": "AIプラットフォームへと拡張した取り組み",
   "home.projects.desc": "Gateway、セキュリティ境界、RAG分離を代表する3つのプロジェクトです。各ドキュメントで実装範囲と現在の課題を併せて確認できます。",
   "home.demo.label": "動作するデモ",
-  "home.demo.title": "AIリクエストの境界を実際に確認できます。",
+  "home.demo.title": "AIリクエストの境界を実際に見てみましょう",
   "home.demo.desc": "Runtime Demoでは、公開リクエストが認証とポリシーチェックを通過し、プライベートLLMに到達して、監査イベントが記録される流れを確認できます。",
   "home.demo.cta": "Runtime Demoを開く",
   "home.demo.pathLabel": "Runtime Demo実行パスのプレビュー",

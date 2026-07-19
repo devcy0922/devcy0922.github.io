@@ -7,7 +7,7 @@
 
 ## 📌 Status & Repository
 
-- **상태**: `Pipeline` — 이 사이트에 실제 적용 중
+- **상태**: `MVP` — 이 사이트의 자동 번역 파이프라인에 실제 적용 중
 - **저장소**: [devcy0922/lingo-agent](https://github.com/devcy0922/lingo-agent)
 - **번역 소스**: [docs/public/locales/ko.json](https://github.com/devcy0922/devcy0922.github.io/blob/main/docs/public/locales/ko.json)
 - **라이선스**: MIT

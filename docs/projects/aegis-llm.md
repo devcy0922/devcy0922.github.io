@@ -67,7 +67,7 @@ sequenceDiagram
 
 ## 6. Key Design Decisions
 - **API Key를 SaaS 경계로 사용**: Key별 `project`, `role`, RPM 정보를 인증 결과에 결합해 요청 정책과 사용량 제한을 같은 Principal 기준으로 처리합니다.
-- **Fail-closed 보안 필터**: 차단 대상 Payload는 Upstream으로 전송하기 전에 종료해 정보 유출과 불필요한 추론 비용을 줄입니다.
+- **Fail-closed 보안 필터**: 차단 대상 Payload는 Upstream으로 전송하기 전에 종료해 정보 유출과 정책 우회를 막습니다.
 - **Provider 장애 격리**: 네트워크 오류와 5xx 응답에 Retry를 적용하고 설정된 Fallback Upstream으로 전환합니다.
 
 ## 7. Security Considerations

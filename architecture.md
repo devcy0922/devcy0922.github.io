@@ -11,21 +11,37 @@
 
 Live Lab은 단순한 LLM 질문 폼이 아니라 런타임 아키텍처를 클릭해 살펴보고, 실제 요청이 단계별로 어떤 경계를 통과하는지 확인하는 실행 가능한 포트폴리오 증거다.
 
-## 화면 정보 구조
+## 경로별 역할
+
+홈페이지와 Runtime Demo는 같은 콘텐츠를 반복하지 않는다.
+
+| 경로 | 방문자가 답을 얻어야 하는 질문 | 주요 콘텐츠 |
+|---|---|---|
+| `/` | 이 사람은 누구이며 어떤 경험과 강점을 가졌는가 | 직무 정체성, 10년 경력, 대표 프로젝트 3개, Demo 미리보기 |
+| `/live-demo` | AI 요청 경계를 실제로 어떻게 설계하고 검증했는가 | Runtime Walkthrough, Architecture, Request Trace, 실행 결과 |
+| `/experience` | 기존 실무 경험이 현재 AI 플랫폼 설계와 어떻게 이어지는가 | 인증·권한·감사·배포·클라우드·레거시 연동 경험 |
+| `/projects/*` | 각 프로젝트에서 무엇을 구현했고 어디까지 보장하는가 | 문제, 범위, 설계 결정, 검증 근거, 한계와 Next Steps |
+
+## 홈페이지 정보 구조
 
 ```mermaid
 flowchart TB
-    Hero["Identity · 10년 차 Backend / AI Platform"] --> Bridge["Career Bridge · Enterprise Backend → AI Request Boundary"]
-    Bridge --> Systems["System Map · 1 Platform + 3 Core Components"]
-    Systems --> Experience["Production Experience · 책임과 운영 관점"]
-    Experience --> Evidence["Operational Evidence · 보안 불변식과 장애 우회"]
-    Evidence --> Lab["Live Lab · Runtime Walkthrough"]
-    Lab --> Architecture["클릭 가능한 실행 경로"]
-    Architecture --> Trace["단계별 Request Trace"]
-    Trace --> Result["최종 분석 결과 · 운영 경계"]
+    Hero["Identity · 10년 차 Backend / AI Platform Engineer"] --> Stats["10년 · 6+ Projects · Live Demo"]
+    Stats --> Experience["Production Experience · 실무 책임과 기술 범위"]
+    Experience --> Projects["AI Platform Projects · 대표작 3개"]
+    Projects --> Preview["Live Architecture Demo · 짧은 실행 경로 미리보기"]
+    Preview --> DemoLink["/live-demo로 이동"]
 ```
 
-홈은 프로젝트를 병렬 나열하지 않는다. 제작자 소개와 경력 연결을 먼저 제시한 뒤 `하나의 플랫폼 + 세 개의 핵심 컴포넌트 + 통합 검증 환경`으로 관계를 설명한다. Live Lab은 실행하지 않아도 아키텍처를 탐색할 수 있고, 실제 호출은 별도의 Trace 영역에서 진행 상태를 설명한다.
+홈은 채용 검토자가 첫 5초 안에 경력 연차, 직무, 강점과 대표 결과물을 이해하도록 구성한다. Runtime의 Interface Contract, Failure Boundary, Observable Signal과 Request Trace는 홈에서 제거하고 `/live-demo`에서만 제공한다. 홈의 Demo 영역은 `Gateway → Policy → Private LLM → Audit` 수준의 미리보기와 이동 버튼만 보여준다.
+
+## 홈페이지 콘텐츠 원칙
+
+- 한국어 설명을 기본으로 하고 영어는 직무명, 기술명과 프로젝트명처럼 필요한 고유 용어에만 사용한다.
+- 영어 대문자 UI Label을 연속 배치하지 않는다.
+- 첫 화면에는 제품 아키텍처 패널 대신 사람의 경력과 역할을 배치한다.
+- 대표 프로젝트는 GoVail, Aegis-LLM, SliceRAG 세 개만 노출한다.
+- 상세 운영 증거와 나머지 컴포넌트는 Experience, Operational Evidence와 Project 문서에서 단계적으로 공개한다.
 
 ## 프로젝트 정보 계층
 

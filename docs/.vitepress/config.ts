@@ -24,11 +24,10 @@ export default withMermaid(
       siteTitle: 'devcy0922',
       
       nav: [
-        { text: 'Overview', link: '/' },
+        { text: 'Portfolio', link: '/' },
         { text: 'Experience', link: '/experience' },
-        { text: 'Evidence', link: '/operational-evidence' },
-        { text: 'Runtime Lab', link: '/live-demo' },
-        { text: 'Systems', link: '/projects/govail-gateway' }
+        { text: 'Projects', link: '/projects/govail-gateway' },
+        { text: 'Runtime Demo', link: '/live-demo' }
       ],
 
       sidebar: {

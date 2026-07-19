@@ -1,0 +1,93 @@
+{
+  "preserve": [
+    "GoVail",
+    "Aegis-LLM",
+    "SliceRAG",
+    "AgentSecOps Playground",
+    "Aperture MCP",
+    "RAG",
+    "SSO",
+    "CI/CD",
+    "Docker",
+    "AWS",
+    "SurrealDB",
+    "GCP"
+  ],
+  "entries": [
+    {
+      "source": "장애 우회",
+      "targets": {
+        "en-US": "failover",
+        "ja-JP": "フェイルオーバー"
+      },
+      "forbidden": {
+        "en-US": ["failure bypass"],
+        "ja-JP": ["障害迂回"]
+      }
+    },
+    {
+      "source": "감사 신호",
+      "targets": {
+        "en-US": "audit events",
+        "ja-JP": "監査イベント"
+      },
+      "forbidden": {
+        "en-US": ["audit signals"],
+        "ja-JP": ["監査シグナル"]
+      }
+    },
+    {
+      "source": "사설 LLM 호출 앞단",
+      "targets": {
+        "en-US": "before requests reach private LLMs",
+        "ja-JP": "プライベートLLMへのリクエストが到達する前に"
+      },
+      "forbidden": {
+        "en-US": ["at the front of private LLM calls"],
+        "ja-JP": ["フロントエンドで"]
+      }
+    },
+    {
+      "source": "보안 불변식",
+      "targets": {
+        "en-US": "security invariants",
+        "ja-JP": "セキュリティ不変条件"
+      },
+      "forbidden": {
+        "ja-JP": ["セキュリティ不変式"]
+      }
+    },
+    {
+      "source": "재현 가능한",
+      "targets": {
+        "en-US": "reproducible",
+        "ja-JP": "再現可能な"
+      },
+      "forbidden": {
+        "ja-JP": ["生再現可能な"]
+      }
+    },
+    {
+      "source": "검증 가능한 전달 체계",
+      "targets": {
+        "en-US": "Verifiable Delivery Pipeline",
+        "ja-JP": "検証可能なデプロイ基盤"
+      },
+      "forbidden": {
+        "en-US": ["verifiable delivery system"],
+        "ja-JP": ["検証可能な伝達体系"]
+      }
+    },
+    {
+      "source": "10년 차 엔지니어",
+      "targets": {
+        "en-US": "10 years",
+        "ja-JP": "10年"
+      },
+      "forbidden": {
+        "en-US": ["10-Year Engineer"],
+        "ja-JP": ["10年目のエンジニア"]
+      }
+    }
+  ]
+}

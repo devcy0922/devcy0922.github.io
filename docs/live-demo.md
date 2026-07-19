@@ -1,6 +1,6 @@
 ---
 title: Runtime Demo
-description: AI 요청이 Policy Gateway와 사설 LLM Runtime을 통과하는 실행 경로를 단계별로 확인합니다.
+description: 정상 요청과 정책 차단을 실행하고 실제 HTTP 상태, 지연과 Trace ID를 확인합니다.
 layout: page
 aside: false
 outline: false

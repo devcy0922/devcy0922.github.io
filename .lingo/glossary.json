@@ -100,6 +100,17 @@
         "en-US": ["request pipeline"],
         "ja-JP": ["リクエスト処理フロー"]
       }
+    },
+    {
+      "source": "AI 요청 경계가 실제로 어떻게 작동하는지 확인해보세요",
+      "keys": ["home.demo.title"],
+      "targets": {
+        "en-US": "See how AI request boundaries work in practice",
+        "ja-JP": "AIリクエストの境界を実際に見てみましょう"
+      },
+      "forbidden": {
+        "ja-JP": ["ご確認ください", "どのように機能するかを確認"]
+      }
     }
   ]
 }

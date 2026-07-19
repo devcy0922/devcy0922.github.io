@@ -4,17 +4,29 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 export default withMermaid(
   defineConfig({
     title: 'devcy0922',
-    description: 'Backend · Infrastructure · AI Platform Portfolio',
+    titleTemplate: ':title · devcy0922',
+    description: '10년차 SaaS · DevOps · AI Platform 엔지니어링 포트폴리오',
     lang: 'ko-KR',
     cleanUrls: true,
+    lastUpdated: true,
+    sitemap: {
+      hostname: 'https://devcy0922.github.io'
+    },
+    head: [
+      ['meta', { name: 'theme-color', content: '#0a0a0c' }],
+      ['meta', { property: 'og:type', content: 'website' }],
+      ['meta', { property: 'og:site_name', content: 'devcy0922 Engineering Portfolio' }],
+      ['meta', { property: 'og:title', content: '10년차 SaaS · DevOps · AI Platform' }],
+      ['meta', { property: 'og:description', content: '운영 가능한 SaaS의 경계를 AI 플랫폼까지 확장합니다.' }]
+    ],
     
     themeConfig: {
       siteTitle: 'devcy0922',
       
       nav: [
-        { text: 'Home', link: '/' },
-        { text: 'Live Lab', link: '/live-demo' },
-        { text: 'Projects', link: '/projects/aegis-llm' }
+        { text: 'Overview', link: '/' },
+        { text: 'Runtime Lab', link: '/live-demo' },
+        { text: 'Systems', link: '/projects/govail-gateway' }
       ],
 
       sidebar: {

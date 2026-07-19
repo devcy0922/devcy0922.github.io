@@ -27,8 +27,8 @@
   "home.experience.backend.desc": "레거시 시스템 현대화, B2B 백엔드와 외부 API·데이터 연동을 설계하고 운영했습니다.",
   "home.experience.identity.title": "인증·권한·감사",
   "home.experience.identity.desc": "SSO와 역할 기반 권한, Key 관리와 추적 가능한 감사 이벤트를 다뤘습니다.",
-  "home.experience.operations.title": "DevOps와 고가용성 운영",
-  "home.experience.operations.desc": "Docker와 CI/CD를 표준화하고 AWS, RDB·Redis, 로드밸런싱 기반 서비스 운영과 장애 원인 추적을 수행했습니다.",
+  "home.experience.operations.title": "DevOps 기반 고가용성 운영",
+  "home.experience.operations.desc": "Docker와 CI/CD를 표준화하고 AWS 환경에서 RDB·Redis, 로드밸런싱 기반 서비스 운영과 장애 원인 추적을 수행했습니다.",
   "home.experience.operations.skills": "AWS · CI/CD · RDB · Redis · 로드밸런싱 · 고가용성",
 
   "home.projects.label": "대표 프로젝트",

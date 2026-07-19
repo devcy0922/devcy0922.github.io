@@ -3,6 +3,8 @@ node_modules/
 
 # VitePress 빌드 산출물 (GitHub Action이 빌드 후 Pages 배포)
 docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/.vitepress/.temp/
 
 # 로컬 에이전트 지침
 AGENTS.md

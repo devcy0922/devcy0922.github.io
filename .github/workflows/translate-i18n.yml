@@ -33,10 +33,58 @@ jobs:
       - name: "Checkout portfolio repo"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 3
+
+      # 소스와 번역본이 같은 커밋에 함께 제공된 경우에는 키 정합성만 검증한다.
+      # ko.json만 변경된 일반 흐름에서는 기존 LingoAgent 번역을 그대로 실행한다.
+      - name: "Check supplied locale coverage"
+        id: locale-coverage
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          locale_paths = {
+              "ko": Path("docs/public/locales/ko.json"),
+              "en": Path("docs/public/locales/en.json"),
+              "ja": Path("docs/public/locales/ja.json"),
+          }
+          source_commit = subprocess.check_output(
+              ["git", "log", "-1", "--format=%H", "--", str(locale_paths["ko"])],
+              text=True,
+          ).strip()
+          changed = set(
+              subprocess.check_output(
+                  ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", source_commit],
+                  text=True,
+              ).splitlines()
+          )
+          required = {str(path) for path in locale_paths.values()}
+          source_keys = set(json.loads(locale_paths["ko"].read_text()).keys())
+          keys_match = all(
+              set(json.loads(locale_paths[lang].read_text()).keys()) == source_keys
+              for lang in ("en", "ja")
+          )
+          supplied = required.issubset(changed) and keys_match
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"skip_translation={'true' if supplied else 'false'}\n")
+
+          if supplied:
+              print("ko/en/ja가 함께 제공되었고 locale key가 일치합니다.")
+          else:
+              print("LingoAgent 자동 번역이 필요합니다.")
+          PY
+
+      - name: "Accept supplied locale files"
+        if: ${{ steps.locale-coverage.outputs.skip_translation == 'true' }}
+        run: echo "번역본이 원문과 함께 검증되어 LLM 번역을 생략합니다."
 
       # ── 2. lingo-agent 레포 체크아웃 (translate.py 사용) ──
       - name: "Checkout lingo-agent"
+        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         uses: actions/checkout@v4
         with:
           repository: devcy0922/lingo-agent
@@ -47,6 +95,7 @@ jobs:
 
       # ── 3. Python 설정 ──
       - name: "Setup Python 3.11"
+        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -55,12 +104,14 @@ jobs:
 
       # ── 4. 의존성 설치 ──
       - name: "Install LingoAgent dependencies"
+        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         run: pip install -r .lingo-agent/requirements-translate.txt
 
       # ── 5. 번역 실행 ──
       #    LLM_GATEWAY_URL, LLM_API_KEY, LLM_MODEL 은 GitHub Secrets에서 주입
       #    Fallback 번역 발생 시 exit(1) → Job 실패 → 커밋 차단
       - name: "Run LingoAgent translation pipeline"
+        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' }}
         env:
           LLM_GATEWAY_URL: ${{ secrets.LLM_GATEWAY_URL }}
           # PORTFOLIO_DEMO_KEY: Live Demo와 동일한 GCP API Gateway 키 재사용
@@ -81,7 +132,7 @@ jobs:
       # ── 6. 번역 결과 커밋 ──
       #    [skip ci] 태그: 커밋으로 인한 무한 트리거 방지
       - name: "Commit translated locale files"
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ steps.locale-coverage.outputs.skip_translation != 'true' && github.event.inputs.dry_run != 'true' }}
         run: |
           git config --global user.name  "LingoAgent[bot]"
           git config --global user.email "lingo-agent@devcy0922.github.io"

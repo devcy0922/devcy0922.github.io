@@ -93,7 +93,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "번역 파일에 변경사항 없음 — 커밋 생략"
           else
-            git commit -m "chore(i18n): auto-translate via LingoAgent [skip ci]
+            git commit -m "chore(i18n): auto-translate via LingoAgent
 
             Source: docs/public/locales/ko.json
             Langs: en-US, ja-JP

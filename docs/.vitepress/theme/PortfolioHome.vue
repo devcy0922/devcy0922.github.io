@@ -32,11 +32,11 @@ const experienceAreas = [
 
 const projects = [
   {
-    href: '/projects/govail-gateway',
-    titleKey: 'project.govail.title',
-    descKey: 'project.govail.desc',
-    typeKey: 'project.govail.meta.type',
-    stackKey: 'project.govail.meta.stack',
+    href: '/projects/aegis-llm',
+    titleKey: 'project.aegis.title',
+    descKey: 'project.aegis.desc',
+    typeKey: 'project.aegis.meta.type',
+    stackKey: 'project.aegis.meta.stack',
   },
   {
     href: '/projects/lingo-agent',
@@ -87,11 +87,61 @@ onMounted(async () => {
         <p class="hero-context">{{ t('hero.context') }}</p>
 
         <div class="hero-actions">
-          <a href="/experience" class="btn-primary">{{ t('hero.cta.experience') }}</a>
-          <a href="#projects" class="btn-secondary">{{ t('hero.cta.explore') }}</a>
-          <a href="https://github.com/devcy0922" class="btn-text" target="_blank" rel="noopener">
-            GitHub ↗
-          </a>
+          <a href="https://govail.github.io" class="btn-primary" target="_blank" rel="noopener">{{ t('hero.cta.explore') }}</a>
+          <a href="https://github.com/GoVail" class="btn-secondary" target="_blank" rel="noopener">{{ t('hero.cta.github') }}</a>
+        </div>
+      </section>
+
+      <section class="govail-highlight" aria-labelledby="govail-arch-title">
+        <header class="section-heading">
+          <div>
+            <p>Platform Architecture</p>
+            <h2 id="govail-arch-title">GoVail AI Platform</h2>
+          </div>
+          <p>
+            Enterprise AI 거버넌스를 위한 Rust + Python 마이크로서비스 아키텍처. 
+            DLP 정책 엔진, 인텔리전트 라우팅, 실시간 감사 로그를 통해 
+            안전하고 통제 가능한 AI 요청 흐름을 제공합니다.
+          </p>
+        </header>
+        <div class="govail-arch-diagram">
+          <pre><code>
+┌─────────────────┐      ┌─────────────────────────┐      ┌─────────────────┐
+│                 │      │      GoVail Gateway     │      │                 │
+│  Client Apps    │ ───▶ │  (Rust / Axum)          │ ───▶ │  LiteLLM / vLLM │
+│  IDE Extensions │      │  Auth, DLP, Rate Limit  │      │  (Model Layer)  │
+│                 │      └───────────┬─────────────┘      └─────────────────┘
+└─────────────────┘                  │
+                                     ▼
+                         ┌─────────────────────────┐
+                         │      GoVail Router      │
+                         │  (Python / FastAPI)     │
+                         │  Intent Classification  │
+                         └──────┬───────────┬──────┘
+                                │           │
+                     ┌──────────▼──┐     ┌──▼──────────┐
+                     │   Memory    │     │   Scanner   │
+                     │ (Project RAG)│     │(Validation) │
+                     └─────────────┘     └─────────────┘
+          </code></pre>
+        </div>
+        <div class="govail-features">
+          <div class="feature">
+            <strong>5 Microservices</strong>
+            <span>Rust와 Python 최적 조합</span>
+          </div>
+          <div class="feature">
+            <strong>90+ Tests</strong>
+            <span>견고한 CI/CD 파이프라인</span>
+          </div>
+          <div class="feature">
+            <strong>8 Workflows</strong>
+            <span>자동화된 AI 운영 도구</span>
+          </div>
+          <div class="feature">
+            <strong>Zero-Trust</strong>
+            <span>요청 단위 권한/할당량 제어</span>
+          </div>
         </div>
       </section>
 
@@ -264,5 +314,22 @@ onMounted(async () => {
 
 @media (prefers-reduced-motion: reduce) {
   .featured-project { transition: none; }
+}
+
+.govail-highlight { padding-top: 104px; margin-bottom: 40px; }
+.govail-arch-diagram { margin: 40px 0; padding: 32px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 9px; overflow-x: auto; }
+.govail-arch-diagram pre { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.5; color: var(--text-primary); }
+.govail-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; border-top: 1px solid var(--border-default); padding-top: 32px; }
+.govail-features .feature { display: flex; flex-direction: column; gap: 8px; }
+.govail-features .feature strong { color: var(--accent-primary); font-size: 18px; }
+.govail-features .feature span { color: var(--text-secondary); font-size: 13px; }
+
+@media (max-width: 860px) {
+  .govail-features { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+}
+@media (max-width: 640px) {
+  .govail-highlight { padding-top: 76px; }
+  .govail-arch-diagram { padding: 20px; font-size: 11px; }
+  .govail-features { grid-template-columns: 1fr; }
 }
 </style>

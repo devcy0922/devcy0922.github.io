@@ -21,6 +21,8 @@ pnpm docs:build
 pnpm docs:preview
 ```
 
+`pnpm docs:build`는 배포 전 렌더링과 내부 dead-link 검증까지 통과해야 합니다.
+
 ## Write a post
 
 `docs/posts/<slug>.md`를 추가합니다.

@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -23,31 +23,51 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Check current main
+        id: freshness
+        shell: bash
+        run: |
+          remote_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$remote_sha" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Current main HEAD confirmed: $GITHUB_SHA"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skip stale Pages run ($GITHUB_SHA). Current main is $remote_sha."
+          fi
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        if: steps.freshness.outputs.publish == 'true'
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
+      - name: Setup Node
+        if: steps.freshness.outputs.publish == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Install dependencies
+        if: steps.freshness.outputs.publish == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build
+        if: steps.freshness.outputs.publish == 'true'
         run: pnpm docs:build
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        if: steps.freshness.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
       - name: Deploy
+        if: steps.freshness.outputs.publish == 'true'
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

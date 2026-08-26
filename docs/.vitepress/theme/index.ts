@@ -1,14 +1,12 @@
 import DefaultTheme from 'vitepress/theme'
-import LiveLlmDemo from './LiveLlmDemo.vue'
-import LocaleSwitcher from './LocaleSwitcher.vue'
-import PortfolioHome from './PortfolioHome.vue'
+import BlogHome from './BlogHome.vue'
+import PostArchive from './PostArchive.vue'
 import './custom.css'
 
 export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
-    app.component('LiveLlmDemo', LiveLlmDemo)
-    app.component('LocaleSwitcher', LocaleSwitcher)
-    app.component('PortfolioHome', PortfolioHome)
-  }
+    app.component('BlogHome', BlogHome)
+    app.component('PostArchive', PostArchive)
+  },
 }

@@ -1,84 +1,70 @@
 ---
 title: "프로젝트"
-description: "기업용 백엔드, AI 플랫폼, 자동화와 개발 도구 영역에서 문제와 설계 판단을 검증한 프로젝트"
+description: "문제, 책임 경계와 현재 보장 범위를 중심으로 정리한 devcy0922의 공개 프로젝트."
 outline: [2, 3]
 aside: false
 ---
 
 # 프로젝트
 
-## 서로 다른 문제를 해결한 대표 작업
+<div class="project-intro">
+  <p class="project-lead">
+    많이 만든 것을 보여주기보다 <strong>왜 만들었고, 어떤 경계를 선택했으며,
+    어디까지 검증했는지</strong>를 남깁니다.
+    공개 레포에는 실험·데모 목적의 작업도 있으며 현재 수준과 한계를 구분해 설명합니다.
+  </p>
+</div>
 
-프로젝트 수보다 **어떤 문제를 정의했고, 어디까지 구현했으며, 무엇을 아직 보장하지 않는지**를 우선합니다. 대표 작업은 AI 플랫폼, 자동화 파이프라인과 개발 도구처럼 서로 다른 역량을 보여주는 세 사례로 구성했습니다.
+## 선택한 작업
 
-<div class="project-grid project-grid--featured">
-  <a class="project-card" href="/projects/govail-gateway">
+<div class="project-ledger">
+  <a href="/projects/govail-gateway">
+    <span class="project-kind">AI PLATFORM</span>
     <div>
-      <h3>GoVail Gateway <span class="status-badge status-mvp">MVP</span></h3>
-      <p>AI 요청 앞단의 인증, 정책, 라우팅과 감사를 하나의 실행 경계로 분리한 AI 플랫폼 사례입니다.</p>
+      <h3>GoVail Gateway</h3>
+      <p>AI 요청의 인증, 정책, 감사와 모델 실행을 하나의 명확한 경계로 만들기 위한 플랫폼 작업.</p>
     </div>
-    <div class="project-meta"><span>AI Platform Case Study</span><span>Rust · SurrealDB</span></div>
+    <span class="project-arrow">↗</span>
   </a>
 
-  <a class="project-card" href="/projects/lingo-agent">
+  <a href="/projects/lingo-agent">
+    <span class="project-kind">AUTOMATION</span>
     <div>
-      <h3>LingoAgent <span class="status-badge status-mvp">MVP</span></h3>
-      <p>번역, ICU 검증, LLM QA와 자동 커밋을 연결해 검증되지 않은 결과의 배포를 차단하는 i18n 파이프라인입니다.</p>
+      <h3>LingoAgent</h3>
+      <p>번역 생성 이후 ICU 검증과 QA, 자동 커밋까지 연결해 결과를 검증 가능한 pipeline으로 만든 작업.</p>
     </div>
-    <div class="project-meta"><span>Automation Pipeline</span><span>Python · GitHub Actions</span></div>
+    <span class="project-arrow">↗</span>
   </a>
 
-  <a class="project-card" href="/projects/leandraft-linter">
+  <a href="/projects/leandraft-linter">
+    <span class="project-kind">DEV TOOL</span>
     <div>
-      <h3>Leandraft Linter <span class="status-badge status-stable">Stable</span></h3>
-      <p>기술 설계 문서의 구조와 민감정보 노출을 커밋 전에 검사하는 Rust 기반 Markdown 정적 분석 도구입니다.</p>
+      <h3>Leandraft Linter</h3>
+      <p>기술 설계 문서의 구조와 민감정보 노출을 커밋 전에 검사하는 Rust 기반 Markdown 정적 분석 도구.</p>
     </div>
-    <div class="project-meta"><span>Developer Tool</span><span>Rust · Markdown AST</span></div>
+    <span class="project-arrow">↗</span>
   </a>
 </div>
 
-## AI 플랫폼 구현과 실험
+## AI 플랫폼 실험
 
-GoVail 하나를 여러 프로젝트로 부풀리기보다, 요청·도구·데이터·검증 경계에서 수행한 구현과 실험으로 구분했습니다.
+아래 작업은 하나의 거대한 제품처럼 묶어 과장하지 않고, 각 책임 경계를 검증한 작은 사례로 둡니다.
 
-<div class="compact-list">
-  <a class="compact-item" href="/projects/aegis-llm">
-    <span class="compact-title">Aegis-LLM</span>
-    <span class="compact-desc">LLM Gateway · 인증, DLP와 Fallback</span>
-  </a>
-  <a class="compact-item" href="/projects/aperture-mcp">
-    <span class="compact-title">Aperture MCP</span>
-    <span class="compact-desc">Tool Policy · MCP 실행 전 정책 검사</span>
-  </a>
-  <a class="compact-item" href="/projects/slicerag">
-    <span class="compact-title">SliceRAG</span>
-    <span class="compact-desc">RAG Isolation · 프로젝트 단위 데이터 격리</span>
-  </a>
-  <a class="compact-item" href="/projects/agentsecops-playground">
-    <span class="compact-title">AgentSecOps Playground</span>
-    <span class="compact-desc">Security Regression · 실패 경로 통합 검증</span>
-  </a>
-</div>
+- [Aegis-LLM](/projects/aegis-llm) — LLM Gateway의 인증, DLP와 fallback
+- [Aperture MCP](/projects/aperture-mcp) — Tool 실행 전 policy 검사
+- [SliceRAG](/projects/slicerag) — 프로젝트 단위 RAG 데이터 격리
+- [AgentSecOps Playground](/projects/agentsecops-playground) — Agent 보안 실패 경로 회귀 검증
 
-## 인프라 및 지원 도구
+## 인프라와 지원 도구
 
-<div class="compact-list">
-  <a class="compact-item" href="/projects/ai-gateway-infra-demo">
-    <span class="compact-title">AI Gateway Infra Demo</span>
-    <span class="compact-desc">Gateway와 사설 Runtime의 배포 경계</span>
-  </a>
-  <a class="compact-item" href="/projects/infra-security">
-    <span class="compact-title">Infra Security</span>
-    <span class="compact-desc">호스트와 컨테이너 네트워크 보안 자동화</span>
-  </a>
-  <a class="compact-item" href="/projects/mock-llm">
-    <span class="compact-title">Mock LLM Server</span>
-    <span class="compact-desc">CI에서 LLM 실패와 응답 계약을 재현하는 테스트 서버</span>
-  </a>
-</div>
+- [AI Gateway Infra Demo](/projects/ai-gateway-infra-demo) — Gateway와 private runtime의 배포 경계
+- [Infra Security](/projects/infra-security) — 호스트·컨테이너 네트워크 보안 자동화
+- [Mock LLM Server](/projects/mock-llm) — CI에서 LLM 오류와 응답 계약을 재현하는 테스트 서버
 
-<div class="portfolio-page-actions">
-  <a href="https://github.com/devcy0922" target="_blank" rel="noopener">GitHub에서 공개 코드 보기 ↗</a>
-  <a href="/experience">경력과 책임 범위 보기</a>
-  <a href="/live-demo">대표 AI 플랫폼 데모 보기</a>
-</div>
+## 공개 원칙
+
+회사에서 수행한 소스 코드나 내부 운영 데이터는 공개 프로젝트로 포장하지 않습니다.
+
+개인 프로젝트 역시 README의 목표와 현재 구현이 다르면 현재 동작을 기준으로 설명하고, 구현 예정인 내용은 `Next Steps`로 분리합니다.
+
+[GitHub에서 공개 레포 보기 ↗](https://github.com/devcy0922)

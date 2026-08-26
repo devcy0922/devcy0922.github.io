@@ -1,74 +1,151 @@
-import { defineConfig } from 'vitepress'
+import { writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { createContentLoader, defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+
+const SITE_URL = 'https://devcy0922.github.io'
+
+function escapeXml(value: unknown) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
 
 export default withMermaid(
   defineConfig({
     title: 'devcy0922',
     titleTemplate: ':title · devcy0922',
-    description: '기업용 백엔드부터 AI 플랫폼까지 운영 가능한 시스템을 설계하는 10년 차 엔지니어의 포트폴리오',
+    description: '만들고, 운영하고, 왜 그렇게 했는지 기록하는 개발자 기술 블로그',
     lang: 'ko-KR',
     cleanUrls: true,
     lastUpdated: true,
+
     sitemap: {
-      hostname: 'https://devcy0922.github.io'
+      hostname: SITE_URL,
     },
+
     head: [
-      ['meta', { name: 'theme-color', content: '#0a0a0c' }],
+      ['meta', { name: 'theme-color', content: '#f5f7fb' }],
       ['meta', { property: 'og:type', content: 'website' }],
-      ['meta', { property: 'og:site_name', content: 'devcy0922 Engineering Portfolio' }],
-      ['meta', { property: 'og:title', content: 'Backend / AI Platform Engineer · devcy0922' }],
-      ['meta', { property: 'og:description', content: '백엔드 개발, 인증·연동, 배포 자동화와 안정적인 운영 경험을 코드와 실행 결과로 보여줍니다.' }]
+      ['meta', { property: 'og:site_name', content: 'devcy0922' }],
+      ['meta', { property: 'og:locale', content: 'ko_KR' }],
+      ['link', { rel: 'alternate', type: 'application/rss+xml', title: 'devcy0922 RSS', href: '/rss.xml' }],
+      ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+      ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+      [
+        'link',
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap',
+        },
+      ],
     ],
-    
+
     themeConfig: {
       siteTitle: 'devcy0922',
-      
+
       nav: [
-        { text: '소개', link: '/' },
-        { text: '경력', link: '/experience' },
+        { text: '글', link: '/posts/' },
         { text: '프로젝트', link: '/projects/' },
-        { text: 'GitHub', link: 'https://github.com/devcy0922' }
+        { text: 'About', link: '/about' },
+        { text: 'GitHub ↗', link: 'https://github.com/devcy0922' },
       ],
 
-      sidebar: {
-        '/projects/': [
-          {
-            text: '대표 작업',
-            items: [
-              { text: '프로젝트 전체 보기', link: '/projects/' },
-              { text: 'GoVail Gateway', link: '/projects/govail-gateway' },
-              { text: 'LingoAgent', link: '/projects/lingo-agent' },
-              { text: 'Leandraft Linter', link: '/projects/leandraft-linter' }
-            ]
+      search: {
+        provider: 'local',
+        options: {
+          locales: {
+            root: {
+              translations: {
+                button: {
+                  buttonText: '검색',
+                  buttonAriaLabel: '검색',
+                },
+                modal: {
+                  displayDetails: '상세 목록 표시',
+                  resetButtonTitle: '검색 초기화',
+                  backButtonTitle: '검색 닫기',
+                  noResultsText: '검색 결과가 없습니다.',
+                  footer: {
+                    selectText: '선택',
+                    selectKeyAriaLabel: 'Enter',
+                    navigateText: '이동',
+                    navigateUpKeyAriaLabel: '위쪽 화살표',
+                    navigateDownKeyAriaLabel: '아래쪽 화살표',
+                    closeText: '닫기',
+                    closeKeyAriaLabel: 'Esc',
+                  },
+                },
+              },
+            },
           },
-          {
-            text: 'AI 플랫폼 구현과 실험',
-            items: [
-              { text: 'Aegis-LLM · LLM Gateway', link: '/projects/aegis-llm' },
-              { text: 'Aperture MCP · Tool Policy', link: '/projects/aperture-mcp' },
-              { text: 'SliceRAG · RAG Isolation', link: '/projects/slicerag' },
-              { text: 'AgentSecOps Playground', link: '/projects/agentsecops-playground' }
-            ]
-          },
-          {
-            text: '인프라 및 지원 도구',
-            items: [
-              { text: 'AI Gateway Infra Demo', link: '/projects/ai-gateway-infra-demo' },
-              { text: 'Infra Security', link: '/projects/infra-security' },
-              { text: 'Mock LLM Server', link: '/projects/mock-llm' }
-            ]
-          }
-        ]
+        },
       },
 
-      socialLinks: [
-        { icon: 'github', link: 'https://github.com/devcy0922' }
-      ],
+      socialLinks: [{ icon: 'github', link: 'https://github.com/devcy0922' }],
+
+      outline: {
+        label: '이 글에서',
+        level: [2, 3],
+      },
+
+      lastUpdated: {
+        text: '마지막 수정',
+      },
+
+      docFooter: {
+        prev: '이전 글',
+        next: '다음 글',
+      },
 
       footer: {
-        message: 'Backend / AI Platform Engineer · 설계 판단을 코드와 실행 결과로 증명합니다.',
-        copyright: 'Copyright © 2026 devcy0922. All rights reserved.'
-      }
-    }
-  })
+        message: 'Build · Operate · Write',
+        copyright: 'Copyright © 2026 devcy0922',
+      },
+    },
+
+    async buildEnd(siteConfig) {
+      const posts = await createContentLoader('posts/*.md').load()
+      const items = posts
+        .filter((post) => post.frontmatter.date && post.frontmatter.title)
+        .sort((a, b) => +new Date(b.frontmatter.date) - +new Date(a.frontmatter.date))
+
+      const rssItems = items
+        .map((post) => {
+          const path = post.url.replace(/\.html$/, '')
+          const link = `${SITE_URL}${path}`
+          const date = new Date(post.frontmatter.date).toUTCString()
+
+          return [
+            '<item>',
+            `<title>${escapeXml(post.frontmatter.title)}</title>`,
+            `<link>${escapeXml(link)}</link>`,
+            `<guid>${escapeXml(link)}</guid>`,
+            `<pubDate>${escapeXml(date)}</pubDate>`,
+            `<description>${escapeXml(post.frontmatter.description ?? '')}</description>`,
+            '</item>',
+          ].join('')
+        })
+        .join('')
+
+      const rss = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<rss version="2.0">',
+        '<channel>',
+        '<title>devcy0922</title>',
+        `<link>${SITE_URL}</link>`,
+        '<description>만들고, 운영하고, 왜 그렇게 했는지 기록하는 개발자 기술 블로그</description>',
+        '<language>ko-KR</language>',
+        rssItems,
+        '</channel>',
+        '</rss>',
+      ].join('')
+
+      writeFileSync(resolve(siteConfig.outDir, 'rss.xml'), rss, 'utf8')
+    },
+  }),
 )

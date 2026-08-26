@@ -40,16 +40,17 @@ jobs:
             echo "::notice::Skip stale Pages run ($GITHUB_SHA). Current main is $remote_sha."
           fi
 
-      - name: Setup pnpm
-        if: steps.freshness.outputs.publish == 'true'
-        uses: pnpm/action-setup@v4
-
       - name: Setup Node
         if: steps.freshness.outputs.publish == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+
+      - name: Setup pnpm
+        if: steps.freshness.outputs.publish == 'true'
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
 
       - name: Install dependencies
         if: steps.freshness.outputs.publish == 'true'

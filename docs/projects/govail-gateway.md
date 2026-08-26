@@ -1,136 +1,146 @@
 # GoVail Gateway
 
-외부 AI 요청을 인증·정책·감사 경계에서 통제하고 사설 LLM 라우터로 전달하는 Rust 기반 OpenAI-compatible Gateway입니다.
+AI 요청 앞단에서 인증, 정책, 감사와 모델 전달 책임을 분리하기 위해 만든 OpenAI-compatible Gateway 프로젝트입니다.
 
-## 📌 Status & Repository
+## Status & Scope
 
-- **상태**: `MVP · Live Demo`
-- **저장소 공개 범위**: 비공개 구현 저장소
-- **직접 체험**: [Portfolio Live LLM](/live-demo)
+- **상태**: 개인 프로젝트 · 지속 개선 중
+- **공개 범위**: 이 페이지에서는 설계 판단과 검증 범위만 설명합니다.
 - **주요 언어**: Rust
+
+이 블로그는 GoVail의 제품 문서가 아닙니다. GoVail은 제가 AI 실행 경계를 고민하며 만든 여러 프로젝트 중 하나로만 다룹니다.
 
 ---
 
 ## 1. Problem
 
-LLM Client가 추론 Backend를 직접 호출하면 API Key 인증, 프로젝트별 모델 권한, 사용량 제한, DLP, Prompt Injection 차단과 감사 추적이 각 애플리케이션에 흩어집니다. 이 구조는 정책 일관성을 깨뜨리고, 사고가 발생했을 때 어떤 요청이 어느 모델 경로로 전달됐는지 재현하기 어렵게 만듭니다.
+LLM Client가 추론 Backend를 직접 호출하면 인증, 프로젝트별 모델 권한, 사용량 제한, 감사 추적과 Upstream 오류 처리가 각 애플리케이션에 흩어지기 쉽습니다.
 
-## 2. Why I Built It
+반대로 Gateway가 요청 의미까지 해석하고 Prompt, Tool, Knowledge와 Workflow를 소유하기 시작하면 또 다른 문제가 생깁니다. 가운데 있는 컴포넌트가 너무 많은 문맥을 알아야 하고, 호출자가 보내지 않은 정책이 조용히 개입할 수 있습니다.
 
-Provider와 모델이 바뀌어도 Client 계약을 유지하면서, AI 요청에 필요한 보안과 운영 정책을 하나의 Policy Enforcement Point에서 적용할 수 있는지 검증하기 위해 만들었습니다. 포트폴리오의 Live Demo도 별도 우회 경로가 아니라 이 Gateway의 실제 인증·감사 경계를 통과합니다.
+그래서 현재의 핵심 질문은 하나입니다.
 
-## 3. Scope
+> 모델 실행을 통제하되, 애플리케이션의 의도를 대신 소유하지 않는 경계는 어디인가?
 
-- OpenAI-compatible Models, Chat Completions, Responses, Embeddings API
-- SurrealDB API Key Hash 조회와 프로젝트별 Principal 구성
-- JWT 서명·만료·블랙리스트 검증
-- 프로젝트·Key별 Sliding Window RPM 제한
-- 허용 모델, 기능 Capability와 요청 Parameter 정책
-- PII·Secret·Prompt Injection 탐지 및 차단
-- LiteLLM Upstream Retry와 Fallback 연결
-- Prometheus Metric, 구조화 Audit, Trace ID 전파
+## 2. Boundary
 
-## 4. Architecture
+현재는 다음 원칙을 기준으로 책임을 나눕니다.
+
+```text
+Agent owns workflow.
+Application owns tools and knowledge.
+Gateway owns governed model execution.
+```
+
+Gateway가 집중하는 범위는 다음과 같습니다.
+
+- Credential과 Principal 확인
+- 프로젝트·모델 접근 정책
+- Rate limit과 요청 크기 같은 실행 제한
+- 안전한 Audit metadata와 Trace ID
+- OpenAI-compatible transport
+- Upstream timeout과 오류 계약
+
+반대로 다음은 Gateway 밖에 둡니다.
+
+- Tool loop와 재시도 전략
+- RAG와 Memory 조립
+- Prompt orchestration
+- Task planning
+- 결과 평가를 위한 별도 Agent workflow
+
+## 3. Architecture
 
 ```mermaid
 flowchart LR
-    Client["Web · SDK · Agent"] --> Edge["Public API Gateway"]
-    Edge --> GoVail["GoVail Gateway"]
-    GoVail --> Auth["SurrealDB Auth"]
-    Auth --> Policy["RPM · Model · DLP"]
-    Policy --> Router["LiteLLM Router"]
-    Router --> Primary["Primary Private LLM"]
-    Router -.-> Secondary["Secondary Private LLM"]
-    GoVail --> Metrics["Prometheus"]
-    GoVail --> Audit["Audit · Loki"]
+    Client["Application / Agent"] --> Gateway["GoVail Gateway"]
+    Gateway --> Auth["Auth / Policy"]
+    Auth --> Upstream["Model Routing Layer"]
+    Upstream --> Local["Local Models"]
+    Upstream --> Cloud["Cloud Models"]
+    Gateway --> Audit["Audit / Trace"]
 ```
+
+Gateway는 요청 경계의 중심에 있지만 가장 많은 도메인 지식을 가진 서비스가 되지 않도록 제한합니다.
+
+## 4. Key Design Decisions
+
+### Transparent pass-through
+
+호출자가 명시하지 않은 generation parameter를 Gateway가 임의로 주입하지 않는 방향을 택했습니다.
+
+예를 들어 반복 억제를 위해 모든 요청에 `frequency_penalty`를 넣으면 일반 문장에서는 도움이 될 수 있지만 코드 생성에서는 정상적인 변수명·함수명 재사용까지 방해할 수 있습니다.
+
+문제는 특정 값이 좋고 나쁜 것이 아니라, **중간 계층이 호출자의 요청을 몰래 바꾸는가**입니다.
+
+### Policy와 workflow를 분리
+
+정책 위반은 Gateway에서 결정적으로 종료할 수 있지만, 어떤 Tool을 다시 호출할지나 어떤 Knowledge를 붙일지는 더 많은 문맥을 가진 Application/Agent가 결정합니다.
+
+### 실패를 숨기지 않는다
+
+Gateway가 모델 응답을 의미적으로 고쳐 성공처럼 보이게 하기보다 timeout, upstream failure, policy rejection을 호출자가 구분할 수 있는 형태로 반환하는 것을 우선합니다.
 
 ## 5. Request Flow
 
 ```mermaid
 sequenceDiagram
-    autonumber
     participant Client
     participant Gateway
-    participant DB
-    participant Router
-    participant LLM
-    Client->>Gateway: Chat request and Bearer Key
-    Gateway->>DB: Key Hash로 Principal 조회
-    DB-->>Gateway: Project Role RPM Allowed Models
-    Gateway->>Gateway: Rate Limit과 요청 정책 검사
-    alt 정책 위반
-        Gateway-->>Client: 4xx + Trace ID
-    else 정책 통과
-        Gateway->>Router: 정규화된 OpenAI request
-        Router->>LLM: Alias 기반 모델 라우팅
-        LLM-->>Router: Completion
-        Router-->>Gateway: Unified response
-        Gateway-->>Client: Response + Trace ID
+    participant Policy
+    participant Model
+
+    Client->>Gateway: OpenAI-compatible request
+    Gateway->>Policy: principal / model / limit check
+    alt rejected
+        Policy-->>Gateway: deny reason
+        Gateway-->>Client: 4xx + trace id
+    else allowed
+        Policy-->>Gateway: allow
+        Gateway->>Model: request pass-through
+        Model-->>Gateway: response or upstream error
+        Gateway-->>Client: response + trace id
     end
-    Gateway->>Gateway: Metric과 Audit Event 기록
 ```
 
-## 6. Key Design Decisions
+이 흐름의 목표는 복잡한 AI workflow를 Gateway 안으로 가져오는 것이 아니라, **모델 실행 경계를 예측 가능하게 만드는 것**입니다.
 
-<div class="decision-callout">
-<strong>Gateway는 정책, LiteLLM은 Provider Routing</strong><br />
-인증·인가·DLP·감사는 GoVail이 소유하고 Provider Adapter, Retry와 모델 Fallback은 LiteLLM에 맡겨 책임 중복을 피했습니다.
-</div>
+## 6. Observability
 
-- API Key 원문 대신 SHA-256 단축 Hash로 SurrealDB 레코드를 조회합니다.
-- `project`, `role`, `rpm`, `allowed_models`를 인증 결과인 Principal에 묶어 이후 정책의 단일 기준으로 사용합니다.
-- Client는 실제 Model ID 대신 `auto` 같은 안정적인 Alias를 사용합니다.
-- 요청마다 Trace ID를 부여해 Client 오류, Gateway Audit과 Upstream 장애를 연결합니다.
+운영 신호는 원문을 최대한 적게 보관하는 방향으로 설계합니다.
 
-## 7. Security Considerations
+- 요청 단위 Trace ID
+- 인증·정책 통과/거부 결과
+- 대상 model alias와 upstream 상태
+- 지연 시간과 오류 분류
+- Secret과 민감한 원문을 제외한 Audit metadata
 
-<div class="security-notice">
-Live Demo Key는 공개 브라우저에서 보이는 전용 Token입니다. 운영 자격증명과 분리하고, <code>portfolio-demo</code> 프로젝트·<code>auto</code> 모델·낮은 RPM으로 권한을 제한합니다.
-</div>
+관측 가능성을 높인다는 이유로 Prompt와 Response 전체를 무조건 저장하는 구조는 피합니다.
 
-- 인증 실패, 모델 권한 위반과 DLP 차단은 Upstream 전송 전에 종료합니다.
-- JWT는 만료와 `jti` 블랙리스트를 확인하며 프로젝트 Secret을 분리합니다.
-- 감사 수집 단계에서 Key, Prompt와 Response를 제거하고 프로젝트·상태·지연 메타데이터만 Loki로 전달합니다.
-- 현재 공개 Edge와 온프레미스 사이의 TLS Tunnel은 운영 전 필수 보완 항목입니다.
+## 7. What Changed
 
-## 8. Observability
+프로젝트를 진행하면서 Gateway에 넣었던 역할을 여러 번 다시 걷어냈습니다.
 
-- `/metrics`에서 전체 요청, 정책 차단과 Upstream 오류 Counter를 제공합니다.
-- Prometheus가 Gateway를 직접 Scrape하고 Target Health를 감시합니다.
-- Promtail이 Audit JSONL에서 안전한 운영 필드만 추출해 Loki로 전달합니다.
-- Grafana `Portfolio Live LLM` 대시보드에서 체험 호출 수, 상태, 평균 지연과 최근 Trace를 확인합니다.
-- `project=portfolio-demo` 필터로 다른 내부 Client와 공개 체험 트래픽을 분리합니다.
+초기에는 분류, 검색, Tool loop, Memory/RAG 조립 같은 기능까지 중앙에 모으는 방향을 실험했습니다. 하지만 실제 사용에서는 애플리케이션 문맥을 잃은 중앙 계층이 오히려 복잡성과 디버깅 비용을 키웠습니다.
 
-## 9. Technology Stack
+그래서 현재는 **Gateway는 얇게, workflow는 호출자 쪽으로**라는 방향으로 정리하고 있습니다.
 
-- **Gateway**: Rust, Axum, Tower HTTP
-- **Authentication**: SurrealDB, JWT, SHA-256 Key Lookup
-- **Routing**: LiteLLM, OpenAI-compatible API
-- **Observability**: Prometheus, Promtail, Loki, Grafana
-- **Edge**: GCP API Gateway
-- **Runtime**: Docker Compose
+이 판단의 배경은 [LLM Gateway는 왜 똑똑해지면 안 될까](/posts/llm-gateway-should-stay-boring)에도 따로 기록했습니다.
 
-## 10. Running Locally
+## 8. Current Limitations
 
-```bash
-cp .env.example .env
-docker compose config
-docker compose up -d gateway
-```
+- 이 페이지는 공개 제품 문서나 SLA 명세가 아니라 개인 프로젝트의 설계 기록입니다.
+- 모델별 최적 generation parameter나 Agent workflow 품질을 Gateway가 보장하지 않습니다.
+- 분산 rate limit, budget, failover 정책은 실제 배포 구성에 따라 별도의 운영 검증이 필요합니다.
+- 공개하지 않은 내부 구성이나 운영 수치를 구현 근거처럼 과장하지 않습니다.
 
-실제 Secret, Database URL과 Upstream 주소는 실행 환경에서 주입합니다. 공개 저장소의 예시 값은 운영 환경에 사용하지 않습니다.
+## 9. Next
 
-## 11. Current Limitations
+새 기능을 계속 Gateway에 넣기보다 다음 질문을 기준으로 유지합니다.
 
-- Rate Limit 상태는 단일 프로세스 메모리에 있으므로 다중 Replica의 전역 Quota가 아닙니다.
-- Prompt Injection 방어는 Pattern과 정책 중심이며 의미론적 우회를 완전히 차단한다고 주장하지 않습니다.
-- 현재 공개 Edge에서 온프레미스까지 안정적인 HTTPS Tunnel이 완료돼야 외부 Live Demo를 상시 제공할 수 있습니다.
-- 공개 Demo는 운영 SLA를 제공하는 제품 API가 아니라 제한된 아키텍처 검증 환경입니다.
+1. 이 책임은 모델 실행 경계에 정말 필요한가?
+2. Application이 더 많은 문맥으로 처리하는 편이 정확한가?
+3. 실패했을 때 호출자가 원인을 설명할 수 있는가?
+4. 정책과 workflow가 서로 독립적으로 바뀔 수 있는가?
 
-## 12. Next Steps
-
-- Cloudflare Tunnel 또는 동등한 Outbound-only HTTPS Ingress 적용
-- Redis 기반 분산 Rate Limit과 일일 Project Budget 추가
-- Project별 요청·Token·오류 SLO Recording Rule 구성
-- 자동 Key Rotation과 긴급 폐기 Runbook 검증
+GoVail은 이 질문을 실제 코드와 운영 흐름으로 검증하기 위한 프로젝트로 계속 다듬고 있습니다.

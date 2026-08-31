@@ -8,19 +8,19 @@ const projects = [
   {
     type: 'AI Platform',
     title: 'GoVail Gateway',
-    description: 'AI 요청의 인증, 정책, 감사와 모델 실행 경계를 분리하며 운영 책임을 검증한 프로젝트.',
+    description: 'LLM 앞에 이것저것 붙이다가, 결국 Gateway가 어디까지 해야 하는지 다시 줄여본 프로젝트.',
     href: '/projects/govail-gateway',
   },
   {
     type: 'Automation',
     title: 'LingoAgent',
-    description: '번역 결과를 바로 신뢰하지 않고 검증, QA, 자동 커밋까지 하나의 파이프라인으로 묶은 작업.',
+    description: '번역하고 끝내지 않고 검증, QA, 커밋까지 이어지게 만든 자동화 작업.',
     href: '/projects/lingo-agent',
   },
   {
     type: 'Developer Tool',
     title: 'Leandraft Linter',
-    description: '설계 문서의 구조와 민감정보 노출을 커밋 전에 검사하도록 만든 Rust 기반 정적 분석 도구.',
+    description: '설계 문서를 커밋하기 전에 구조와 민감정보를 먼저 확인해보려고 만든 작은 도구.',
     href: '/projects/leandraft-linter',
   },
 ]
@@ -32,13 +32,13 @@ const projects = [
       <p class="utility-label"><span class="status-dot" aria-hidden="true" /> devcy0922 / engineering log</p>
 
       <h1 id="home-title">
-        만들고, 운영하고,
-        <span>왜 그렇게 했는지 기록합니다.</span>
+        만들고 고치고 운영하면서,
+        <span>배운 걸 적어둡니다.</span>
       </h1>
 
       <p class="hero-copy">
-        10년차 풀스택 개발자입니다. 백엔드와 운영 경험을 바탕으로
-        AI 플랫폼과 제품을 만들고, 구현보다 오래 남는 설계 판단과 실패 경로를 기록합니다.
+        백엔드 개발과 서비스 운영 자동화를 주로 해왔습니다.
+        요즘은 로컬 LLM, AI 도구, 작은 제품들을 직접 붙여보면서 어디까지 실무에 쓸 만한지 보는 중입니다.
       </p>
 
       <div class="hero-actions">
@@ -47,14 +47,14 @@ const projects = [
       </div>
     </section>
 
-    <div class="trace-shell" aria-label="문제를 다루는 순서">
+    <div class="trace-shell" aria-label="개발하면서 반복하는 일">
       <div class="trace-line" aria-hidden="true" />
       <ol class="trace-rail">
-        <li><span>problem</span><strong>문제를 좁힌다</strong></li>
-        <li><span>boundary</span><strong>책임을 나눈다</strong></li>
-        <li><span>build</span><strong>작게 만든다</strong></li>
-        <li><span>operate</span><strong>실패를 본다</strong></li>
-        <li><span>write</span><strong>판단을 남긴다</strong></li>
+        <li><span>build</span><strong>일단 만든다</strong></li>
+        <li><span>break</span><strong>어디서 깨지는지 본다</strong></li>
+        <li><span>fix</span><strong>고친다</strong></li>
+        <li><span>operate</span><strong>계속 굴려본다</strong></li>
+        <li><span>write</span><strong>잊기 전에 적는다</strong></li>
       </ol>
     </div>
 
@@ -86,7 +86,7 @@ const projects = [
       <header class="section-head">
         <div>
           <p class="utility-label">Selected work</p>
-          <h2 id="work-title">선택한 작업</h2>
+          <h2 id="work-title">만들어본 것</h2>
         </div>
         <a href="/projects/">프로젝트 보기 →</a>
       </header>
@@ -105,12 +105,12 @@ const projects = [
 
     <aside class="current-note">
       <div>
-        <p class="utility-label">Current</p>
-        <strong>AI platform · agent workflow · product building</strong>
+        <p class="utility-label">These days</p>
+        <strong>backend · automation · local LLM · small products</strong>
       </div>
       <p>
-        완성된 정답을 정리하기보다 실제로 만들면서 바뀐 판단을 남깁니다.
-        공개 코드가 실험 단계라면 그 한계도 함께 적습니다.
+        회사에서는 오래된 시스템을 고치고 자동화할 일을 찾고,
+        집에서는 모델과 서버를 굴리거나 생각난 제품을 빠르게 만들어보고 있습니다.
       </p>
     </aside>
   </main>

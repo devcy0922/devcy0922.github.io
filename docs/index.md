@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "개발자 기술 블로그"
-description: "만들고, 운영하고, 왜 그렇게 했는지 기록하는 devcy0922의 기술 블로그"
+title: "개발 기록"
+description: "백엔드, 서비스 운영, 자동화와 AI를 직접 만들고 굴리면서 남기는 개발 기록"
 aside: false
 outline: false
 ---

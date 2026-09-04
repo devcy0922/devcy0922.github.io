@@ -113,6 +113,8 @@ body { letter-spacing: -0.012em; }
 .current-note { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(0, 1fr); gap: 64px; margin-top: 112px; border-left: 3px solid var(--cobalt); background: var(--paper-raised); padding: 28px 30px; }
 .current-note strong { display: block; margin-top: 8px; color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 13px; line-height: 1.65; }
 .current-note > p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.8; }
+.publishing-note { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: baseline; margin: 22px 0 0; color: var(--slate); font-size: 12px; line-height: 1.7; }
+.publishing-note .utility-label { color: var(--cobalt); }
 
 .archive-page { width: min(980px, calc(100% - 48px)); margin: 0 auto; padding: 88px 0 112px; }
 .archive-hero { max-width: 720px; padding-bottom: 54px; }
@@ -162,6 +164,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, va
   .ledger-copy, .work-row > div, .project-ledger a > div { grid-column: 1; }
   .row-arrow, .project-ledger .project-arrow { grid-column: 2; grid-row: 2; }
   .current-note { grid-template-columns: 1fr; gap: 20px; margin-top: 82px; padding: 24px; }
+  .publishing-note { display: block; }
+  .publishing-note .utility-label { display: block; margin-bottom: 5px; }
 }
 
 @media (max-width: 480px) {

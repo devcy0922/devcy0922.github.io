@@ -6,34 +6,28 @@ const latestPosts = computed(() => posts.slice(0, 5))
 
 const projects = [
   {
-    type: 'AI 플랫폼',
-    title: 'GoVail Gateway',
-    description: '인증, 정책, 감사와 모델 실행의 경계를 분리하는 OpenAI-compatible Gateway.',
-    href: '/projects/govail-gateway',
+    type: 'Control Plane',
+    title: 'GoVail Control',
+    description: '여러 저장소와 코딩 에이전트의 규칙, 상태, 증적을 하나의 운영 계약으로 묶는 작업.',
+    href: '/projects/govail-control',
   },
   {
-    type: '자동화',
-    title: 'LingoAgent',
-    description: '번역 생성부터 ICU 검증, QA, 커밋까지 연결한 i18n 배포 게이트.',
-    href: '/projects/lingo-agent',
+    type: 'Verification',
+    title: 'PinchQ',
+    description: '그럴듯해 보이는 코드가 아니라 실제 실행 증거로 변경을 판정하는 검증 러너.',
+    href: '/projects/pinchq',
   },
   {
-    type: '개발 도구',
-    title: 'Leandraft Linter',
-    description: '기술 문서를 커밋하기 전 구조와 민감정보를 검사하는 로컬 CLI.',
-    href: '/projects/leandraft-linter',
+    type: 'Work OS',
+    title: 'Works Daily Agents',
+    description: '로그와 업무 요청을 조사하고, 사람이 승인한 작업만 외부 시스템에 반영하는 운영 도구.',
+    href: '/projects/works-daily-agents',
   },
   {
-    type: 'RELEASE SAFETY',
-    title: 'coexistgate',
-    description: '변경을 안전하게 릴리스하고 롤백할 수 있는지 검증하는 Rust 엔진.',
-    href: '/projects/coexistgate',
-  },
-  {
-    type: 'AGENT WORKFLOW',
-    title: 'works-agent-demo',
-    description: '증거 기반 에이전트 워크플로를 직접 확인하는 인터랙티브 데모.',
-    href: '/projects/works-agent-demo',
+    type: 'Data Platform',
+    title: 'AI Data Infra',
+    description: 'PostgreSQL, Redis, 이벤트 버스와 스케줄러를 서비스가 공유하는 데이터 기반.',
+    href: '/projects/ai-data-infra',
   },
 ]
 </script>
@@ -49,8 +43,8 @@ const projects = [
       </h1>
 
       <p class="hero-copy">
-        백엔드와 서비스 운영 자동화를 해왔습니다. 요즘은 로컬 LLM과 AI 도구를 직접 붙여보며,
-        실제 운영에서 남는 문제와 판단을 기록합니다.
+        10년 동안 웹·백엔드 시스템을 만들고 운영해왔습니다.
+        요즘은 AI가 실제 시스템 안에서 어디까지 유용한지, 경계와 실패 조건까지 직접 만들고 검증하는 중입니다.
       </p>
 
       <div class="hero-actions">
@@ -105,8 +99,8 @@ const projects = [
     </section>
 
     <p class="home-signoff">
-      이 블로그는 AI와 함께 만들고 있습니다. 글 작성부터 검토, 개선, 배포까지 개발 과정 전반에 AI를 활용합니다.
-      주제 선정과 최종 판단은 제가 합니다.
+      이 블로그는 AI와 함께 만들고 있습니다. 경험과 판단은 직접 기록하고,
+      초안 작성·검토·사이트 유지보수에는 AI를 활용합니다.
     </p>
   </main>
 </template>

@@ -50,26 +50,6 @@
     "pushedAt": "2026-09-04T13:16:04Z"
   },
   {
-    "name": "devcy0922",
-    "title": "devcy0922",
-    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
-    "href": "/projects/devcy0922",
-    "repoUrl": "https://github.com/devcy0922/devcy0922",
-    "language": "Other",
-    "defaultBranch": "main",
-    "pushedAt": "2026-08-26T14:46:42Z"
-  },
-  {
-    "name": "aircanvas-kids",
-    "title": "aircanvas-kids",
-    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
-    "href": "/projects/aircanvas-kids",
-    "repoUrl": "https://github.com/devcy0922/aircanvas-kids",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-08-26T14:23:27Z"
-  },
-  {
     "name": "pr-guardian",
     "title": "pr-guardian",
     "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
@@ -88,26 +68,6 @@
     "language": "TypeScript",
     "defaultBranch": "main",
     "pushedAt": "2026-08-18T18:44:50Z"
-  },
-  {
-    "name": "agi-with-gpt",
-    "title": "agi-with-gpt",
-    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
-    "href": "/projects/agi-with-gpt",
-    "repoUrl": "https://github.com/devcy0922/agi-with-gpt",
-    "language": "Other",
-    "defaultBranch": "main",
-    "pushedAt": "2026-08-12T03:16:14Z"
-  },
-  {
-    "name": "repo-guard-sentinel",
-    "title": "repo-guard-sentinel",
-    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
-    "href": "/projects/repo-guard-sentinel",
-    "repoUrl": "https://github.com/devcy0922/repo-guard-sentinel",
-    "language": "Python",
-    "defaultBranch": "main",
-    "pushedAt": "2026-08-08T12:27:33Z"
   },
   {
     "name": "mysql-mcp",

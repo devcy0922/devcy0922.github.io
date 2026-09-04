@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createContentLoader, defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
-import { isPublished } from '../content-utils.js'
+import { compareDateKeys, isPublished, toRssDate } from '../content-utils.js'
 
 const SITE_URL = 'https://devcy0922.github.io'
 
@@ -123,13 +123,13 @@ export default withMermaid(
       const posts = await createContentLoader('posts/*.md').load()
       const items = posts
         .filter((post) => post.frontmatter.date && post.frontmatter.title && isPublished(post.frontmatter.date))
-        .sort((a, b) => +new Date(b.frontmatter.date) - +new Date(a.frontmatter.date))
+        .sort((a, b) => compareDateKeys(a.frontmatter.date, b.frontmatter.date))
 
       const rssItems = items
         .map((post) => {
           const path = post.url.replace(/\.html$/, '')
           const link = `${SITE_URL}${path}`
-          const date = new Date(post.frontmatter.date).toUTCString()
+          const date = toRssDate(post.frontmatter.date)
 
           return [
             '<item>',

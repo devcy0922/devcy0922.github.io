@@ -5,6 +5,7 @@ node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/.vitepress/.temp/
+docs/*.timestamp-*.mjs
 
 # 로컬 에이전트 지침
 AGENTS.md

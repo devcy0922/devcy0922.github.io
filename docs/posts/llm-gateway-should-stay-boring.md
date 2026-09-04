@@ -1,6 +1,6 @@
 ---
 title: "게이트웨이에 너무 많은 걸 넣었다"
-date: 2026-08-26
+date: 2026-08-09
 description: "LLM Gateway를 만들면서 분류, 프롬프트 보정, Tool Loop까지 가운데 넣었다가 다시 걷어낸 기록."
 tags:
   - AI Platform

@@ -1,6 +1,6 @@
 ---
 title: "아오, 대역폭… MoE는 뭐가 이렇게 다른가"
-date: 2026-09-06
+date: 2026-08-28
 description: "가중치를 넣고 나니 context를 얼마 못 뽑았다. Gemma4-26B-A4B와 Qwen3.6-35B-A3B를 비교하며 dense와 MoE의 현실적인 차이를 배운 기록."
 tags:
   - AI Platform

@@ -1,6 +1,6 @@
 ---
 title: "레포를 읽는 도구라면, 자기 레포부터 검증해야 한다"
-date: 2026-09-05
+date: 2026-09-04
 description: "repo-snapshot을 다시 평가한 뒤, 분석 경계와 실패 동작을 고정하고 CI와 문서 품질 게이트를 추가한 기록."
 tags:
   - Backend

@@ -2,26 +2,38 @@
 import { computed } from 'vue'
 import { data as posts } from '../../posts.data.js'
 
-const latestPosts = computed(() => posts.slice(0, 4))
+const latestPosts = computed(() => posts.slice(0, 5))
 
 const projects = [
   {
-    type: 'AI Platform',
+    type: 'AI 플랫폼',
     title: 'GoVail Gateway',
-    description: 'LLM 앞에 이것저것 붙이다가, 결국 Gateway가 어디까지 해야 하는지 다시 줄여본 프로젝트.',
+    description: '인증, 정책, 감사와 모델 실행의 경계를 분리하는 OpenAI-compatible Gateway.',
     href: '/projects/govail-gateway',
   },
   {
-    type: 'Automation',
+    type: '자동화',
     title: 'LingoAgent',
-    description: '번역하고 끝내지 않고 검증, QA, 커밋까지 이어지게 만든 자동화 작업.',
+    description: '번역 생성부터 ICU 검증, QA, 커밋까지 연결한 i18n 배포 게이트.',
     href: '/projects/lingo-agent',
   },
   {
-    type: 'Developer Tool',
+    type: '개발 도구',
     title: 'Leandraft Linter',
-    description: '설계 문서를 커밋하기 전에 구조와 민감정보를 먼저 확인해보려고 만든 작은 도구.',
+    description: '기술 문서를 커밋하기 전 구조와 민감정보를 검사하는 로컬 CLI.',
     href: '/projects/leandraft-linter',
+  },
+  {
+    type: 'RELEASE SAFETY',
+    title: 'coexistgate',
+    description: '변경을 안전하게 릴리스하고 롤백할 수 있는지 검증하는 Rust 엔진.',
+    href: '/projects/coexistgate',
+  },
+  {
+    type: 'AGENT WORKFLOW',
+    title: 'works-agent-demo',
+    description: '증거 기반 에이전트 워크플로를 직접 확인하는 인터랙티브 데모.',
+    href: '/projects/works-agent-demo',
   },
 ]
 </script>
@@ -29,42 +41,31 @@ const projects = [
 <template>
   <main class="dev-home">
     <section class="identity-hero" aria-labelledby="home-title">
-      <p class="utility-label"><span class="status-dot" aria-hidden="true" /> devcy0922 / engineering log</p>
+      <p class="utility-label">devcy0922 · engineering notes</p>
 
       <h1 id="home-title">
-        만들고 고치고 운영하면서,
-        <span>배운 걸 적어둡니다.</span>
+        만들고 운영하며
+        남긴 기록
       </h1>
 
       <p class="hero-copy">
-        백엔드 개발과 서비스 운영 자동화를 주로 해왔습니다.
-        요즘은 로컬 LLM, AI 도구, 작은 제품들을 직접 붙여보면서 어디까지 실무에 쓸 만한지 보는 중입니다.
+        백엔드와 서비스 운영 자동화를 해왔습니다. 요즘은 로컬 LLM과 AI 도구를 직접 붙여보며,
+        실제 운영에서 남는 문제와 판단을 기록합니다.
       </p>
 
       <div class="hero-actions">
-        <a class="action-primary" href="/posts/">최근 글 읽기</a>
+        <a class="action-primary" href="/posts/">기록 살펴보기</a>
         <a class="action-quiet" href="https://github.com/devcy0922" target="_blank" rel="noopener">GitHub 보기 ↗</a>
       </div>
     </section>
 
-    <div class="trace-shell" aria-label="개발하면서 반복하는 일">
-      <div class="trace-line" aria-hidden="true" />
-      <ol class="trace-rail">
-        <li><span>build</span><strong>일단 만든다</strong></li>
-        <li><span>break</span><strong>어디서 깨지는지 본다</strong></li>
-        <li><span>fix</span><strong>고친다</strong></li>
-        <li><span>operate</span><strong>계속 굴려본다</strong></li>
-        <li><span>write</span><strong>잊기 전에 적는다</strong></li>
-      </ol>
-    </div>
-
     <section class="home-section" aria-labelledby="latest-title">
       <header class="section-head">
         <div>
-          <p class="utility-label">Latest writing</p>
-          <h2 id="latest-title">최근 기록</h2>
+          <p class="utility-label">Recent notes</p>
+          <h2 id="latest-title">새로 쓴 기록</h2>
         </div>
-        <a href="/posts/">모든 글 →</a>
+        <a href="/posts/">모든 기록 →</a>
       </header>
 
       <div class="post-ledger">
@@ -85,8 +86,8 @@ const projects = [
     <section class="home-section" aria-labelledby="work-title">
       <header class="section-head">
         <div>
-          <p class="utility-label">Selected work</p>
-          <h2 id="work-title">만들어본 것</h2>
+          <p class="utility-label">Selected projects</p>
+          <h2 id="work-title">대표 프로젝트</h2>
         </div>
         <a href="/projects/">프로젝트 보기 →</a>
       </header>
@@ -103,15 +104,9 @@ const projects = [
       </div>
     </section>
 
-    <aside class="current-note">
-      <div>
-        <p class="utility-label">These days</p>
-        <strong>backend · automation · local LLM · small products</strong>
-      </div>
-      <p>
-        회사에서는 오래된 시스템을 고치고 자동화할 일을 찾고,
-        집에서는 모델과 서버를 굴리거나 생각난 제품을 빠르게 만들어보고 있습니다.
-      </p>
-    </aside>
+    <p class="home-signoff">
+      이 블로그는 AI와 함께 만들고 있습니다. 글 작성부터 검토, 개선, 배포까지 개발 과정 전반에 AI를 활용합니다.
+      주제 선정과 최종 판단은 제가 합니다.
+    </p>
   </main>
 </template>

@@ -1,6 +1,6 @@
 ---
 title: "토큰이 느린 줄 알았는데, 사실은 컨텍스트를 운용하고 있었다"
-date: 2026-09-05
+date: 2026-09-03
 description: "NVFP4 vLLM과 llama.cpp로 여러 모델을 번갈아 운용하면서 토큰, 컨텍스트, KV cache, 대역폭을 다시 배운 기록."
 tags:
   - AI Platform

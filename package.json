@@ -7,7 +7,7 @@
   "description": "devcy0922 engineering technical portfolio site",
   "scripts": {
     "docs:dev": "vitepress dev docs --port 9097 --host 0.0.0.0",
-    "docs:build": "vitepress build docs",
+    "docs:build": "node scripts/sync-projects.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {

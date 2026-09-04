@@ -1,0 +1,192 @@
+[
+  {
+    "name": "ai-gateway-infra-demo",
+    "title": "ai-gateway-infra-demo",
+    "description": "Unified Multi-Node AI Serving Gateway Infrastructure with LiteLLM, Promtail, and Docker Compose.",
+    "href": "/projects/ai-gateway-infra-demo",
+    "repoUrl": "https://github.com/devcy0922/ai-gateway-infra-demo",
+    "language": "Shell",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T16:14:48Z"
+  },
+  {
+    "name": "coexistgate",
+    "title": "coexistgate",
+    "description": "Cross-artifact release safety engine. Can this change be safely released and rolled back?",
+    "href": "/projects/coexistgate",
+    "repoUrl": "https://github.com/devcy0922/coexistgate",
+    "language": "Rust",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T15:57:38Z"
+  },
+  {
+    "name": "works-agent-demo",
+    "title": "works-agent-demo",
+    "description": "Interactive demo of an evidence-based agent workflow",
+    "href": "/projects/works-agent-demo",
+    "repoUrl": "https://github.com/devcy0922/works-agent-demo",
+    "language": "CSS",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T13:56:05Z"
+  },
+  {
+    "name": "office-tone",
+    "title": "office-tone",
+    "description": "오피스톤 — 할 말은 그대로, 톤만 다듬어요",
+    "href": "/projects/office-tone",
+    "repoUrl": "https://github.com/devcy0922/office-tone",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T13:39:55Z"
+  },
+  {
+    "name": "slicerag",
+    "title": "slicerag",
+    "description": "Gateway 인증 기반 프로젝트 격리 RAG 메모리 서비스 (FastAPI + pgvector)",
+    "href": "/projects/slicerag",
+    "repoUrl": "https://github.com/devcy0922/slicerag",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T13:16:04Z"
+  },
+  {
+    "name": "devcy0922",
+    "title": "devcy0922",
+    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
+    "href": "/projects/devcy0922",
+    "repoUrl": "https://github.com/devcy0922/devcy0922",
+    "language": "Other",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-26T14:46:42Z"
+  },
+  {
+    "name": "aircanvas-kids",
+    "title": "aircanvas-kids",
+    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
+    "href": "/projects/aircanvas-kids",
+    "repoUrl": "https://github.com/devcy0922/aircanvas-kids",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-26T14:23:27Z"
+  },
+  {
+    "name": "pr-guardian",
+    "title": "pr-guardian",
+    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
+    "href": "/projects/pr-guardian",
+    "repoUrl": "https://github.com/devcy0922/pr-guardian",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-21T14:05:37Z"
+  },
+  {
+    "name": "coexistgate-demo",
+    "title": "coexistgate-demo",
+    "description": "Public PR fixtures for CoexistGate release-safety demos",
+    "href": "/projects/coexistgate-demo",
+    "repoUrl": "https://github.com/devcy0922/coexistgate-demo",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-18T18:44:50Z"
+  },
+  {
+    "name": "agi-with-gpt",
+    "title": "agi-with-gpt",
+    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
+    "href": "/projects/agi-with-gpt",
+    "repoUrl": "https://github.com/devcy0922/agi-with-gpt",
+    "language": "Other",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-12T03:16:14Z"
+  },
+  {
+    "name": "repo-guard-sentinel",
+    "title": "repo-guard-sentinel",
+    "description": "GitHub에서 진행 중인 공개 프로젝트입니다.",
+    "href": "/projects/repo-guard-sentinel",
+    "repoUrl": "https://github.com/devcy0922/repo-guard-sentinel",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-08-08T12:27:33Z"
+  },
+  {
+    "name": "mysql-mcp",
+    "title": "mysql-mcp",
+    "description": "MySQL & MariaDB MCP server for safe, read-only data access with OIDC authorization & audit logging.",
+    "href": "/projects/mysql-mcp",
+    "repoUrl": "https://github.com/devcy0922/mysql-mcp",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-31T09:16:32Z"
+  },
+  {
+    "name": "lingo-agent",
+    "title": "lingo-agent",
+    "description": "Agentic i18n localization translation & validation pipeline console (ICU parser & LLM-as-a-Judge)",
+    "href": "/projects/lingo-agent",
+    "repoUrl": "https://github.com/devcy0922/lingo-agent",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-19T19:57:02Z"
+  },
+  {
+    "name": "aegis-llm",
+    "title": "aegis-llm",
+    "description": "Rust 기반 LLM 보안 게이트웨이: API 인증, PII DLP, 프롬프트 정책, 감사 로그",
+    "href": "/projects/aegis-llm",
+    "repoUrl": "https://github.com/devcy0922/aegis-llm",
+    "language": "Rust",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T23:29:24Z"
+  },
+  {
+    "name": "leandraft-linter",
+    "title": "leandraft-linter",
+    "description": "설계 문서와 PR 계획의 과도한 복잡도를 탐지하는 CLI 및 Web UI 린터",
+    "href": "/projects/leandraft-linter",
+    "repoUrl": "https://github.com/devcy0922/leandraft-linter",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T21:22:01Z"
+  },
+  {
+    "name": "aws-localstack-pipeline",
+    "title": "aws-localstack-pipeline",
+    "description": "AWS 개인 계정 없이 LocalStack + Serverless Framework + GitHub Actions를 이용한 클라우드 배포 & E2E 통합 테스트 파이프라인 데모",
+    "href": "/projects/aws-localstack-pipeline",
+    "repoUrl": "https://github.com/devcy0922/aws-localstack-pipeline",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T21:22:01Z"
+  },
+  {
+    "name": "aperture-mcp",
+    "title": "aperture-mcp",
+    "description": "MCP tools/call 요청을 정책으로 통제하는 Zero-trust 보안 프록시",
+    "href": "/projects/aperture-mcp",
+    "repoUrl": "https://github.com/devcy0922/aperture-mcp",
+    "language": "Rust",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T21:22:01Z"
+  },
+  {
+    "name": "infra-security",
+    "title": "infra-security",
+    "description": "ProxySQL 기반 MySQL 감사 로깅 + Keycloak HA SSO 인프라 구성 (Docker Compose)",
+    "href": "/projects/infra-security",
+    "repoUrl": "https://github.com/devcy0922/infra-security",
+    "language": "Java",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T21:22:01Z"
+  },
+  {
+    "name": "agentsecops-playground",
+    "title": "agentsecops-playground",
+    "description": "AI 에이전트 거버넌스의 인증, DLP, RAG 격리, 정책 차단을 재현하는 E2E 데모",
+    "href": "/projects/agentsecops-playground",
+    "repoUrl": "https://github.com/devcy0922/agentsecops-playground",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-07-17T21:22:01Z"
+  }
+]

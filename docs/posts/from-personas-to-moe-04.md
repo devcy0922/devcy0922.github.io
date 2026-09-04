@@ -1,6 +1,6 @@
 ---
 title: "개인화 모델의 마지막 병목은 RAG와 하네스였다"
-date: 2026-09-08
+date: 2026-09-02
 description: "LoRA 이후 최신 근거와 실행 경계를 붙이면서, 모델보다 검색과 하네스가 더 어려워진 기록."
 tags:
   - AI Platform

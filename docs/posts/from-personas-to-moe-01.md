@@ -1,6 +1,6 @@
 ---
 title: "페르소나를 여러 개 만들다가 MoE를 만났다"
-date: 2026-09-05
+date: 2026-08-27
 description: "내 말투와 업무 습관을 모델에 넣으려다 dense 여러 개에서 LoRA와 MoE의 차이를 배우게 된 시작점."
 tags:
   - AI Platform

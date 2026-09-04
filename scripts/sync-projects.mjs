@@ -13,11 +13,11 @@ try {
 
   const repositories = await response.json()
   const projects = repositories
-    .filter((repo) => repo.name !== `${owner}.github.io` && !repo.fork && !repo.archived)
+    .filter((repo) => repo.name !== `${owner}.github.io` && !repo.fork && !repo.archived && repo.description?.trim())
     .map((repo) => ({
       name: repo.name,
       title: repo.name,
-      description: repo.description || 'GitHub에서 진행 중인 공개 프로젝트입니다.',
+      description: repo.description.trim(),
       href: `/projects/${repo.name}`,
       repoUrl: repo.html_url,
       language: repo.language || 'Other',

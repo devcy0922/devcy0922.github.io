@@ -1,5 +1,5 @@
 import { createContentLoader } from 'vitepress'
-import { isPublished, toDateKey } from './content-utils.js'
+import { compareDateKeys, formatDateLabel, isPublished, toDateKey } from './content-utils.js'
 
 export default createContentLoader('posts/*.md', {
   transform(raw) {
@@ -9,9 +9,10 @@ export default createContentLoader('posts/*.md', {
         title: page.frontmatter.title,
         url: page.url.replace(/\.html$/, ''),
         date: toDateKey(page.frontmatter.date),
+        dateLabel: formatDateLabel(page.frontmatter.date),
         description: page.frontmatter.description ?? '',
         tags: Array.isArray(page.frontmatter.tags) ? page.frontmatter.tags : [],
       }))
-      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+      .sort((a, b) => compareDateKeys(a.date, b.date))
   },
 })

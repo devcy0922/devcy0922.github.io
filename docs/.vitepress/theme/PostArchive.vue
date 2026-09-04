@@ -15,7 +15,7 @@ import { data as posts } from '../../posts.data.js'
 
     <div class="post-ledger archive-ledger">
       <a v-for="post in posts" :key="post.url" class="ledger-row" :href="post.url">
-        <time :datetime="post.date">{{ post.date }}</time>
+        <time :datetime="post.date">{{ post.dateLabel }}</time>
         <div class="ledger-copy">
           <div class="tag-line">
             <span v-for="tag in post.tags" :key="tag">{{ tag }}</span>

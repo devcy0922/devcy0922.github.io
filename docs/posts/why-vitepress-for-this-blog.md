@@ -1,6 +1,6 @@
 ---
 title: "블로그를 만들었다"
-date: 2026-08-24
+date: 2026-08-02
 description: "그동안 흩어져 있던 개발 기록을 한 곳에 남기려고 블로그를 만들었다. VitePress를 쓴 이유도 거창하지 않다."
 tags:
   - DevLog

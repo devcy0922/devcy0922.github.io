@@ -1,6 +1,6 @@
 ---
 title: "LoRA를 붙이고 하이퍼파라미터를 만지다가 데이터와 모델을 의심하게 됐다"
-date: 2026-08-30
+date: 2026-08-20
 description: "Gemma4-26B-A4B와 Qwen3.6-35B-A3B에 LoRA를 적용하며 dense와 MoE, 학습 설정의 함정을 배운 기록."
 tags:
   - AI Platform

@@ -1,6 +1,6 @@
 ---
 title: "에러를 나중에 생각하면 늦는다"
-date: 2026-08-25
+date: 2026-08-06
 description: "API를 만들 때 정상 응답보다 timeout, retry, 중복 실행 때문에 더 오래 고생했던 경험을 정리했다."
 tags:
   - Backend

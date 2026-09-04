@@ -3,33 +3,6 @@ import { computed } from 'vue'
 import { data as posts } from '../../posts.data.js'
 
 const latestPosts = computed(() => posts.slice(0, 5))
-
-const projects = [
-  {
-    type: 'Control Plane',
-    title: 'GoVail Control',
-    description: '여러 저장소와 코딩 에이전트의 규칙, 상태, 증적을 하나의 운영 계약으로 묶는 작업.',
-    href: '/projects/govail-control',
-  },
-  {
-    type: 'Verification',
-    title: 'PinchQ',
-    description: '그럴듯해 보이는 코드가 아니라 실제 실행 증거로 변경을 판정하는 검증 러너.',
-    href: '/projects/pinchq',
-  },
-  {
-    type: 'Work OS',
-    title: 'Works Daily Agents',
-    description: '로그와 업무 요청을 조사하고, 사람이 승인한 작업만 외부 시스템에 반영하는 운영 도구.',
-    href: '/projects/works-daily-agents',
-  },
-  {
-    type: 'Data Platform',
-    title: 'AI Data Infra',
-    description: 'PostgreSQL, Redis, 이벤트 버스와 스케줄러를 서비스가 공유하는 데이터 기반.',
-    href: '/projects/ai-data-infra',
-  },
-]
 </script>
 
 <template>
@@ -43,8 +16,8 @@ const projects = [
       </h1>
 
       <p class="hero-copy">
-        10년 동안 웹·백엔드 시스템을 만들고 운영해왔습니다.
-        요즘은 AI가 실제 시스템 안에서 어디까지 유용한지, 경계와 실패 조건까지 직접 만들고 검증하는 중입니다.
+        웹·백엔드 시스템을 만들고 운영해왔습니다.
+        요즘은 AI가 실제 시스템 안에서 어디까지 유용한지, 경계와 실패 조건까지 직접 만들고 검증하고 있습니다.
       </p>
 
       <div class="hero-actions">
@@ -64,7 +37,7 @@ const projects = [
 
       <div class="post-ledger">
         <a v-for="post in latestPosts" :key="post.url" class="ledger-row" :href="post.url">
-          <time :datetime="post.date">{{ post.date }}</time>
+          <time :datetime="post.date">{{ post.dateLabel }}</time>
           <div class="ledger-copy">
             <div class="tag-line">
               <span v-for="tag in post.tags.slice(0, 2)" :key="tag">{{ tag }}</span>
@@ -86,16 +59,7 @@ const projects = [
         <a href="/projects/">프로젝트 보기 →</a>
       </header>
 
-      <div class="work-ledger">
-        <a v-for="project in projects" :key="project.title" class="work-row" :href="project.href">
-          <span class="work-type">{{ project.type }}</span>
-          <div>
-            <h3>{{ project.title }}</h3>
-            <p>{{ project.description }}</p>
-          </div>
-          <span class="row-arrow" aria-hidden="true">↗</span>
-        </a>
-      </div>
+      <SelectedProjects />
     </section>
 
     <p class="home-signoff">

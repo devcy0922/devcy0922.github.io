@@ -26,6 +26,17 @@ const latestPosts = computed(() => posts.slice(0, 5))
       </div>
     </section>
 
+    <div class="trace-shell" role="presentation">
+      <div class="trace-line" aria-hidden="true" />
+      <ul class="trace-rail">
+        <li><span>problem</span><strong>막힌 지점을 먼저 정의합니다</strong></li>
+        <li><span>boundary</span><strong>하지 않을 것을 정합니다</strong></li>
+        <li><span>build</span><strong>필요한 만큼만 만듭니다</strong></li>
+        <li><span>operate</span><strong>운영하며 실패 조건을 확인합니다</strong></li>
+        <li><span>write</span><strong>판단과 근거를 기록으로 남깁니다</strong></li>
+      </ul>
+    </div>
+
     <section class="home-section" aria-labelledby="latest-title">
       <header class="section-head">
         <div>

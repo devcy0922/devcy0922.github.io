@@ -4,6 +4,7 @@ import PostArchive from './PostArchive.vue'
 import AutoProjects from './AutoProjects.vue'
 import SelectedProjects from './SelectedProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
+import Playground from './Playground.vue'
 import './custom.css'
 
 export default {
@@ -14,5 +15,6 @@ export default {
     app.component('AutoProjects', AutoProjects)
     app.component('SelectedProjects', SelectedProjects)
     app.component('DiagramFrame', DiagramFrame)
+    app.component('Playground', Playground)
   },
 }

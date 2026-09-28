@@ -68,3 +68,20 @@ tags:
 - 빌드 시점 외 네트워크나 서버 런타임을 요구하지 않는다.
 - 클라이언트에서 번역 JSON이나 데모 API를 로드하지 않는다.
 - 사이트 기능보다 콘텐츠 작성 비용을 낮추는 것을 우선한다.
+
+## 예외: Playground · Model Routing 라이브 데모
+
+`/playground`의 Model Routing 랩 중 두 시나리오(`routing-failover`, `routing-timeout`)는
+방문자당 1회, 별도 운영 중인 `playground-relay` 서비스(`/srv/products/playground-relay`)를 거쳐
+GoVail Gateway(`https://api.govail.cloud`)에 실제 요청을 보낸다. 이는 "빌드 시점 외 네트워크나
+서버 런타임을 요구하지 않는다" 원칙에 대한 의도적이고 범위가 제한된 예외다.
+
+- 정적 빌드 자체는 여전히 네트워크/서버 런타임에 의존하지 않는다. 예외는 브라우저가 방문 중
+  직접 호출하는 별도 공개 relay API 한 개(`POST playground-relay.govail.cloud/v1/model-routing/run`)로
+  한정되며, 실패/차단 시 페이지는 기존 replay 애니메이션으로 자동 폴백한다.
+- 자유 텍스트 prompt를 받지 않는다 — 고정 시나리오 id에 매핑된 고정 prompt만 실행한다.
+- 전역 동시 실행 1회로 제한(relay의 단일 인스턴스 세마포어), IP당 rate limit 있음.
+- 응답은 relay가 필드 화이트리스트로 전달하며, 백엔드 호스트명/모델 식별자/추적 id는 노출하지 않는다.
+- Agent Execution, Serving Lab 랩은 이 예외 대상이 아니며 계속 순수 replay다.
+- kill switch: `playground-relay`의 `PLAYGROUND_LIVE_ENABLED=false`로 즉시 비활성화 가능,
+  프론트엔드는 이 경우도 replay로 자동 폴백한다.

@@ -21,6 +21,8 @@ type Scenario = {
   steps: Step[]
   evidence: { label: string; value: string }[]
   note: string
+  live?: boolean
+  promptId?: 'routing-failover' | 'routing-timeout'
 }
 
 const scenarios: Scenario[] = [
@@ -75,6 +77,8 @@ const scenarios: Scenario[] = [
   {
     id: 'routing-failover',
     lab: 'routing',
+    live: true,
+    promptId: 'routing-failover',
     eyebrow: 'Model Routing',
     title: 'Local-first failover',
     description: '로컬 백엔드를 우선 선택하고, 상태 이상 시 다음 후보로 안전하게 전환하는 흐름입니다.',
@@ -99,6 +103,8 @@ const scenarios: Scenario[] = [
   {
     id: 'routing-timeout',
     lab: 'routing',
+    live: true,
+    promptId: 'routing-timeout',
     eyebrow: 'Model Routing',
     title: 'Backend timeout recovery',
     description: '추론 백엔드 timeout을 감지하고 circuit 상태를 반영해 대체 경로로 전환합니다.',
@@ -158,8 +164,78 @@ const activeStep = ref(-1)
 const running = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 
+// Live mode: exactly two Model Routing scenarios make one real request per
+// run to a relay in front of GoVail Gateway. See architecture.md "예외:
+// Playground · Model Routing 라이브 데모" — Agent Execution and Serving Lab
+// stay pure replay.
+const RELAY_URL = 'https://playground-relay.govail.cloud/v1/model-routing/run'
+const LIVE_CLIENT_TIMEOUT_MS = 15_000
+
+type LiveState = 'idle' | 'running' | 'locked' | 'rate_limited' | 'disabled' | 'error' | 'done'
+type LiveResult = { outputText: string; latencyMs: number; tokensPerSec: number }
+
+const liveState = ref<LiveState>('idle')
+const liveResult = ref<LiveResult | null>(null)
+let liveAbort: AbortController | undefined
+let liveFallbackTimer: ReturnType<typeof setTimeout> | undefined
+
 const labScenarios = computed(() => scenarios.filter((scenario) => scenario.lab === activeLab.value))
 const scenario = computed(() => scenarios.find((item) => item.id === activeScenarioId.value) ?? labScenarios.value[0])
+
+const runButtonLabel = computed(() => {
+  if (running.value || liveState.value === 'running') return 'RUNNING'
+  return scenario.value.live ? 'RUN' : 'RUN REPLAY'
+})
+
+const liveStatusClass = computed(() => {
+  if (!scenario.value.live) return ''
+  if (liveState.value === 'done') return 'live-ok'
+  if (liveState.value === 'locked' || liveState.value === 'rate_limited') return 'live-warn'
+  if (liveState.value === 'error' || liveState.value === 'disabled') return 'live-bad'
+  return ''
+})
+
+const displayedOutcome = computed(() => {
+  const s = scenario.value
+  if (!s.live) return s.outcome
+  if (liveState.value === 'done' && liveResult.value) {
+    return `live run — ${liveResult.value.latencyMs}ms · ${liveResult.value.tokensPerSec.toFixed(1)} tok/s`
+  }
+  if (liveState.value === 'locked') return 'locked — another visitor is running this'
+  if (liveState.value === 'rate_limited') return 'rate limited — try again shortly'
+  if (liveState.value === 'disabled') return 'live mode disabled — showing replay'
+  if (liveState.value === 'error') return 'live demo unavailable — showing replay'
+  return s.outcome
+})
+
+const displayedSteps = computed(() => {
+  const s = scenario.value
+  if (!s.live || (liveState.value !== 'running' && liveState.value !== 'done')) {
+    return s.steps
+  }
+  // Never fabricate per-hop numbers for a real call: only the two terminal
+  // rows carry relay-measured values, everything else drops its canned
+  // latency and stays qualitative (state icon only).
+  return s.steps.map((step, index) => {
+    if (liveState.value === 'done' && liveResult.value) {
+      if (index === s.steps.length - 2) {
+        return { ...step, latency: `${liveResult.value.tokensPerSec.toFixed(1)} tok/s` }
+      }
+      if (index === s.steps.length - 1) {
+        return { ...step, detail: 'live trace recorded', latency: `${liveResult.value.latencyMs} ms` }
+      }
+    }
+    return { ...step, latency: undefined }
+  })
+})
+
+const displayedNote = computed(() => {
+  const s = scenario.value
+  if (s.live && liveState.value === 'done') {
+    return '방문자당 1회, GoVail Gateway에 실제로 보낸 요청입니다. 백엔드 호스트명이나 내부 endpoint는 노출하지 않습니다.'
+  }
+  return s.note
+})
 
 function setLab(lab: (typeof tabs)[number]['id']) {
   stopReplay()
@@ -178,6 +254,12 @@ function stopReplay() {
   if (timer) clearInterval(timer)
   timer = undefined
   running.value = false
+  if (liveFallbackTimer) clearTimeout(liveFallbackTimer)
+  liveFallbackTimer = undefined
+  liveAbort?.abort()
+  liveAbort = undefined
+  liveState.value = 'idle'
+  liveResult.value = null
 }
 
 function replay() {
@@ -192,6 +274,82 @@ function replay() {
     }
     activeStep.value += 1
   }, 520)
+}
+
+async function runLive() {
+  const promptId = scenario.value.promptId
+  if (!promptId) return
+
+  stopReplay()
+  liveState.value = 'running'
+  running.value = true
+  activeStep.value = 0
+
+  // Animate through the trace for visual continuity while the real request
+  // is in flight; hold just before the terminal step until real data (or a
+  // failure) arrives, rather than reaching it on a fixed fake schedule.
+  timer = setInterval(() => {
+    if (activeStep.value >= scenario.value.steps.length - 2) return
+    activeStep.value += 1
+  }, 420)
+
+  liveAbort = new AbortController()
+  const clientTimeout = setTimeout(() => liveAbort?.abort(), LIVE_CLIENT_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(RELAY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ promptId }),
+      signal: liveAbort.signal,
+    })
+    const payload = await response.json()
+
+    if (payload.status === 'ok') {
+      liveResult.value = {
+        outputText: payload.outputText,
+        latencyMs: payload.latencyMs,
+        tokensPerSec: payload.tokensPerSec,
+      }
+      liveState.value = 'done'
+      activeStep.value = scenario.value.steps.length - 1
+      if (timer) clearInterval(timer)
+      timer = undefined
+      running.value = false
+      return
+    }
+
+    liveState.value =
+      payload.status === 'locked' || payload.status === 'rate_limited' || payload.status === 'disabled'
+        ? payload.status
+        : 'error'
+  } catch {
+    liveState.value = 'error'
+  } finally {
+    clearTimeout(clientTimeout)
+    if (liveState.value !== 'done') {
+      if (timer) clearInterval(timer)
+      timer = undefined
+      running.value = false
+      activeStep.value = -1
+      // Graceful fallback: let the visitor see the status for a moment,
+      // then fall back to the existing fixture replay so the page still
+      // shows something working — this is also how the kill switch and any
+      // upstream failure resolve, with no separate machinery.
+      const fallbackState = liveState.value
+      liveFallbackTimer = setTimeout(() => {
+        if (liveState.value === fallbackState) replay()
+      }, 1600)
+    }
+  }
+}
+
+function handleRun() {
+  if (scenario.value.live) {
+    runLive()
+  } else {
+    replay()
+  }
 }
 
 onBeforeUnmount(stopReplay)
@@ -255,8 +413,8 @@ onBeforeUnmount(stopReplay)
               </button>
             </div>
           </div>
-          <button class="pg-run" type="button" :disabled="running" @click="replay">
-            <span>{{ running ? 'RUNNING' : 'RUN REPLAY' }}</span>
+          <button class="pg-run" type="button" :disabled="running || liveState === 'running'" @click="handleRun">
+            <span>{{ runButtonLabel }}</span>
             <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -273,14 +431,19 @@ onBeforeUnmount(stopReplay)
           </div>
         </div>
 
+        <div v-if="scenario.live && liveState === 'done' && liveResult" class="pg-live-output">
+          <span>live output</span>
+          <code>{{ liveResult.outputText }}</code>
+        </div>
+
         <div class="pg-trace-head">
           <span class="pg-panel-label">EXECUTION TRACE</span>
-          <span>{{ scenario.outcome }}</span>
+          <span :class="liveStatusClass">{{ displayedOutcome }}</span>
         </div>
 
         <ol class="pg-trace-list">
           <li
-            v-for="(step, index) in scenario.steps"
+            v-for="(step, index) in displayedSteps"
             :key="`${scenario.id}-${step.name}`"
             :class="[
               `state-${step.state}`,
@@ -309,12 +472,12 @@ onBeforeUnmount(stopReplay)
 
         <div class="pg-receipt">
           <span class="pg-panel-label">PUBLICATION BOUNDARY</span>
-          <p>{{ scenario.note }}</p>
+          <p>{{ displayedNote }}</p>
         </div>
 
         <div class="pg-integrity">
-          <span>fixture integrity</span>
-          <strong>PUBLIC SAFE</strong>
+          <span>{{ scenario.live ? 'execution mode' : 'fixture integrity' }}</span>
+          <strong>{{ scenario.live ? 'LIVE · 1 CONCURRENT' : 'PUBLIC SAFE' }}</strong>
         </div>
       </aside>
     </section>
@@ -536,8 +699,15 @@ onBeforeUnmount(stopReplay)
 .pg-request-code span { display: block; color: #7f8da4; font-family: var(--vp-font-family-mono); font-size: 9px; text-transform: uppercase; }
 .pg-request-code code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 10px; line-height: 1.65; white-space: normal; }
 
+.pg-live-output { margin-top: 16px; border-left: 2px solid var(--cobalt); background: var(--terminal); padding: 13px 14px; }
+.pg-live-output span { display: block; color: #7f8da4; font-family: var(--vp-font-family-mono); font-size: 9px; text-transform: uppercase; }
+.pg-live-output code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
+
 .pg-trace-head { display: flex; justify-content: space-between; gap: 20px; margin: 34px 0 10px; }
 .pg-trace-head > span:last-child { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; }
+.pg-trace-head > span.live-ok { color: #2f855a; font-weight: 650; }
+.pg-trace-head > span.live-warn { color: #b7791f; font-weight: 650; }
+.pg-trace-head > span.live-bad { color: #c53030; font-weight: 650; }
 .pg-trace-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--mist-strong); }
 .pg-trace-list li {
   display: grid;

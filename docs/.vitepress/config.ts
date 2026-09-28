@@ -62,6 +62,7 @@ export default withMermaid(
       nav: [
         { text: '글', link: '/posts/' },
         { text: '프로젝트', link: '/projects/' },
+        { text: 'Playground', link: '/playground' },
         { text: 'About', link: '/about' },
         { text: 'GitHub ↗', link: 'https://github.com/devcy0922' },
       ],

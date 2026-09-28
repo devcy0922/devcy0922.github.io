@@ -358,19 +358,13 @@ onBeforeUnmount(stopReplay)
 <template>
   <main class="playground-shell">
     <header class="playground-hero">
-      <div>
-        <p class="pg-kicker"><span></span> AI SYSTEMS PLAYGROUND</p>
-        <h1>시스템이 어떻게 판단하고<br><em>실행되는지</em> 보여줍니다.</h1>
-        <p class="pg-lead">
-          실제 운영 소스 대신 공개 가능한 execution trace와 benchmark fixture를 재생합니다.
-          정책 경계, 라우팅, 장애 복구와 서빙 의사결정을 한 화면에서 확인할 수 있습니다.
-        </p>
-      </div>
-      <div class="pg-badges" aria-label="playground mode">
-        <span>REPLAY</span>
-        <span>SANITIZED</span>
-        <span>NO LIVE WRITE</span>
-      </div>
+      <p class="utility-label"><span class="status-dot"></span>AI Systems Playground</p>
+      <h1>시스템이 어떻게 판단하고<br><em>실행되는지</em> 보여줍니다.</h1>
+      <p class="pg-lead">
+        정책 경계, 모델 라우팅, 장애 복구와 서빙 의사결정을 실제 실행 순서 그대로 재생합니다.
+        Model Routing의 두 시나리오는 방문자당 1회 실제 Gateway 요청을 보내고, 나머지는 공개 가능한
+        execution trace를 재생합니다 — 각 시나리오 하단에 어느 쪽인지 표시됩니다.
+      </p>
     </header>
 
     <section class="pg-console" aria-label="Systems playground console">
@@ -389,10 +383,10 @@ onBeforeUnmount(stopReplay)
         </button>
 
         <div class="pg-sidebar-note">
-          <span class="pg-status-dot"></span>
+          <span class="status-dot"></span>
           <div>
-            <strong>Safe replay mode</strong>
-            <p>외부 계정, shell, MCP, private API에 연결하지 않습니다.</p>
+            <strong>Execution boundary</strong>
+            <p>외부 계정, shell, MCP, private API에 직접 연결하지 않습니다. Model Routing 두 시나리오만 별도 relay를 거쳐 Gateway에 방문자당 1회 요청합니다.</p>
           </div>
         </div>
       </aside>
@@ -477,29 +471,26 @@ onBeforeUnmount(stopReplay)
 
         <div class="pg-integrity">
           <span>{{ scenario.live ? 'execution mode' : 'fixture integrity' }}</span>
-          <strong>{{ scenario.live ? 'LIVE · 1 CONCURRENT' : 'PUBLIC SAFE' }}</strong>
+          <strong>{{ scenario.live ? 'LIVE · 1 CONCURRENT' : 'REPLAY' }}</strong>
         </div>
       </aside>
     </section>
 
     <section class="pg-explain">
       <div>
-        <p class="pg-panel-label">WHY REPLAY</p>
+        <p class="pg-panel-label">How this is exposed</p>
         <h2>코드를 전부 공개하지 않아도<br>설계와 실행 품질은 증명할 수 있습니다.</h2>
       </div>
       <div class="pg-principles">
         <article>
-          <span>01</span>
           <h3>Execution evidence</h3>
           <p>README 설명보다 실제 실행 단계, 상태 전이, 검증 결과를 우선해서 보여줍니다.</p>
         </article>
         <article>
-          <span>02</span>
           <h3>Security boundary</h3>
           <p>credential, 내부 endpoint, 운영 로그와 원본 prompt는 공개 surface에 포함하지 않습니다.</p>
         </article>
         <article>
-          <span>03</span>
           <h3>Replaceable fixtures</h3>
           <p>향후 private CI가 생성한 sanitized JSON bundle로 동일 UI를 그대로 갱신할 수 있습니다.</p>
         </article>
@@ -517,33 +508,20 @@ onBeforeUnmount(stopReplay)
 }
 
 .playground-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 48px;
-  align-items: end;
   padding: 28px 0 54px;
 }
 
-.pg-kicker,
 .pg-panel-label {
   margin: 0;
   color: var(--slate);
   font-family: var(--vp-font-family-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
-.pg-kicker span {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin: 0 9px 1px 0;
-  border-radius: 2px;
-  background: var(--cobalt);
-  box-shadow: 0 0 0 4px var(--cobalt-soft);
-}
+.playground-hero .status-dot { margin-bottom: 2px; }
 
 .playground-hero h1 {
   max-width: 920px;
@@ -567,26 +545,6 @@ onBeforeUnmount(stopReplay)
   font-size: 16px;
   line-height: 1.85;
   word-break: keep-all;
-}
-
-.pg-badges {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
-  padding-bottom: 7px;
-}
-
-.pg-badges span {
-  border: 1px solid var(--mist-strong);
-  border-radius: 3px;
-  background: var(--paper-raised);
-  padding: 7px 9px;
-  color: var(--slate);
-  font-family: var(--vp-font-family-mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: .06em;
 }
 
 .pg-console {
@@ -636,18 +594,9 @@ onBeforeUnmount(stopReplay)
   padding: 20px 9px 0;
 }
 
-.pg-status-dot {
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: #38a169;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #38a169 14%, transparent);
-}
-
-.pg-sidebar-note strong { color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 10px; }
-.pg-sidebar-note p { margin: 5px 0 0; color: var(--slate); font-size: 10px; line-height: 1.6; }
+.pg-sidebar-note .status-dot { flex: 0 0 auto; margin-top: 6px; }
+.pg-sidebar-note strong { color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 11px; }
+.pg-sidebar-note p { margin: 5px 0 0; color: var(--slate); font-size: 11px; line-height: 1.6; }
 
 .pg-main { min-width: 0; padding: 22px 24px 28px; }
 .pg-toolbar { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
@@ -700,18 +649,18 @@ onBeforeUnmount(stopReplay)
 .pg-request-code code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 10px; line-height: 1.65; white-space: normal; }
 
 .pg-live-output { margin-top: 16px; border-left: 2px solid var(--cobalt); background: var(--terminal); padding: 13px 14px; }
-.pg-live-output span { display: block; color: #7f8da4; font-family: var(--vp-font-family-mono); font-size: 9px; text-transform: uppercase; }
+.pg-live-output span { display: block; color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; text-transform: uppercase; }
 .pg-live-output code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
 
 .pg-trace-head { display: flex; justify-content: space-between; gap: 20px; margin: 34px 0 10px; }
-.pg-trace-head > span:last-child { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; }
-.pg-trace-head > span.live-ok { color: #2f855a; font-weight: 650; }
-.pg-trace-head > span.live-warn { color: #b7791f; font-weight: 650; }
-.pg-trace-head > span.live-bad { color: #c53030; font-weight: 650; }
+.pg-trace-head > span:last-child { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
+.pg-trace-head > span.live-ok,
+.pg-trace-head > span.live-warn,
+.pg-trace-head > span.live-bad { color: var(--ink); font-weight: 650; }
 .pg-trace-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--mist-strong); }
 .pg-trace-list li {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 96px 58px;
+  grid-template-columns: 38px minmax(0, 1fr) 96px 64px;
   gap: 12px;
   align-items: center;
   min-height: 66px;
@@ -722,31 +671,28 @@ onBeforeUnmount(stopReplay)
 }
 .pg-trace-list li.reached { opacity: 1; }
 .pg-trace-list li.current { background: color-mix(in srgb, var(--cobalt-soft) 55%, transparent); transform: translateX(4px); }
-.pg-step-index { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; }
+.pg-step-index { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
 .pg-step-copy strong { display: block; color: var(--ink); font-size: 12px; }
 .pg-step-copy span { display: block; margin-top: 3px; color: var(--slate); font-size: 10px; }
-.pg-trace-list code { color: var(--ink-soft); font-family: var(--vp-font-family-mono); font-size: 9px; text-align: right; }
-.pg-step-state { font-family: var(--vp-font-family-mono); font-size: 8px; font-weight: 650; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
-.state-ok .pg-step-state { color: #2f855a; }
-.state-warn .pg-step-state { color: #b7791f; }
+.pg-trace-list code { color: var(--ink-soft); font-family: var(--vp-font-family-mono); font-size: 10px; text-align: right; }
+.pg-step-state { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
 .state-blocked .pg-step-state,
-.state-fail .pg-step-state { color: #c53030; }
+.state-fail .pg-step-state { color: var(--ink); }
 
 .pg-evidence dl { margin: 14px 0 0; }
 .pg-evidence dl > div { border-top: 1px solid var(--mist-strong); padding: 13px 0; }
-.pg-evidence dt { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; }
-.pg-evidence dd { margin: 5px 0 0; color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 10px; font-weight: 600; word-break: break-word; }
+.pg-evidence dt { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
+.pg-evidence dd { margin: 5px 0 0; color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 11px; font-weight: 600; word-break: break-word; }
 .pg-receipt { margin-top: 24px; border-top: 1px solid var(--mist-strong); padding-top: 18px; }
-.pg-receipt p { margin: 9px 0 0; color: var(--ink-soft); font-size: 10px; line-height: 1.7; }
-.pg-integrity { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border: 1px solid color-mix(in srgb, #38a169 30%, var(--mist-strong)); border-radius: 3px; background: color-mix(in srgb, #38a169 7%, transparent); padding: 9px; font-family: var(--vp-font-family-mono); font-size: 8px; }
+.pg-receipt p { margin: 9px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
+.pg-integrity { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border: 1px solid var(--mist-strong); border-radius: 3px; background: var(--cobalt-soft); padding: 9px; font-family: var(--vp-font-family-mono); font-size: 9px; }
 .pg-integrity span { color: var(--slate); }
-.pg-integrity strong { color: #2f855a; }
+.pg-integrity strong { color: var(--cobalt); }
 
 .pg-explain { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 72px; padding-top: 96px; }
 .pg-explain h2 { margin: 11px 0 0; color: var(--ink); font-size: clamp(28px, 3vw, 38px); letter-spacing: -.045em; line-height: 1.35; }
 .pg-principles { border-top: 1px solid var(--mist-strong); }
-.pg-principles article { display: grid; grid-template-columns: 38px 150px minmax(0, 1fr); gap: 18px; border-bottom: 1px solid var(--mist-strong); padding: 20px 0; }
-.pg-principles article > span { color: var(--cobalt); font-family: var(--vp-font-family-mono); font-size: 9px; }
+.pg-principles article { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; border-bottom: 1px solid var(--mist-strong); padding: 20px 0; }
 .pg-principles h3 { margin: 0; color: var(--ink); font-size: 13px; }
 .pg-principles p { margin: 0; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
 
@@ -759,9 +705,7 @@ onBeforeUnmount(stopReplay)
 
 @media (max-width: 760px) {
   .playground-shell { width: min(100% - 28px, 1400px); padding-top: 42px; }
-  .playground-hero { grid-template-columns: 1fr; gap: 24px; }
   .playground-hero h1 { font-size: clamp(39px, 12vw, 58px); }
-  .pg-badges { justify-content: flex-start; }
   .pg-console { display: block; }
   .pg-sidebar { border-right: 0; border-bottom: 1px solid var(--mist-strong); }
   .pg-lab-button { display: inline-block; width: auto; margin-right: 5px; }
@@ -774,7 +718,6 @@ onBeforeUnmount(stopReplay)
   .pg-step-state { display: none; }
   .pg-evidence dl { grid-template-columns: repeat(2, 1fr); }
   .pg-explain { grid-template-columns: 1fr; gap: 34px; padding-top: 72px; }
-  .pg-principles article { grid-template-columns: 30px minmax(0, 1fr); }
-  .pg-principles p { grid-column: 2; }
+  .pg-principles article { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

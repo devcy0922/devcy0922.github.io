@@ -1,0 +1,80 @@
+export default [
+  {
+    kind: 'ControlOps',
+    title: 'ITGC ControlOps',
+    description: 'RCM 기준 모집단과 소스 함수 증적을 읽기 전용으로 수집합니다.',
+    href: '/projects/itgc-control',
+  },
+  {
+    kind: 'AI Platform',
+    title: 'AI Service Infra',
+    description: 'model access, durable workflow와 observability를 소유하는 서비스 계층입니다.',
+    href: '/projects/ai-service-infra',
+  },
+  {
+    kind: 'Developer Tool',
+    title: 'Engine CLI',
+    description: 'GoVail과 OpenRouter를 연결하는 자율 코딩 CLI입니다.',
+    href: '/projects/engine-cli',
+  },
+  {
+    kind: 'Gateway',
+    title: 'GoVail Gateway',
+    description: '모델 실행 앞단의 인증·정책·감사 경계를 둔 OpenAI-compatible Gateway입니다.',
+    href: '/projects/govail-gateway',
+  },
+  {
+    kind: 'Automation',
+    title: 'LingoAgent',
+    description: '번역, ICU 검증, QA와 커밋을 묶은 i18n 배포 게이트입니다.',
+    href: '/projects/lingo-agent',
+  },
+  {
+    kind: 'Security · Experiment',
+    title: 'Aegis-LLM',
+    description: '요청 경계의 인증, DLP와 fallback을 검증한 Rust 기반 Gateway MVP입니다.',
+    href: '/projects/aegis-llm',
+  },
+  {
+    kind: 'Security · Experiment',
+    title: 'Aperture MCP',
+    description: 'Tool 실행 전에 policy를 검사하는 Zero-trust 보안 프록시입니다.',
+    href: '/projects/aperture-mcp',
+  },
+  {
+    kind: 'RAG · Experiment',
+    title: 'SliceRAG',
+    description: '프로젝트 단위로 RAG 데이터를 격리하는 Data Plane MVP입니다.',
+    href: '/projects/slicerag',
+  },
+  {
+    kind: 'Security · Experiment',
+    title: 'AgentSecOps Playground',
+    description: 'Agent 보안 실패 케이스를 재현하는 E2E harness입니다.',
+    href: '/projects/agentsecops-playground',
+  },
+  {
+    kind: 'Inference · Experiment',
+    title: 'AI Gateway Infra Demo',
+    description: '다중 추론 노드 라우팅과 provider fallback을 검증한 구성 실험입니다.',
+    href: '/projects/ai-gateway-infra-demo',
+  },
+  {
+    kind: 'Release Safety · Experiment',
+    title: 'coexistgate',
+    description: '변경을 안전하게 릴리스하고 롤백할 수 있는지 판단하는 엔진입니다.',
+    href: '/projects/coexistgate',
+  },
+  {
+    kind: 'Agent Workflow · Experiment',
+    title: 'works-agent-demo',
+    description: '증거 기반 Agent workflow를 직접 확인하는 데모입니다.',
+    href: '/projects/works-agent-demo',
+  },
+  {
+    kind: 'Infrastructure · Archived',
+    title: 'Infra Security',
+    description: '호스트와 컨테이너 네트워크 보안을 자동화한 구성입니다.',
+    href: '/projects/infra-security',
+  },
+]

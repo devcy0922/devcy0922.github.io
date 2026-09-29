@@ -1,12 +1,14 @@
 # PinchQ
 
+[검증 판정 데모](/playground#verification) — 실행 증거 집계 규칙을 확인하는 브라우저 시뮬레이션입니다. 실제 runner를 실행하지 않습니다.
+
 코드 변경을 눈으로 보고 승인하는 대신, 재현 가능한 check를 실행하고 그 결과를 evidence와 verdict로 남기는 검증 러너입니다. 계획이 그럴듯한지보다 실제 runner가 무엇을 실행했고 무엇을 관찰했는지를 기준으로 판단합니다.
 
 ## 한눈에 보기
 
 - **성격**: Verification / Reliability Engineering
 - **핵심 기술**: Go, typed verification plan, Command·HTTP·PTY runner, Playwright
-- **Source**: [github.com/devcy0922/pinchq ↗](https://github.com/devcy0922/pinchq)
+- **공개 범위**: 설계 사례 공개 · 원본 저장소 접근 없이 아래 내용을 확인할 수 있습니다.
 - **현재 범위**: Go·Node.js·Python·Rust 저장소 분석과 실행 결과의 PASS·PARTIAL·FAIL 판정
 
 ## 문제
@@ -80,10 +82,10 @@ sequenceDiagram
 - Go·Node.js·Python·Rust 저장소를 대상으로 하는 analyzer 범위가 공개되어 있습니다.
 - Command, HTTP, PTY/CLI, browser/Playwright runner 경계를 분리합니다.
 - 실행하지 않은 check를 PASS로 처리하지 않고 `FAIL`, `PARTIAL`, `PASS`를 구분합니다.
-- 자세한 구현과 실행 방법은 [소스 저장소](https://github.com/devcy0922/pinchq)에서 확인할 수 있습니다.
+- 공개 데모에서 [실행 경계 확인하기](/playground#verification). 원본 서비스 전체의 실행 결과를 대신하지 않습니다.
 
 ## 현재 한계
 
 - browser 검증의 인증·selector와 같은 도메인 지식은 profile에 제공되어야 합니다.
 - 환경이 준비되지 않은 check는 성공으로 추정하지 않고 `PARTIAL`로 남습니다.
-- 이 페이지는 공개 저장소에서 확인 가능한 runner와 verdict 범위만 설명하며, 모든 제품·배포 환경을 자동 검증한다고 주장하지 않습니다.
+- 이 페이지는 프로젝트 문서에서 확인 가능한 runner와 verdict 범위만 설명하며, 모든 제품·배포 환경을 자동 검증한다고 주장하지 않습니다.

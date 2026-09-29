@@ -1,10 +1,24 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { marked } from 'marked'
+import { createEventParser } from '../../stream-events.js'
+
+function escapeHtml(value: string) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
 
 marked.use({
   gfm: true,
   breaks: true,
+  renderer: {
+    html({ text }) { return escapeHtml(text) },
+    link({ href, tokens }) {
+      const label = this.parser.parseInline(tokens)
+      if (!/^https?:\/\//i.test(href)) return label
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    },
+    image({ text }) { return escapeHtml(text) },
+  },
 })
 
 const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
@@ -69,11 +83,9 @@ export interface EngineStage {
 
 // Preset questions
 const promptPresets = [
-  { label: '클러스터 헬스', text: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘' },
+  { label: '실행 경계 설계', text: 'AI Gateway와 Agent Runtime의 책임을 어떻게 나누면 좋을까?' },
   { label: '게이트웨이 라우팅', text: '최신 AI 게이트웨이 라우팅 전략과 모델 폴백 트렌드 웹 검색' },
-  { label: '지연시간 P50/P95', text: 'Python으로 노드 지연시간 리스트의 P50 및 P95 백분위수를 계산해줘' },
-  { label: '캐시 유사도', text: '시맨틱 캐시 레이어의 임베딩 유사도 임계치와 TTL 상태 점검' },
-  { label: '우루과이전 결과 분석', text: '우루과이전 결과 분석' },
+  { label: '검증 계획', text: '승인 전에 외부 변경이 발생하지 않는지 검증하는 테스트 계획을 제안해줘' },
 ]
 
 // Tool label mapping
@@ -100,12 +112,12 @@ const showCompressedSummary = ref(false)
 
 // Engine Process Pipeline Stages
 const engineStages = ref<EngineStage[]>([
-  { id: 'ingest', step: '01', name: 'Request Ingest & Sanitize', desc: '입력 요청 살균 및 인젝션 방어', status: 'idle' },
-  { id: 'compress', step: '02', name: 'Context Compressor', desc: '슬라이딩 윈도우 세션 메모리 압축', status: 'idle' },
-  { id: 'dispatch', step: '03', name: 'Intent & Tool Dispatcher', desc: '의도 분석 및 도구 격리 샌드박스 실행', status: 'idle' },
-  { id: 'reasoning', step: '04', name: 'Response Generation', desc: 'Gateway 응답 생성 및 컨텍스트 반영', status: 'idle' },
-  { id: 'stream', step: '05', name: 'SSE Stream Engine', desc: '청크 단위 토큰 실시간 디코딩', status: 'idle' },
-  { id: 'render', step: '06', name: 'Client AST Render', desc: 'GFM 마크다운 렌더링 & 브라우저 캐싱', status: 'idle' },
+  { id: 'ingest', step: '01', name: 'Request validation', desc: '입력 확인 및 요청 준비', status: 'idle' },
+  { id: 'compress', step: '02', name: 'Context management', desc: '대화 이력과 축약 문맥 구성', status: 'idle' },
+  { id: 'dispatch', step: '03', name: 'Tool routing', desc: '요청에 맞는 도구 선택', status: 'idle' },
+  { id: 'reasoning', step: '04', name: 'Model execution', desc: 'Gateway 모델 응답 생성', status: 'idle' },
+  { id: 'stream', step: '05', name: 'Response streaming', desc: '응답 이벤트 수신', status: 'idle' },
+  { id: 'render', step: '06', name: 'Client rendering', desc: '응답 표시 및 브라우저 저장', status: 'idle' },
 ])
 
 function resetEngineStages() {
@@ -183,70 +195,13 @@ const browserCacheSize = computed(() => {
   return (new Blob([raw]).size / 1024).toFixed(1) + ' KB'
 })
 
-// Initial default session with realistic trace
+// 운영 상태로 오인할 초기 fixture 없이 시작한다.
 function initDefaultSession(): Session {
-  return {
-    id: 'session_' + Date.now(),
-    title: '클러스터 메트릭 및 시스템 점검',
-    createdAt: Date.now(),
-    compressedContext: {
-      originalTurnsCount: 2,
-      originalTokens: 380,
-      compressedTokens: 48,
-      savingsPct: 87,
-      summary: 'Q: 클러스터 노드 상태 확인 → A: cy-server.internal이 HEALTHY (p95: 38.4ms, 4 routes active) 상태임을 사전 검증함',
-      timestamp: Date.now() - 60000,
-    },
-    messages: [
-      {
-        id: 'msg_user_1',
-        role: 'user',
-        content: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘',
-        timestamp: Date.now() - 36000,
-      },
-      {
-        id: 'msg_asst_1',
-        role: 'assistant',
-        content:
-          'GoVail 클러스터(`cy-server.internal`) 상태는 현재 **HEALTHY**이며, 4개의 활성 게이트웨이 라우트가 정상 가동 중입니다.\n\n* **P95 지연시간:** `38.4ms` (초저지연 유지)\n* **활성 라우트:** `4 active routes`\n* **시스템 부하:** 정상 (가동 시간 12시간 이상)\n\n궁금한 점이 있거나 추가 분석이 필요하시면 말씀해 주세요.',
-        reasoning:
-          '1. system_metrics 도구 호출 결과 확인\n2. cluster_node 및 active_gateway_routes 상태 분석\n3. p95_latency_ms (38.4ms)를 기반으로 간결한 상태 보고서 작성',
-        tools: [
-          {
-            tool: 'system_metrics',
-            callId: 'call_init_01',
-            input: { target: 'govail-gateway', metric_window: '5m' },
-            output: {
-              status: 'HEALTHY',
-              cluster_node: 'cy-server.internal (192.168.0.10)',
-              active_gateway_routes: 4,
-              p95_latency_ms: 38.4,
-              uptime_seconds: 43200,
-              heap_used_mb: 18.2,
-              rate_limit_policy: 'sliding_window_10rpm',
-              concurrency_lock: 'single_active_slot',
-            },
-            durationMs: 24,
-            status: 'done',
-          },
-        ],
-        trace: {
-          totalLatencyMs: 840,
-          ttftMs: 210,
-          tokensPerSec: 32.5,
-          routingNode: 'edge-cluster (192.168.0.10:8080)',
-          policy: 'REASONING_OPTIMAL',
-          usage: { promptTokens: 85, completionTokens: 42 },
-        },
-        status: 'done',
-        timestamp: Date.now() - 35000,
-      },
-    ],
-  }
+  return { id: 'session_' + Date.now(), title: '새 대화', createdAt: Date.now(), messages: [] }
 }
 
 // Storage helpers (Purely Client-side Browser Cache)
-const STORAGE_KEY = 'govail_playground_browser_cache_v4'
+const STORAGE_KEY = 'govail_playground_browser_cache_v5'
 
 function loadSessions() {
   if (typeof window === 'undefined') return
@@ -312,7 +267,7 @@ function deleteSession(id: string, e?: Event) {
 }
 
 function clearBrowserCache() {
-  if (confirm('브라우저에 저장된 모든 세션 캐시를 삭제하시겠습니까? (서버에 기록되지 않는 순수 로컬 데이터입니다)')) {
+  if (confirm('이 브라우저에 저장된 모든 대화 세션을 삭제하시겠습니까?')) {
     sessions.value = []
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY)
@@ -343,7 +298,7 @@ function compressCurrentSession() {
 
   const denseSummary = summaryParts.join(' → ')
   const compressedTokens = Math.max(16, Math.ceil(denseSummary.length / 3))
-  const savings = Math.max(15, Math.round(((originalTokens - compressedTokens) / originalTokens) * 100))
+  const savings = originalTokens ? Math.round(((originalTokens - compressedTokens) / originalTokens) * 100) : 0
 
   session.compressedContext = {
     originalTurnsCount: turnsToCompress.length,
@@ -378,9 +333,7 @@ function getRequestedTools(prompt: string): string[] {
     '월드컵', '대표팀', '날씨', '환율', '주가', '가격', '출시', '누가', '언제', '어디서',
   ]
   if (webSignals.some((signal) => lower.includes(signal))) return ['web_search']
-  if (['메트릭', '상태', '헬스', '클러스터', '서버'].some((signal) => lower.includes(signal))) return ['system_metrics']
-  if (['코드', '파이썬', 'python', '계산', '함수'].some((signal) => lower.includes(signal))) return ['code_interpreter']
-  if (['캐시', 'cache', 'ttl', '유사도'].some((signal) => lower.includes(signal))) return ['cache_inspector']
+  // relay의 고정값 도구는 실제 실행으로 소개하지 않는다.
   return []
 }
 
@@ -398,7 +351,7 @@ function renderMarkdown(text: string): string {
   try {
     return marked.parse(text) as string
   } catch {
-    return text
+    return escapeHtml(text)
   }
 }
 
@@ -502,38 +455,23 @@ async function handleSend() {
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
-    let buffer = ''
+    let completed = false
+    const parse = createEventParser((event: string, raw: string) => {
+      if (raw === '[DONE]') return
+      const data = JSON.parse(raw)
+      if (event === 'done' || event === 'error') completed = true
+      handleStreamEvent(event, data, asstMsg)
+    })
 
     updateStage('stream', 'running')
-
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      let currentEvent = 'message'
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-
-        if (trimmed.startsWith('event:')) {
-          currentEvent = trimmed.slice(6).trim()
-          continue
-        }
-
-        if (trimmed.startsWith('data:')) {
-          const rawData = trimmed.slice(5).trim()
-          try {
-            const data = JSON.parse(rawData)
-            handleStreamEvent(currentEvent, data, asstMsg)
-          } catch {
-            // ignore non-json line
-          }
-        }
+      if (done) {
+        parse(decoder.decode())
+        if (!completed) throw new Error('완료 이벤트 없이 응답이 종료되었습니다.')
+        break
       }
+      parse(decoder.decode(value, { stream: true }))
       scrollToBottom()
     }
 
@@ -541,10 +479,12 @@ async function handleSend() {
       asstMsg.status = 'done'
       streamStatusText.value = 'Ready'
       updateStage('stream', 'done')
-      updateStage('render', 'done', 4, 'GFM Markdown Parsed')
+      updateStage('render', 'done', undefined, '응답 표시 완료')
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
+      asstMsg.status = 'error'
+      asstMsg.content += '\n\n사용자가 응답 수신을 중단했습니다.'
       streamStatusText.value = 'Stopped by user'
     } else {
       asstMsg.status = 'error'
@@ -619,7 +559,7 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
     }
     updateStage('reasoning', 'done', undefined, 'Response generated')
     updateStage('stream', 'done', Number(data.totalLatencyMs) || undefined, `finish_reason: ${String(data.finishReason || 'stop')}`)
-    updateStage('render', 'done', 4, 'GFM Markdown Parsed')
+    updateStage('render', 'done', undefined, '응답 표시 완료')
     if (msg.trace) {
       msg.trace.totalLatencyMs = Number(data.totalLatencyMs)
       msg.trace.ttftMs = Number(data.ttftMs)
@@ -698,12 +638,15 @@ onBeforeUnmount(() => {
   <main class="playground-shell">
     <!-- Top Hero Header -->
     <header class="playground-hero">
-      <div class="pg-panel-label"><span class="status-dot"></span> GoVail Cloud Debug Studio</div>
-      <h1>실시간 <em>추론 & 툴 디버깅</em> 콘솔</h1>
+      <div class="pg-panel-label">GoVail Gateway / 공개 relay</div>
+      <h1>라이브 모델 콘솔</h1>
       <p class="pg-lead">
-        요청은 중앙에서 읽고, 세션은 왼쪽에서 전환하고, 실제 도구 호출과 검색 출처는 오른쪽에서 확인합니다.
+        전송한 질문은 공개 relay를 통해 모델 서비스로 전달됩니다. 개인정보나 업무 비밀을 입력하지 마세요.
+        대화는 이 브라우저에 저장됩니다. 모델 응답과 웹 검색만 연결하며 운영 메트릭 조회와 코드 실행은 제공하지 않습니다.
       </p>
     </header>
+
+    <p class="lab-notice">이 화면은 실제 네트워크 요청을 보냅니다. 표시되는 단계는 클라이언트가 관찰한 진행 상태이며 내부 추론 과정이나 전체 서버 trace가 아닙니다. <a href="/playground">브라우저 데모로 돌아가기</a></p>
 
     <!-- 3-Panel Debug Studio -->
     <div class="pg-studio-container">
@@ -749,7 +692,7 @@ onBeforeUnmount(() => {
         <div class="pg-sessions-footer">
           <div class="pg-cache-notice">
             <span class="pg-notice-mark">LOCAL</span>
-            <span>퍼블릭 환경: 대화 내역은 브라우저 캐시에만 보존됩니다.</span>
+            <span>대화 이력은 이 브라우저에 저장됩니다. 전송한 요청은 외부 모델 서비스에서 처리합니다.</span>
           </div>
           <button type="button" class="pg-btn-clear" @click="clearBrowserCache">
             캐시 비우기 (전체 삭제)
@@ -772,11 +715,11 @@ onBeforeUnmount(() => {
               v-if="currentSession && currentSession.messages.length >= 2"
               type="button"
               class="pg-btn-compress"
-              title="이전 대화 턴을 의미 요약으로 압축하여 토큰을 절감합니다"
+              title="이전 메시지 앞부분을 발췌합니다. 의미 요약이 아니며 정보가 누락될 수 있습니다."
               :disabled="isStreaming"
               @click="compressCurrentSession"
             >
-              세션 압축
+              대화 발췌
             </button>
             <span class="pg-tag-gateway">GoVail Gateway</span>
           </div>
@@ -787,9 +730,9 @@ onBeforeUnmount(() => {
           <!-- Session Compressed Context Banner -->
           <div v-if="currentSession?.compressedContext" class="pg-compressed-banner">
             <div class="pg-compressed-head" @click="showCompressedSummary = !showCompressedSummary">
-              <span class="pg-compressed-badge">CONTEXT COMPRESSED</span>
+              <span class="pg-compressed-badge">대화 앞부분 발췌</span>
               <span class="pg-compressed-stats">
-                {{ currentSession.compressedContext.originalTurnsCount }}개 턴 압축 · {{ currentSession.compressedContext.savingsPct }}% 토큰 절감
+                {{ currentSession.compressedContext.originalTurnsCount }}개 메시지 발췌 · 문자 길이 기반 토큰 추정치
               </span>
               <span class="pg-compressed-toggle">{{ showCompressedSummary ? '▲ 접기' : '▼ 요약 보기' }}</span>
             </div>
@@ -1059,8 +1002,8 @@ onBeforeUnmount(() => {
                 <span class="pg-info-val">{{ browserCacheSize }}</span>
               </div>
               <div class="pg-info-row">
-                <span class="pg-info-key">Server Retention</span>
-                <span class="pg-info-val">0% (Stateless In-Memory)</span>
+                <span class="pg-info-key">서버 데이터 처리</span>
+                <span class="pg-info-val">relay·모델 서비스 정책 적용</span>
               </div>
             </div>
           </div>

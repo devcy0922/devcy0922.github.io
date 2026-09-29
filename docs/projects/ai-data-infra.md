@@ -6,7 +6,7 @@
 
 - **성격**: Data Platform / Infrastructure
 - **핵심 기술**: PostgreSQL 16, Redis 7, Kafka KRaft, Dagu 2.7
-- **Source**: [github.com/devcy0922/ai-data-infra ↗](https://github.com/devcy0922/ai-data-infra)
+- **공개 범위**: 설계 사례 공개 · 원본 저장소 접근 없이 아래 내용을 확인할 수 있습니다.
 - **현재 범위**: 공용 DB·cache·event·저빈도 scheduled job의 배포와 운영 경계
 
 ## Context
@@ -129,7 +129,7 @@ LiteLLM, Temporal, Langfuse는 이름이 널리 알려졌다는 이유로 이 �
 - 운영 데이터 디렉터리와 bootstrap을 구분하고, schema 변경을 versioned migration으로 다룹니다.
 - 중복 전달을 전제로 한 idempotent consumer와 DLQ 운영 기준을 명시합니다.
 - Dagu의 cron, 저빈도 DAG, retry와 overlap control을 application workflow와 분리합니다.
-- 자세한 배포 구성은 [소스 저장소](https://github.com/devcy0922/ai-data-infra)에서 확인할 수 있습니다.
+- 이 사례에서는 공용 데이터의 책임과 배포 경계를 공개합니다. 실제 접속 정보와 운영 데이터는 포함하지 않습니다.
 
 ## 현재 한계
 

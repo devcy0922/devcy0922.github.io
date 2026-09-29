@@ -103,7 +103,7 @@ const engineStages = ref<EngineStage[]>([
   { id: 'ingest', step: '01', name: 'Request Ingest & Sanitize', desc: '입력 요청 살균 및 인젝션 방어', status: 'idle' },
   { id: 'compress', step: '02', name: 'Context Compressor', desc: '슬라이딩 윈도우 세션 메모리 압축', status: 'idle' },
   { id: 'dispatch', step: '03', name: 'Intent & Tool Dispatcher', desc: '의도 분석 및 도구 격리 샌드박스 실행', status: 'idle' },
-  { id: 'reasoning', step: '04', name: 'CoT Deliberation', desc: '경량 추론 단계 사전 계획 수립', status: 'idle' },
+  { id: 'reasoning', step: '04', name: 'Response Generation', desc: 'Gateway 응답 생성 및 컨텍스트 반영', status: 'idle' },
   { id: 'stream', step: '05', name: 'SSE Stream Engine', desc: '청크 단위 토큰 실시간 디코딩', status: 'idle' },
   { id: 'render', step: '06', name: 'Client AST Render', desc: 'GFM 마크다운 렌더링 & 브라우저 캐싱', status: 'idle' },
 ])
@@ -152,6 +152,26 @@ const currentToolCalls = computed(() => {
     })),
   )
 })
+
+function syncEngineStagesFromSession() {
+  resetEngineStages()
+  const latest = [...(currentSession.value?.messages || [])].reverse().find((message) => message.role === 'assistant')
+  if (!latest) return
+
+  updateStage('ingest', 'done', undefined, 'Loaded from browser session')
+  updateStage('compress', currentSession.value?.compressedContext ? 'done' : 'pass', undefined, currentSession.value?.compressedContext ? 'Session summary restored' : 'No prior context')
+
+  if (latest.tools && latest.tools.length > 0) {
+    const hasError = latest.tools.some((tool) => tool.status === 'error')
+    updateStage('dispatch', hasError ? 'running' : 'done', undefined, `${latest.tools.length} tool call${latest.tools.length > 1 ? 's' : ''} restored`)
+  } else {
+    updateStage('dispatch', 'pass', undefined, 'No external tool')
+  }
+
+  updateStage('reasoning', 'done', undefined, 'Response loaded')
+  updateStage('stream', 'done', latest.trace?.totalLatencyMs, 'SSE stream completed')
+  updateStage('render', 'done', 4, 'GFM Markdown Parsed')
+}
 
 const totalMessagesCount = computed(() => {
   return sessions.value.reduce((acc, s) => acc + s.messages.length, 0)
@@ -237,6 +257,7 @@ function loadSessions() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         sessions.value = parsed
         currentSessionId.value = parsed[0].id
+        syncEngineStagesFromSession()
         return
       }
     }
@@ -246,6 +267,7 @@ function loadSessions() {
   const def = initDefaultSession()
   sessions.value = [def]
   currentSessionId.value = def.id
+  syncEngineStagesFromSession()
   saveSessions()
 }
 
@@ -267,11 +289,13 @@ function createNewSession() {
   }
   sessions.value.unshift(newSession)
   currentSessionId.value = newSession.id
+  resetEngineStages()
   saveSessions()
 }
 
 function selectSession(id: string) {
   currentSessionId.value = id
+  syncEngineStagesFromSession()
   scrollToBottom()
 }
 
@@ -282,6 +306,7 @@ function deleteSession(id: string, e?: Event) {
     createNewSession()
   } else if (currentSessionId.value === id) {
     currentSessionId.value = sessions.value[0].id
+    syncEngineStagesFromSession()
   }
   saveSessions()
 }
@@ -461,8 +486,8 @@ async function handleSend() {
       body: JSON.stringify({
         prompt: contextAugmentedPrompt,
         tools: internalTools,
-        // 도구 결과가 있는 답변은 추론 토큰보다 최종 답변을 우선한다.
-        enableThinking: internalTools.length === 0,
+        // Playground는 내부 추론 로그보다 사용자에게 전달할 최종 답변을 우선한다.
+        enableThinking: false,
       }),
       signal: controller.signal,
     })
@@ -537,12 +562,21 @@ async function handleSend() {
 function handleStreamEvent(event: string, data: Record<string, unknown>, msg: ChatMessage) {
   if (event === 'routing') {
     streamStatusText.value = 'Processing request...'
+    updateStage('dispatch', 'running', undefined, `Routed to ${String(data.targetNode || 'Gateway')}`)
     if (msg.trace) {
       msg.trace.routingNode = String(data.targetNode || '')
       msg.trace.policy = String(data.policy || '')
     }
   } else if (event === 'status') {
     streamStatusText.value = String(data.message || data.phase || '')
+    if (data.phase === 'STREAMING') {
+      if (msg.tools && msg.tools.length > 0) {
+        updateStage('dispatch', 'done', undefined, 'Tool results attached')
+      } else {
+        updateStage('dispatch', 'pass', undefined, 'No external tool')
+      }
+      updateStage('reasoning', 'running', undefined, 'Generating response')
+    }
   } else if (event === 'tool_call') {
     const meta = getToolMeta(String(data.tool))
     streamStatusText.value = `도구 실행: ${meta.label}`
@@ -568,19 +602,11 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
         if (data.error) toolItem.error = String(data.error)
       }
     }
-  } else if (event === 'thinking') {
-    updateStage('reasoning', 'running', undefined, 'Deliberating...')
-    if (data.delta) {
-      msg.reasoning = (msg.reasoning || '') + String(data.delta)
-    }
   } else if (event === 'token') {
     streamStatusText.value = 'Streaming Response...'
-    if (data.reasoning) {
-      msg.reasoning = (msg.reasoning || '') + String(data.reasoning)
-    }
     if (data.delta) {
       msg.content += String(data.delta)
-      updateStage('reasoning', 'done')
+      updateStage('stream', 'running', undefined, 'Receiving response chunks')
     }
   } else if (event === 'done') {
     if (data.status === 'truncated') {
@@ -591,6 +617,9 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
       streamStatusText.value = 'Completed'
       msg.status = 'done'
     }
+    updateStage('reasoning', 'done', undefined, 'Response generated')
+    updateStage('stream', 'done', Number(data.totalLatencyMs) || undefined, `finish_reason: ${String(data.finishReason || 'stop')}`)
+    updateStage('render', 'done', 4, 'GFM Markdown Parsed')
     if (msg.trace) {
       msg.trace.totalLatencyMs = Number(data.totalLatencyMs)
       msg.trace.ttftMs = Number(data.ttftMs)
@@ -614,11 +643,6 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
 const expandedTools = ref<Record<string, boolean>>({})
 function toggleToolExpand(callId: string) {
   expandedTools.value[callId] = !expandedTools.value[callId]
-}
-
-const showReasoning = ref<Record<string, boolean>>({})
-function toggleReasoning(msgId: string) {
-  showReasoning.value[msgId] = !showReasoning.value[msgId]
 }
 
 interface SearchResultView {
@@ -782,7 +806,7 @@ onBeforeUnmount(() => {
           <!-- Empty State -->
           <div v-if="!currentSession || currentSession.messages.length === 0" class="pg-empty-state">
             <div class="pg-empty-mark">READY</div>
-            <h3>실시간 추론 콘솔 준비 완료</h3>
+            <h3>실시간 응답 콘솔 준비 완료</h3>
             <p>하단에 질문을 입력하거나 추천 칩을 누르면 게이트웨이가 필요한 도구를 자동으로 실행하고 답변을 스트리밍합니다.</p>
           </div>
 
@@ -815,17 +839,6 @@ onBeforeUnmount(() => {
               <div v-if="msg.tools && msg.tools.length > 0" class="pg-msg-tool-note">
                 <span class="pg-msg-tool-count">{{ msg.tools.length }}개 도구 호출</span>
                 <span>상세 입력과 결과는 오른쪽 실행 패널에서 확인할 수 있습니다.</span>
-              </div>
-
-              <!-- Reasoning / CoT Accordion -->
-              <div v-if="msg.reasoning" class="pg-reasoning-block">
-                <div class="pg-reasoning-head" @click="toggleReasoning(msg.id)">
-                  <span>추론 메모</span>
-                  <span class="pg-expand-icon">{{ showReasoning[msg.id] === true ? '접기' : '펼치기' }}</span>
-                </div>
-                <div v-if="showReasoning[msg.id] === true" class="pg-reasoning-body">
-                  <pre class="pg-reasoning-text">{{ msg.reasoning }}</pre>
-                </div>
               </div>
 
               <!-- Generated Content (Markdown Formatted) -->
@@ -899,8 +912,8 @@ onBeforeUnmount(() => {
       <aside class="pg-panel-engine">
         <div class="pg-panel-header">
           <div class="pg-header-left">
-            <span class="pg-panel-title">도구 실행</span>
-            <span class="pg-badge-cache">호출과 출처</span>
+            <span class="pg-panel-title">실행 패널</span>
+            <span class="pg-badge-cache">ENGINE PROCESS</span>
           </div>
           <span class="pg-tool-count">{{ currentToolCalls.length }} calls</span>
         </div>
@@ -1685,40 +1698,6 @@ onBeforeUnmount(() => {
   font-size: 10px;
   line-height: 1.5;
   overflow-x: auto;
-}
-
-/* Reasoning block */
-.pg-reasoning-block {
-  margin: 8px 0 12px;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-left: 3px solid #f59e0b;
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.04);
-}
-
-.pg-reasoning-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 12px;
-  font-size: 11px;
-  font-weight: 650;
-  color: #b45309;
-  cursor: pointer;
-}
-
-.pg-reasoning-body {
-  padding: 8px 12px 12px;
-  border-top: 1px solid rgba(245, 158, 11, 0.15);
-}
-
-.pg-reasoning-text {
-  margin: 0;
-  color: var(--ink-soft);
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  line-height: 1.6;
-  white-space: pre-wrap;
 }
 
 /* ── Markdown Content Formatting ─────────────────────────── */

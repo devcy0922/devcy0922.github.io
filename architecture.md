@@ -8,8 +8,8 @@
 
 - 홈: 경력과 직무 → 대표 시스템 → 실행 가능한 데모 → 설계 원칙 → 기록.
 - 대표 프로젝트 데이터는 `docs/selected-projects.js`에서 문제, 결정, 확인 경로를 함께 관리한다.
-- `/playground`는 공개용 브라우저 시뮬레이터와 별도 relay를 호출하는 라이브 콘솔을 명시적으로 분리한다.
-- 브라우저 데모는 정책 허용/거부, 승인/반려, evidence 판정을 실제 JavaScript 상태 전이로 계산한다. 원본 백엔드 실행이나 운영 관측을 주장하지 않는다.
+- `/playground`는 `govail/thinker`에 실제 요청을 보내는 대화형 클라이언트다. 선택한 도구의 입력과 relay가 반환한 결과만 표시한다.
+- 내부 chain-of-thought나 사설 노드 정보는 노출하지 않는다. 관찰 가능한 SSE 이벤트와 도구 결과만 증적으로 남긴다.
 - 라이브 콘솔은 빈 세션으로 시작한다. 네트워크 오류는 오류로 표시하며 초기 운영 수치 fixture를 넣지 않는다.
 - 비공개 프로젝트는 로컬 문서의 공개 가능한 책임 경계만 설명한다. 인증정보, 업무 데이터, 내부 주소는 데모에 복제하지 않는다.
 
@@ -17,10 +17,8 @@
 flowchart LR
     Home[직무와 대표 시스템] --> Cases[프로젝트별 문제와 설계 결정]
     Home --> Lab[공개 브라우저 데모]
-    Lab --> Policy[정책 판정]
-    Lab --> Approval[승인 상태 전이]
-    Lab --> Evidence[검증 판정]
-    Lab --> Live[명시적 전송 · 기존 relay 콘솔]
+    Lab --> Tools[도구 입력·결과]
+    Lab --> Live[명시적 전송 · GoVail relay]
     Cases --> Notes[관련 기술 기록]
 ```
 
@@ -89,10 +87,8 @@ tags:
 - 클라이언트에서 번역 JSON이나 데모 API를 로드하지 않는다.
 - 사이트 기능보다 콘텐츠 작성 비용을 낮추는 것을 우선한다.
 
-## 공개 데모와 라이브 콘솔
+## 공개 라이브 콘솔
 
-`/playground`는 `SystemDemos.vue`와 `docs/demo-contracts.js`로 동작한다. 브라우저 상태는 새로고침하면 초기화되며 외부 서비스를 변경하지 않는다. 테스트는 인증 전 실행 차단, 승인 상태 전이, FAIL > PARTIAL > PASS 집계 규칙을 검증한다.
-
-`/live-console`은 기존 `Playground.vue`를 사용한다. 사용자가 전송할 때만 기존 공개 relay의 `/v1/model-routing/stream`을 호출한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.
+`/playground`와 `/live-console`은 같은 `Playground.vue`를 사용한다. 사용자가 전송할 때만 `https://api.govail.cloud/v1/model-routing/stream`을 호출하고, 모델은 `govail/thinker`, reasoning effort는 `low`로 고정한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.
 
 클라이언트 진행 패널은 관찰 가능한 이벤트를 표시하며 서버 내부 실행 전체나 추론 과정을 나타내지 않는다. relay의 배포·인증·운영 설정은 이 저장소의 변경 범위 밖이다.

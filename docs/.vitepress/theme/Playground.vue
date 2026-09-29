@@ -591,12 +591,6 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
   }
 }
 
-// Collapsible inspect state for tools
-const expandedTools = ref<Record<string, boolean>>({})
-function toggleToolExpand(callId: string) {
-  expandedTools.value[callId] = !expandedTools.value[callId]
-}
-
 interface SearchResultView {
   title: string
   url: string
@@ -648,17 +642,11 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="playground-shell">
-    <!-- Top Hero Header -->
     <header class="playground-hero">
-      <div class="pg-panel-label">GoVail Gateway / 공개 relay</div>
-      <h1>라이브 모델 콘솔</h1>
-      <p class="pg-lead">
-        전송한 질문은 공개 relay를 통해 모델 서비스로 전달됩니다. 개인정보나 업무 비밀을 입력하지 마세요.
-        대화는 이 브라우저에 저장됩니다. 질문에 따라 웹 검색·시스템 메트릭·코드 실행·캐시 점검 도구를 relay에 요청하고, 호출 입력과 결과를 오른쪽에서 확인할 수 있습니다.
-      </p>
+      <div class="pg-panel-label">GoVail Gateway</div>
+      <h1>모델에 질문하기</h1>
+      <p class="pg-lead">대화는 이 브라우저에 저장됩니다.</p>
     </header>
-
-    <p class="lab-notice">이 화면은 실제 네트워크 요청을 보냅니다. 표시되는 단계는 클라이언트가 관찰한 진행 상태이며 내부 추론 과정이나 전체 서버 trace가 아닙니다. <a href="/playground">브라우저 데모로 돌아가기</a></p>
 
     <!-- 3-Panel Debug Studio -->
     <div class="pg-studio-container">
@@ -704,7 +692,7 @@ onBeforeUnmount(() => {
         <div class="pg-sessions-footer">
           <div class="pg-cache-notice">
             <span class="pg-notice-mark">LOCAL</span>
-            <span>대화 이력은 이 브라우저에 저장됩니다. 전송한 요청은 외부 모델 서비스에서 처리합니다.</span>
+            <span>대화는 이 브라우저에 저장됩니다.</span>
           </div>
           <button type="button" class="pg-btn-clear" @click="clearBrowserCache">
             캐시 비우기 (전체 삭제)
@@ -760,9 +748,7 @@ onBeforeUnmount(() => {
 
           <!-- Empty State -->
           <div v-if="!currentSession || currentSession.messages.length === 0" class="pg-empty-state">
-            <div class="pg-empty-mark">READY</div>
-            <h3>실시간 응답 콘솔 준비 완료</h3>
-            <p>하단에 질문을 입력하거나 추천 칩을 누르면 게이트웨이가 필요한 도구를 자동으로 실행하고 답변을 스트리밍합니다.</p>
+            <h3>질문을 입력하세요.</h3>
           </div>
 
           <!-- Messages -->
@@ -784,16 +770,11 @@ onBeforeUnmount(() => {
             <!-- Assistant / Debug Card -->
             <div v-else class="pg-msg-bubble is-assistant">
               <div class="pg-msg-head">
-                <span class="pg-badge-role is-govail">GOVAIL ASSISTANT</span>
+                <span class="pg-badge-role is-govail">ASSISTANT</span>
                 <span v-if="msg.trace?.routingNode" class="pg-trace-routing">
                   ↳ {{ msg.trace.routingNode }}
                 </span>
                 <span class="pg-msg-time">{{ formatTime(msg.timestamp) }}</span>
-              </div>
-
-              <div v-if="msg.tools && msg.tools.length > 0" class="pg-msg-tool-note">
-                <span class="pg-msg-tool-count">{{ msg.tools.length }}개 도구 호출</span>
-                <span>상세 입력과 결과는 오른쪽 실행 패널에서 확인할 수 있습니다.</span>
               </div>
 
               <!-- Generated Content (Markdown Formatted) -->
@@ -876,7 +857,7 @@ onBeforeUnmount(() => {
         <div class="pg-panel-header">
           <div class="pg-header-left">
             <span class="pg-panel-title">실행 패널</span>
-            <span class="pg-badge-cache">ENGINE PROCESS</span>
+            <span class="pg-badge-cache">도구 실행</span>
           </div>
           <span class="pg-tool-count">{{ currentToolCalls.length }} calls</span>
         </div>
@@ -885,16 +866,15 @@ onBeforeUnmount(() => {
           <section class="pg-tool-activity">
             <div class="pg-tool-activity-head">
               <div>
-                <span class="pg-section-label">TOOL ACTIVITY</span>
-                <p>질문 처리에 사용된 도구와 결과</p>
+                <span class="pg-section-label">실행 결과</span>
+                <p>도구 입력과 실제 반환값</p>
               </div>
               <span class="pg-activity-live" :class="{ active: isStreaming }">{{ isStreaming ? 'LIVE' : 'IDLE' }}</span>
             </div>
 
             <div v-if="currentToolCalls.length === 0" class="pg-tool-empty">
               <span class="pg-tool-empty-line"></span>
-              <strong>아직 도구 호출이 없습니다.</strong>
-              <p>최신 정보나 계산이 필요한 질문을 보내면 이곳에 처리 과정이 쌓입니다.</p>
+              <strong>도구를 선택하거나 도구가 필요한 질문을 보내세요.</strong>
             </div>
 
             <div v-else class="pg-tool-feed">
@@ -904,7 +884,7 @@ onBeforeUnmount(() => {
                 class="pg-tool-entry"
                 :class="`entry-${t.status}`"
               >
-                <button type="button" class="pg-tool-entry-head" @click="toggleToolExpand(t.callId)">
+                <div class="pg-tool-entry-head">
                   <span class="pg-tool-state-dot" aria-hidden="true"></span>
                   <span class="pg-tool-entry-name">
                     <strong>{{ getToolMeta(t.tool).label }}</strong>
@@ -913,18 +893,17 @@ onBeforeUnmount(() => {
                   <span class="pg-tool-entry-status">
                     {{ t.status === 'calling' ? '실행 중' : t.status === 'error' ? '실패' : '완료' }}
                   </span>
-                  <span class="pg-tool-entry-chevron" aria-hidden="true">{{ expandedTools[t.callId] ? '−' : '+' }}</span>
-                </button>
+                </div>
 
-                <div v-if="expandedTools[t.callId]" class="pg-tool-entry-body">
+                <div class="pg-tool-entry-body">
                   <div class="pg-tool-payload">
-                    <span class="pg-tool-subhead">INPUT</span>
+                    <span class="pg-tool-subhead">입력</span>
                     <pre class="pg-tool-json"><code>{{ formatPayload(t.input) }}</code></pre>
                   </div>
 
                   <div v-if="t.tool === 'web_search' && getSearchResults(t).length > 0" class="pg-search-results">
                     <div class="pg-tool-result-head">
-                      <span class="pg-tool-subhead">SOURCES</span>
+                      <span class="pg-tool-subhead">검색 결과</span>
                       <span v-if="t.durationMs" class="pg-tool-latency">{{ t.durationMs }}ms</span>
                     </div>
                     <a
@@ -943,7 +922,7 @@ onBeforeUnmount(() => {
 
                   <div v-else-if="t.output" class="pg-tool-payload">
                     <div class="pg-tool-result-head">
-                      <span class="pg-tool-subhead">RESULT</span>
+                      <span class="pg-tool-subhead">결과</span>
                       <span v-if="t.durationMs" class="pg-tool-latency">{{ t.durationMs }}ms</span>
                     </div>
                     <pre class="pg-tool-json"><code>{{ formatPayload(t.output) }}</code></pre>
@@ -956,77 +935,6 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <!-- Pipeline Stages -->
-          <div class="pg-config-section">
-            <label class="pg-section-label">EXECUTION PIPELINE</label>
-            <div class="pg-pipeline-list">
-              <div
-                v-for="stage in engineStages"
-                :key="stage.id"
-                class="pg-stage-item"
-                :class="`stage-${stage.status}`"
-              >
-                <div class="pg-stage-top">
-                  <div class="pg-stage-indicator">
-                    <span class="pg-stage-step">{{ stage.step }}</span>
-                    <strong class="pg-stage-name">{{ stage.name }}</strong>
-                  </div>
-                  <span class="pg-stage-status-badge">{{ stage.status.toUpperCase() }}</span>
-                </div>
-                <div class="pg-stage-desc">{{ stage.desc }}</div>
-                <div v-if="stage.detail || stage.latencyMs !== undefined" class="pg-stage-meta">
-                  <span v-if="stage.latencyMs !== undefined" class="pg-stage-lat">{{ stage.latencyMs }}ms</span>
-                  <span v-if="stage.detail" class="pg-stage-det">{{ stage.detail }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Real-time Telemetry -->
-          <div class="pg-config-section">
-            <label class="pg-section-label">REAL-TIME TELEMETRY</label>
-            <div class="pg-metric-grid">
-              <div class="pg-metric-box">
-                <span class="pg-metric-title">Latency</span>
-                <strong class="pg-metric-num">{{ latestMetrics.totalLatencyMs ? `${latestMetrics.totalLatencyMs}ms` : '—' }}</strong>
-              </div>
-              <div class="pg-metric-box">
-                <span class="pg-metric-title">Throughput</span>
-                <strong class="pg-metric-num">{{ latestMetrics.tokensPerSec ? `${latestMetrics.tokensPerSec.toFixed(1)} t/s` : '—' }}</strong>
-              </div>
-              <div class="pg-metric-box">
-                <span class="pg-metric-title">TTFT</span>
-                <strong class="pg-metric-num">{{ latestMetrics.ttftMs ? `${latestMetrics.ttftMs}ms` : '—' }}</strong>
-              </div>
-              <div class="pg-metric-box">
-                <span class="pg-metric-title">Tokens</span>
-                <strong class="pg-metric-num">{{ latestMetrics.tokens ? `${latestMetrics.tokens} tok` : '—' }}</strong>
-              </div>
-            </div>
-          </div>
-
-          <!-- Browser Cache & Privacy -->
-          <div class="pg-config-section">
-            <label class="pg-section-label">CACHE & SECURITY</label>
-            <div class="pg-info-card">
-              <div class="pg-info-row">
-                <span class="pg-info-key">Storage Location</span>
-                <span class="pg-info-val is-green">Client localStorage</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">Cached Sessions</span>
-                <span class="pg-info-val">{{ sessions.length }} 세션 ({{ totalMessagesCount }} msgs)</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">Storage Size</span>
-                <span class="pg-info-val">{{ browserCacheSize }}</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">서버 데이터 처리</span>
-                <span class="pg-info-val">relay·모델 서비스 정책 적용</span>
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
     </div>

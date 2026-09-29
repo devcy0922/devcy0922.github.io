@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">GoVail Console API key and audit architecture</title>
+  <desc id="desc">OIDC console, key management API, gateway audit event, and audit log storage boundaries.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#91a4c5"/></marker>
+    <style>
+      .bg{fill:#0b1020}.box{fill:#111b31;stroke:#30466e;stroke-width:2}.accent{fill:#17284a;stroke:#6d7cff;stroke-width:2}.store{fill:#12271f;stroke:#3ac58a;stroke-width:2}.text{fill:#eef4ff;font-family:ui-sans-serif,system-ui,sans-serif}.muted{fill:#9fb0ca;font-family:ui-monospace,SFMono-Regular,monospace}.line{stroke:#91a4c5;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="430" rx="18"/>
+  <text x="48" y="52" class="text" font-size="24" font-weight="700">GoVail Console · API Key / Audit 경계</text>
+  <text x="48" y="80" class="muted" font-size="14">실제 운영 원문이 아닌 공개 가능한 처리 구조 · secret과 prompt 원문은 보관하지 않음</text>
+
+  <rect class="box" x="48" y="140" width="220" height="116" rx="12"/>
+  <text x="72" y="176" class="text" font-size="17" font-weight="700">Console UI</text>
+  <text x="72" y="204" class="muted" font-size="13">OIDC session</text>
+  <text x="72" y="228" class="muted" font-size="13">masked key display</text>
+
+  <rect class="accent" x="350" y="125" width="250" height="146" rx="12"/>
+  <text x="376" y="164" class="text" font-size="17" font-weight="700">Console API</text>
+  <text x="376" y="192" class="muted" font-size="13">POST /keys</text>
+  <text x="376" y="216" class="muted" font-size="13">GET /audit-logs</text>
+  <text x="376" y="240" class="muted" font-size="13">scope + owner check</text>
+
+  <rect class="store" x="688" y="125" width="210" height="146" rx="12"/>
+  <text x="714" y="164" class="text" font-size="17" font-weight="700">Key store</text>
+  <text x="714" y="192" class="muted" font-size="13">hash / prefix only</text>
+  <text x="714" y="216" class="muted" font-size="13">expiry + revoke state</text>
+  <text x="714" y="240" class="muted" font-size="13">secret once at issue</text>
+
+  <rect class="store" x="944" y="125" width="208" height="146" rx="12"/>
+  <text x="970" y="164" class="text" font-size="17" font-weight="700">Audit log</text>
+  <text x="970" y="192" class="muted" font-size="13">principal / project</text>
+  <text x="970" y="216" class="muted" font-size="13">policy / status / trace</text>
+  <text x="970" y="240" class="muted" font-size="13">no prompt or secret</text>
+
+  <path class="line" d="M268 198 L350 198"/><path class="line" d="M600 178 L688 178"/><path class="line" d="M600 228 L944 228"/>
+  <text x="48" y="340" class="text" font-size="16" font-weight="700">Gateway runtime</text>
+  <text x="48" y="368" class="muted" font-size="14">model request → policy decision → upstream result → audit event</text>
+  <path class="line" d="M300 350 L944 350"/>
+  <text x="48" y="404" class="muted" font-size="13">인증된 Console audit 화면은 계정 권한이 필요한 영역이라, 공개 페이지에는 실제 로그를 꾸며 넣지 않고 이 구조와 마스킹된 발급 화면만 제공합니다.</text>
+</svg>

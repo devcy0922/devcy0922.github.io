@@ -1,6 +1,6 @@
 # PinchQ
 
-[검증 판정 데모](/playground#verification) — 실행 증거 집계 규칙을 확인하는 브라우저 시뮬레이션입니다. 실제 runner를 실행하지 않습니다.
+이 사례는 현재 대표 목록에서 제외한 보관 문서입니다. 공개 브라우저 시뮬레이션은 더 이상 제공하지 않습니다.
 
 코드 변경을 눈으로 보고 승인하는 대신, 재현 가능한 check를 실행하고 그 결과를 evidence와 verdict로 남기는 검증 러너입니다. 계획이 그럴듯한지보다 실제 runner가 무엇을 실행했고 무엇을 관찰했는지를 기준으로 판단합니다.
 
@@ -82,7 +82,6 @@ sequenceDiagram
 - Go·Node.js·Python·Rust 저장소를 대상으로 하는 analyzer 범위가 공개되어 있습니다.
 - Command, HTTP, PTY/CLI, browser/Playwright runner 경계를 분리합니다.
 - 실행하지 않은 check를 PASS로 처리하지 않고 `FAIL`, `PARTIAL`, `PASS`를 구분합니다.
-- 공개 데모에서 [실행 경계 확인하기](/playground#verification). 원본 서비스 전체의 실행 결과를 대신하지 않습니다.
 
 ## 현재 한계
 

@@ -15,10 +15,10 @@ const latestPosts = computed(() => posts.slice(0, 3))
       </div>
       <aside class="system-map" aria-label="대표 시스템의 책임">
         <p>하나의 AI 기능 뒤에 필요한 시스템</p>
-        <a href="/projects/govail-control"><span>규칙과 상태</span><strong>GoVail Control</strong><small>에이전트가 따르는 계약을 관리</small></a>
         <a href="/projects/govail-gateway"><span>모델 실행</span><strong>GoVail Gateway</strong><small>인증·정책·모델 전달의 경계</small></a>
-        <a href="/projects/works-daily-agents"><span>업무 실행</span><strong>Works Daily Agents</strong><small>조사와 승인 후 변경을 분리</small></a>
-        <a href="/projects/pinchq"><span>결과 검증</span><strong>PinchQ</strong><small>관찰한 실행 증거로 판정</small></a>
+        <a href="/projects/itgc-control"><span>증적 수집</span><strong>ITGC ControlOps</strong><small>원천 시스템에서 read-only 증적 수집</small></a>
+        <a href="/projects/lingo-agent"><span>배포 품질</span><strong>LingoAgent</strong><small>번역 변경을 검증한 뒤 커밋</small></a>
+        <a href="/projects/slicerag"><span>데이터 경계</span><strong>SliceRAG</strong><small>프로젝트 범위 밖 검색 차단</small></a>
         <div class="system-foundation">AI Service Infra / AI Data Infra<br><span>서빙 연결 · 워크플로우 · 관측 · 공용 데이터</span></div>
       </aside>
     </section>

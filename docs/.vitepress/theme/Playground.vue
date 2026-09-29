@@ -461,7 +461,8 @@ async function handleSend() {
       body: JSON.stringify({
         prompt: contextAugmentedPrompt,
         tools: internalTools,
-        enableThinking: true,
+        // 도구 결과가 있는 답변은 추론 토큰보다 최종 답변을 우선한다.
+        enableThinking: internalTools.length === 0,
       }),
       signal: controller.signal,
     })
@@ -511,10 +512,12 @@ async function handleSend() {
       scrollToBottom()
     }
 
-    asstMsg.status = 'done'
-    streamStatusText.value = 'Ready'
-    updateStage('stream', 'done')
-    updateStage('render', 'done', 4, 'GFM Markdown Parsed')
+    if (asstMsg.status !== 'error') {
+      asstMsg.status = 'done'
+      streamStatusText.value = 'Ready'
+      updateStage('stream', 'done')
+      updateStage('render', 'done', 4, 'GFM Markdown Parsed')
+    }
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
       streamStatusText.value = 'Stopped by user'
@@ -580,8 +583,14 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
       updateStage('reasoning', 'done')
     }
   } else if (event === 'done') {
-    streamStatusText.value = 'Completed'
-    msg.status = 'done'
+    if (data.status === 'truncated') {
+      streamStatusText.value = 'Response truncated'
+      msg.status = 'error'
+      msg.content += '\n\n**응답이 토큰 한도에서 잘렸습니다.** 잠시 후 다시 시도해 주세요.'
+    } else {
+      streamStatusText.value = 'Completed'
+      msg.status = 'done'
+    }
     if (msg.trace) {
       msg.trace.totalLatencyMs = Number(data.totalLatencyMs)
       msg.trace.ttftMs = Number(data.ttftMs)
@@ -594,6 +603,10 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
       tokensPerSec: Number(data.tokensPerSec) || 0,
       tokens: (data.usage as { completionTokens?: number })?.completionTokens || 0,
     }
+  } else if (event === 'error') {
+    msg.status = 'error'
+    streamStatusText.value = 'Error'
+    msg.content += `\n\n**실행 오류:** ${String(data.message || '응답 스트림이 중단되었습니다.')}`
   }
 }
 
@@ -2394,10 +2407,16 @@ onBeforeUnmount(() => {
 @media (max-width: 1100px) {
   .pg-studio-container {
     grid-template-columns: 200px minmax(0, 1fr);
-    height: 760px;
+    grid-template-rows: minmax(0, 1fr) 420px;
+    height: 1120px;
+    min-height: 0;
   }
   .pg-panel-engine {
-    display: none;
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-left: none;
+    border-top: 1px solid var(--mist-strong);
   }
 }
 
@@ -2419,6 +2438,12 @@ onBeforeUnmount(() => {
   .pg-messages-viewport {
     min-height: 380px;
     max-height: 480px;
+  }
+  .pg-panel-engine {
+    flex: 0 0 520px;
+    max-height: 520px;
+    border-left: none;
+    border-top: 1px solid var(--mist-strong);
   }
 }
 </style>

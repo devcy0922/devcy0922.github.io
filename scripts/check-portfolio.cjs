@@ -15,6 +15,8 @@ const assert = require('node:assert/strict')
     await page.screenshot({ path: `${artifacts}/portfolio-desktop.png`, fullPage: true })
     await page.goto(`${base}/playground`)
     await page.waitForTimeout(500)
+    // 선택 이벤트가 hydration 직후 유실되지 않도록 기준 버전을 먼저 고정한다.
+    await page.locator('#control select').selectOption('v1')
     await page.locator('#control select').selectOption('v2')
     await expect(page.locator('#control output')).toContainText('DRIFT')
     await page.getByRole('button', { name: '규칙 동기화', exact: true }).click()

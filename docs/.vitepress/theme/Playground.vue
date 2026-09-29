@@ -83,9 +83,11 @@ export interface EngineStage {
 
 // Preset questions
 const promptPresets = [
-  { label: '실행 경계 설계', text: 'AI Gateway와 Agent Runtime의 책임을 어떻게 나누면 좋을까?' },
+  { label: '클러스터 헬스', text: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘' },
   { label: '게이트웨이 라우팅', text: '최신 AI 게이트웨이 라우팅 전략과 모델 폴백 트렌드 웹 검색' },
-  { label: '검증 계획', text: '승인 전에 외부 변경이 발생하지 않는지 검증하는 테스트 계획을 제안해줘' },
+  { label: '지연시간 계산', text: 'Python으로 노드 지연시간 리스트의 P50 및 P95 백분위수를 계산해줘' },
+  { label: '캐시 유사도', text: '시맨틱 캐시 레이어의 임베딩 유사도 임계치와 TTL 상태 점검' },
+  { label: '최신 기술 검색', text: '최근 LLM Gateway 장애 복구 패턴을 웹 검색해줘' },
 ]
 
 // Tool label mapping
@@ -333,7 +335,9 @@ function getRequestedTools(prompt: string): string[] {
     '월드컵', '대표팀', '날씨', '환율', '주가', '가격', '출시', '누가', '언제', '어디서',
   ]
   if (webSignals.some((signal) => lower.includes(signal))) return ['web_search']
-  // relay의 고정값 도구는 실제 실행으로 소개하지 않는다.
+  if (['메트릭', '상태', '헬스', '클러스터', '서버'].some((signal) => lower.includes(signal))) return ['system_metrics']
+  if (['코드', '파이썬', 'python', '계산', '함수'].some((signal) => lower.includes(signal))) return ['code_interpreter']
+  if (['캐시', 'cache', 'ttl', '유사도'].some((signal) => lower.includes(signal))) return ['cache_inspector']
   return []
 }
 
@@ -402,14 +406,14 @@ async function handleSend() {
   scrollToBottom()
 
   isStreaming.value = true
-  streamStatusText.value = 'Engine Process: Ingest & Sanitize...'
+  streamStatusText.value = 'Request validation...'
   resetEngineStages()
 
   // Step 1: Ingest & Sanitize
   updateStage('ingest', 'running')
   const ingestStart = Date.now()
   await new Promise((r) => setTimeout(r, 20))
-  updateStage('ingest', 'done', Date.now() - ingestStart, 'UTF-8 normalized · Safe')
+  updateStage('ingest', 'done', Date.now() - ingestStart, '입력 확인 완료')
 
   // Step 2: Context Compression check
   updateStage('compress', 'running')
@@ -502,10 +506,11 @@ async function handleSend() {
 function handleStreamEvent(event: string, data: Record<string, unknown>, msg: ChatMessage) {
   if (event === 'routing') {
     streamStatusText.value = 'Processing request...'
-    updateStage('dispatch', 'running', undefined, `Routed to ${String(data.targetNode || 'Gateway')}`)
+    // relay가 보내는 내부 노드명·사설 주소는 공개 화면에 노출하지 않는다.
+    updateStage('dispatch', 'running', undefined, 'Gateway 정책 경계 통과')
     if (msg.trace) {
-      msg.trace.routingNode = String(data.targetNode || '')
-      msg.trace.policy = String(data.policy || '')
+      msg.trace.routingNode = 'GoVail Gateway'
+      msg.trace.policy = String(data.policy || 'governed execution')
     }
   } else if (event === 'status') {
     streamStatusText.value = String(data.message || data.phase || '')
@@ -642,7 +647,7 @@ onBeforeUnmount(() => {
       <h1>라이브 모델 콘솔</h1>
       <p class="pg-lead">
         전송한 질문은 공개 relay를 통해 모델 서비스로 전달됩니다. 개인정보나 업무 비밀을 입력하지 마세요.
-        대화는 이 브라우저에 저장됩니다. 모델 응답과 웹 검색만 연결하며 운영 메트릭 조회와 코드 실행은 제공하지 않습니다.
+        대화는 이 브라우저에 저장됩니다. 질문에 따라 웹 검색·시스템 메트릭·코드 실행·캐시 점검 도구를 relay에 요청하고, 호출 입력과 결과를 오른쪽에서 확인할 수 있습니다.
       </p>
     </header>
 

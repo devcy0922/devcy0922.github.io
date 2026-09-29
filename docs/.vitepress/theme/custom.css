@@ -238,6 +238,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, va
 .portfolio-signoff p { font-size: 23px; line-height: 1.65; font-weight: 600; }
 .portfolio-signoff a { display: inline-block; margin: 20px 24px 0 0; color: var(--cobalt); font-size: 13px; }
 .systems-lab { width: min(1080px, calc(100% - 48px)); margin: auto; padding: 48px 0 80px; }
+.playground-secondary-intro { width: min(1080px, calc(100% - 48px)); margin: 72px auto 0; border-top: 1px solid var(--mist-strong); padding-top: 56px; }
+.playground-secondary-intro h2 { margin: 8px 0 0; color: var(--ink); font-size: clamp(26px, 3vw, 38px); letter-spacing: -.045em; }
+.playground-secondary-intro p:last-child { max-width: 720px; margin: 16px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.85; }
 .lab-heading h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.35; font-weight: 700; letter-spacing: -.04em; }
 .lab-heading > p:last-child { margin: 20px 0 24px; color: var(--ink-soft); line-height: 1.8; }
 .lab-notice { background: var(--cobalt-soft); border-left: 3px solid var(--cobalt); padding: 18px 22px; font-size: 13px; line-height: 1.8; }

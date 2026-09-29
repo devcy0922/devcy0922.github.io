@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "라이브 모델 콘솔"
-description: "공개 relay를 통한 실제 모델 요청과 응답을 확인합니다."
+title: "모델에 질문하기"
+description: "govail/thinker에 실제 요청을 보내고 도구 실행 결과를 확인합니다."
 aside: false
 outline: false
 pageClass: playground-page

@@ -1,8 +1,8 @@
 # GoVail Gateway
 
-[접근 정책 데모](/playground#gateway) · [라이브 모델 콘솔](/live-console)
+[라이브 모델 콘솔](/playground) · [GoVail Console](https://console.govail.cloud)
 
-접근 정책 데모는 브라우저에서 계산하는 공개용 시나리오이며, 라이브 콘솔은 별도 relay에 실제 모델 요청을 전송합니다.
+Playground는 별도 relay를 통해 `govail/thinker`에 실제 요청을 전송하고, GoVail Console은 키 발급·폐기와 감사 메타데이터를 관리하는 운영 경계입니다.
 
 AI 요청 앞단에서 인증, 정책, 감사와 모델 전달 책임을 분리하기 위해 만든 OpenAI-compatible Gateway 프로젝트입니다.
 
@@ -121,7 +121,19 @@ sequenceDiagram
 
 관측 가능성을 높인다는 이유로 Prompt와 Response 전체를 무조건 저장하는 구조는 피합니다.
 
-## 7. What Changed
+## 7. Console evidence
+
+공개 화면에서 확인 가능한 키 발급 결과는 secret을 마스킹한 상태로만 남겼습니다. 발급된 원문 키는 다시 조회하지 않고, 저장 계층에는 prefix·hash·만료·폐기 상태만 남기는 경계를 사용합니다.
+
+![GoVail Console에서 발급된 API Key 마스킹 화면](/images/govail-api-key-masked.png)
+
+인증된 계정이 필요한 Audit 화면을 임의의 fixture로 캡처해 공개하지 않았습니다. 대신 현재 Console API와 Gateway 이벤트가 만나는 처리 구조를 아래에 정리했습니다.
+
+![GoVail Console API Key와 Audit 처리 구조](/images/govail-audit-architecture.svg)
+
+감사 이벤트에는 principal, project, policy decision, model alias, trace id, upstream status와 같은 운영 메타데이터만 기록하고 prompt·response 원문과 secret은 제외합니다.
+
+## 8. What Changed
 
 프로젝트를 진행하면서 Gateway에 넣었던 역할을 여러 번 다시 걷어냈습니다.
 
@@ -131,14 +143,14 @@ sequenceDiagram
 
 이 판단의 배경은 [LLM Gateway는 왜 똑똑해지면 안 될까](/posts/llm-gateway-should-stay-boring)에도 따로 기록했습니다.
 
-## 8. Current Limitations
+## 9. Current Limitations
 
 - 이 페이지는 공개 제품 문서나 SLA 명세가 아니라 개인 프로젝트의 설계 기록입니다.
 - 모델별 최적 generation parameter나 Agent workflow 품질을 Gateway가 보장하지 않습니다.
 - 분산 rate limit, budget, failover 정책은 실제 배포 구성에 따라 별도의 운영 검증이 필요합니다.
 - 공개하지 않은 내부 구성이나 운영 수치를 구현 근거처럼 과장하지 않습니다.
 
-## 9. Next
+## 10. Next
 
 새 기능을 계속 Gateway에 넣기보다 다음 질문을 기준으로 유지합니다.
 

@@ -106,6 +106,7 @@ function getToolMeta(name: string) {
 const sessions = ref<Session[]>([])
 const currentSessionId = ref<string>('')
 const userPrompt = ref('')
+const selectedTool = ref('')
 const isStreaming = ref(false)
 const streamStatusText = ref('Ready')
 const activeAbortController = ref<AbortController | null>(null)
@@ -328,7 +329,12 @@ function setPreset(text: string) {
   userPrompt.value = text
 }
 
+function setTool(tool: string) {
+  selectedTool.value = selectedTool.value === tool ? '' : tool
+}
+
 function getRequestedTools(prompt: string): string[] {
+  if (selectedTool.value) return [selectedTool.value]
   const lower = prompt.toLowerCase()
   const webSignals = [
     '검색', 'search', '최신', '최근', '오늘', '현재', '결과', '뉴스', '경기', '우루과이',
@@ -442,9 +448,10 @@ async function handleSend() {
       },
       body: JSON.stringify({
         prompt: contextAugmentedPrompt,
+        model: 'govail/thinker',
         tools: internalTools,
-        // Playground는 내부 추론 로그보다 사용자에게 전달할 최종 답변을 우선한다.
-        enableThinking: false,
+        // 내부 reasoning 토큰은 화면에 렌더링하지 않고, 모델 실행에는 low effort로 전달한다.
+        enableThinking: true,
       }),
       signal: controller.signal,
     })
@@ -808,6 +815,14 @@ onBeforeUnmount(() => {
 
         <!-- Input Area (Docked at Bottom) -->
         <div class="pg-input-dock">
+          <div class="pg-tool-selector" aria-label="사용할 도구 선택">
+            <span class="pg-tool-selector-label">도구</span>
+            <button type="button" class="pg-tool-chip" :class="{ active: !selectedTool }" @click="selectedTool = ''">자동</button>
+            <button v-for="tool in ['web_search', 'system_metrics', 'code_interpreter', 'cache_inspector']" :key="tool" type="button" class="pg-tool-chip" :class="{ active: selectedTool === tool }" @click="setTool(tool)">
+              {{ getToolMeta(tool).label }}
+            </button>
+            <span class="pg-model-badge">govail/thinker · reasoning low</span>
+          </div>
           <!-- Preset Chips -->
           <div class="pg-preset-chips">
             <button
@@ -1765,6 +1780,45 @@ onBeforeUnmount(() => {
   padding: 14px 20px;
   border-top: 1px solid var(--mist-strong);
   background: color-mix(in srgb, var(--paper) 45%, var(--paper-raised));
+}
+
+.pg-tool-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pg-tool-selector-label {
+  margin-right: 4px;
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+}
+
+.pg-tool-chip {
+  border: 1px solid var(--mist-strong);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pg-tool-chip:hover,
+.pg-tool-chip.active {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+  color: var(--cobalt);
+}
+
+.pg-model-badge {
+  margin-left: auto;
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
 }
 
 .pg-preset-chips {

@@ -75,6 +75,30 @@ const scenarios: Scenario[] = [
     note: '정책 거부 시 executor 호출이 발생하지 않는 것을 보여주는 replay입니다.',
   },
   {
+    id: 'routing-live',
+    lab: 'routing',
+    live: true,
+    eyebrow: 'Model Routing · Live Engine',
+    title: '실제 프롬프트 처리 & 라우팅',
+    description: '원하는 질문이나 지시를 직접 입력하면 GoVail Gateway가 실제 모델로 라우팅하고 생성 응답과 실행 지표를 반환합니다.',
+    request: 'POST /v1/model-routing/run · engine=GoVail Gateway',
+    outcome: '실행 대기 중 (프롬프트 입력 후 실행)',
+    steps: [
+      { name: 'Gateway', detail: 'request normalized & rate-limit check', latency: '3 ms', state: 'ok' },
+      { name: 'Policy', detail: 'safety guard & origin verified', latency: '4 ms', state: 'ok' },
+      { name: 'Router', detail: 'backend model routed', latency: '—', state: 'ok' },
+      { name: 'Inference', detail: 'LLM prefill & token decode', latency: '—', state: 'ok' },
+      { name: 'Trace', detail: 'live execution metrics emitted', latency: '—', state: 'ok' },
+    ],
+    evidence: [
+      { label: 'engine', value: 'GoVail Gateway' },
+      { label: 'model', value: 'govail/worker' },
+      { label: 'mode', value: 'live inference' },
+      { label: 'policy', value: 'rate_limited · single_lock' },
+    ],
+    note: '방문자가 입력한 프롬프트를 GoVail Gateway에서 실제로 처리한 결과입니다.',
+  },
+  {
     id: 'routing-failover',
     lab: 'routing',
     live: true,
@@ -153,13 +177,13 @@ const scenarios: Scenario[] = [
 ]
 
 const tabs = [
-  { id: 'agent', label: 'Agent Execution', meta: 'policy · approval · verification' },
-  { id: 'routing', label: 'Model Routing', meta: 'health · failover · trace' },
-  { id: 'serving', label: 'Serving Lab', meta: 'latency · throughput · concurrency' },
+  { id: 'routing', label: 'Model Routing (Live)', meta: '실제 프롬프트 처리 · 모델 라우팅' },
+  { id: 'agent', label: 'Agent Policy (Replay)', meta: '정책 검증 · 승인 흐름 시연' },
+  { id: 'serving', label: 'Serving Bench (Replay)', meta: '동시성 · Throughput 벤치마크' },
 ] as const
 
-const activeLab = ref<(typeof tabs)[number]['id']>('agent')
-const activeScenarioId = ref('agent-approval')
+const activeLab = ref<(typeof tabs)[number]['id']>('routing')
+const activeScenarioId = ref('routing-live')
 const activeStep = ref(-1)
 const running = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
@@ -172,7 +196,26 @@ const RELAY_URL = 'https://api.govail.cloud/v1/model-routing/run'
 const LIVE_CLIENT_TIMEOUT_MS = 15_000
 
 type LiveState = 'idle' | 'running' | 'locked' | 'rate_limited' | 'disabled' | 'error' | 'done'
-type LiveResult = { outputText: string; latencyMs: number; tokensPerSec: number }
+type LiveResult = {
+  outputText: string
+  latencyMs: number
+  tokensPerSec: number
+  model?: string
+  usage?: { promptTokens?: number | null; completionTokens?: number | null }
+}
+
+const userPrompt = ref('분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.')
+
+const promptPresets = [
+  { label: '멱등성 보장 기법', text: '분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.' },
+  { label: '서킷 브레이커 원리', text: 'API 게이트웨이에서 서킷 브레이커(Circuit Breaker)의 상태 전이와 복구 기준은?' },
+  { label: 'LLM 하이브리드 라우팅', text: '로컬 경량 LLM과 클라우드 고성능 LLM 간의 비용 최적화 라우팅 기준은?' },
+  { label: '페일오버 동작 방식', text: '주 추론 백엔드가 응답 불가(Timeout)일 때 게이트웨이의 무중단 전환 원리를 설명해줘.' },
+]
+
+function setPreset(text: string) {
+  userPrompt.value = text
+}
 
 const liveState = ref<LiveState>('idle')
 const liveResult = ref<LiveResult | null>(null)
@@ -183,8 +226,8 @@ const labScenarios = computed(() => scenarios.filter((scenario) => scenario.lab 
 const scenario = computed(() => scenarios.find((item) => item.id === activeScenarioId.value) ?? labScenarios.value[0])
 
 const runButtonLabel = computed(() => {
-  if (running.value || liveState.value === 'running') return 'RUNNING'
-  return scenario.value.live ? 'RUN' : 'RUN REPLAY'
+  if (running.value || liveState.value === 'running') return 'RUNNING...'
+  return scenario.value.live ? '프롬프트 실행' : 'RUN REPLAY'
 })
 
 const liveStatusClass = computed(() => {
@@ -199,12 +242,12 @@ const displayedOutcome = computed(() => {
   const s = scenario.value
   if (!s.live) return s.outcome
   if (liveState.value === 'done' && liveResult.value) {
-    return `live run — ${liveResult.value.latencyMs}ms · ${liveResult.value.tokensPerSec.toFixed(1)} tok/s`
+    return `live run — ${liveResult.value.latencyMs}ms · ${liveResult.value.tokensPerSec.toFixed(1)} tok/s · ${liveResult.value.model || 'govail/worker'}`
   }
-  if (liveState.value === 'locked') return 'locked — another visitor is running this'
-  if (liveState.value === 'rate_limited') return 'rate limited — try again shortly'
-  if (liveState.value === 'disabled') return 'live mode disabled — showing replay'
-  if (liveState.value === 'error') return 'live demo unavailable — showing replay'
+  if (liveState.value === 'locked') return 'locked — 다른 사용자의 요청을 처리 중입니다'
+  if (liveState.value === 'rate_limited') return 'rate limited — 요청 한도 초과 (잠시 후 다시 시도)'
+  if (liveState.value === 'disabled') return 'live mode disabled — 라이브 비활성화 상태'
+  if (liveState.value === 'error') return 'live demo unavailable — 일시적 오류'
   return s.outcome
 })
 
@@ -213,26 +256,40 @@ const displayedSteps = computed(() => {
   if (!s.live || (liveState.value !== 'running' && liveState.value !== 'done')) {
     return s.steps
   }
-  // Never fabricate per-hop numbers for a real call: only the two terminal
-  // rows carry relay-measured values, everything else drops its canned
-  // latency and stays qualitative (state icon only).
   return s.steps.map((step, index) => {
     if (liveState.value === 'done' && liveResult.value) {
+      if (index === 2) {
+        return { ...step, detail: `routed to ${liveResult.value.model || 'govail/worker'}` }
+      }
       if (index === s.steps.length - 2) {
         return { ...step, latency: `${liveResult.value.tokensPerSec.toFixed(1)} tok/s` }
       }
       if (index === s.steps.length - 1) {
-        return { ...step, detail: 'live trace recorded', latency: `${liveResult.value.latencyMs} ms` }
+        return { ...step, detail: 'live inference recorded', latency: `${liveResult.value.latencyMs} ms` }
       }
     }
     return { ...step, latency: undefined }
   })
 })
 
+const displayedEvidence = computed(() => {
+  if (scenario.value.live && liveState.value === 'done' && liveResult.value) {
+    return [
+      { label: 'engine', value: 'GoVail Gateway' },
+      { label: 'model', value: liveResult.value.model || 'govail/worker' },
+      { label: 'latency', value: `${liveResult.value.latencyMs} ms` },
+      { label: 'throughput', value: `${liveResult.value.tokensPerSec.toFixed(1)} tok/s` },
+      { label: 'prompt_tokens', value: `${liveResult.value.usage?.promptTokens ?? '-'}` },
+      { label: 'output_tokens', value: `${liveResult.value.usage?.completionTokens ?? '-'}` },
+    ]
+  }
+  return scenario.value.evidence
+})
+
 const displayedNote = computed(() => {
   const s = scenario.value
   if (s.live && liveState.value === 'done') {
-    return '방문자당 1회, GoVail Gateway에 실제로 보낸 요청입니다. 백엔드 호스트명이나 내부 endpoint는 노출하지 않습니다.'
+    return '방문자가 입력한 프롬프트를 GoVail Gateway에 실제로 전송하여 실시간 생성된 응답입니다.'
   }
   return s.note
 })
@@ -248,6 +305,13 @@ function setScenario(id: string) {
   stopReplay()
   activeScenarioId.value = id
   activeStep.value = -1
+  if (id === 'routing-failover') {
+    userPrompt.value = '장애 발생 시 로컬 백엔드에서 백업 백엔드로 전환되는 페일오버 원리를 2문장으로 설명해줘.'
+  } else if (id === 'routing-timeout') {
+    userPrompt.value = '추론 백엔드 타임아웃 발생 시 게이트웨이가 서킷을 열고 대체 경로로 복구하는 방식을 2문장으로 설명해줘.'
+  } else if (id === 'routing-live') {
+    userPrompt.value = '분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.'
+  }
 }
 
 function stopReplay() {
@@ -277,17 +341,16 @@ function replay() {
 }
 
 async function runLive() {
-  const promptId = scenario.value.promptId
-  if (!promptId) return
+  const promptToSend = userPrompt.value.trim()
+  if (!promptToSend) {
+    return
+  }
 
   stopReplay()
   liveState.value = 'running'
   running.value = true
   activeStep.value = 0
 
-  // Animate through the trace for visual continuity while the real request
-  // is in flight; hold just before the terminal step until real data (or a
-  // failure) arrives, rather than reaching it on a fixed fake schedule.
   timer = setInterval(() => {
     if (activeStep.value >= scenario.value.steps.length - 2) return
     activeStep.value += 1
@@ -300,7 +363,7 @@ async function runLive() {
     const response = await fetch(RELAY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ promptId }),
+      body: JSON.stringify({ prompt: promptToSend }),
       signal: liveAbort.signal,
     })
     const payload = await response.json()
@@ -310,6 +373,8 @@ async function runLive() {
         outputText: payload.outputText,
         latencyMs: payload.latencyMs,
         tokensPerSec: payload.tokensPerSec,
+        model: payload.model,
+        usage: payload.usage,
       }
       liveState.value = 'done'
       activeStep.value = scenario.value.steps.length - 1
@@ -332,14 +397,6 @@ async function runLive() {
       timer = undefined
       running.value = false
       activeStep.value = -1
-      // Graceful fallback: let the visitor see the status for a moment,
-      // then fall back to the existing fixture replay so the page still
-      // shows something working — this is also how the kill switch and any
-      // upstream failure resolve, with no separate machinery.
-      const fallbackState = liveState.value
-      liveFallbackTimer = setTimeout(() => {
-        if (liveState.value === fallbackState) replay()
-      }, 1600)
     }
   }
 }
@@ -361,9 +418,8 @@ onBeforeUnmount(stopReplay)
       <p class="utility-label"><span class="status-dot"></span>AI Systems Playground</p>
       <h1>시스템이 어떻게 판단하고<br><em>실행되는지</em> 보여줍니다.</h1>
       <p class="pg-lead">
-        정책 경계, 모델 라우팅, 장애 복구와 서빙 의사결정을 실제 실행 순서 그대로 재생합니다.
-        Model Routing의 두 시나리오는 방문자당 1회 실제 Gateway 요청을 보내고, 나머지는 공개 가능한
-        execution trace를 재생합니다 — 각 시나리오 하단에 어느 쪽인지 표시됩니다.
+        원하는 프롬프트를 직접 입력해 GoVail Gateway를 통한 실시간 모델 라우팅 및 추론 결과를 확인할 수 있습니다.
+        정책 경계 및 서빙 벤치마크 랩에서는 실제 환경의 trace 증적과 성능 지표를 함께 비교합니다.
       </p>
     </header>
 
@@ -386,7 +442,7 @@ onBeforeUnmount(stopReplay)
           <span class="status-dot"></span>
           <div>
             <strong>Execution boundary</strong>
-            <p>외부 계정, shell, MCP, private API에 직접 연결하지 않습니다. Model Routing 두 시나리오만 별도 relay를 거쳐 Gateway에 방문자당 1회 요청합니다.</p>
+            <p>Model Routing은 GoVail Gateway를 통해 실제 실시간 추론을 수행합니다. Agent 및 Serving 랩은 안전한 trace 증적으로 시연됩니다.</p>
           </div>
         </div>
       </aside>
@@ -413,21 +469,64 @@ onBeforeUnmount(stopReplay)
           </button>
         </div>
 
-        <div class="pg-request-card">
-          <div>
+        <div class="pg-request-card" :class="{ 'is-live-card': scenario.live }">
+          <div class="pg-scenario-info">
             <span class="pg-panel-label">{{ scenario.eyebrow }}</span>
             <h2>{{ scenario.title }}</h2>
             <p>{{ scenario.description }}</p>
           </div>
-          <div class="pg-request-code">
+
+          <div v-if="scenario.live" class="pg-prompt-box">
+            <div class="pg-prompt-head">
+              <label for="prompt-input" class="pg-prompt-label">실제 프롬프트 입력 (LIVE PROMPT)</label>
+              <span class="pg-char-count">{{ userPrompt.length }} / 400</span>
+            </div>
+            <textarea
+              id="prompt-input"
+              v-model="userPrompt"
+              class="pg-prompt-textarea"
+              rows="3"
+              maxlength="400"
+              placeholder="실제 처리할 프롬프트를 입력하세요... (Ctrl+Enter로 실행)"
+              :disabled="running || liveState === 'running'"
+              @keydown.ctrl.enter="handleRun"
+              @keydown.meta.enter="handleRun"
+            ></textarea>
+            <div class="pg-preset-chips">
+              <span class="pg-chip-lead">추천 질문:</span>
+              <button
+                v-for="preset in promptPresets"
+                :key="preset.label"
+                type="button"
+                class="pg-chip-btn"
+                :disabled="running || liveState === 'running'"
+                @click="setPreset(preset.text)"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="pg-request-code">
             <span>request</span>
             <code>{{ scenario.request }}</code>
           </div>
         </div>
 
         <div v-if="scenario.live && liveState === 'done' && liveResult" class="pg-live-output">
-          <span>live output</span>
-          <code>{{ liveResult.outputText }}</code>
+          <div class="pg-output-header">
+            <div class="pg-output-tag-group">
+              <span class="status-dot"></span>
+              <span class="pg-output-title">LIVE MODEL RESPONSE</span>
+              <span class="pg-output-model">{{ liveResult.model || 'govail/worker' }}</span>
+            </div>
+            <div class="pg-output-metrics">
+              <span>⏱ {{ liveResult.latencyMs }}ms</span>
+              <span>⚡ {{ liveResult.tokensPerSec.toFixed(1) }} tok/s</span>
+              <span v-if="liveResult.usage?.completionTokens">🔤 {{ liveResult.usage.completionTokens }} tok</span>
+            </div>
+          </div>
+          <div class="pg-output-body">{{ liveResult.outputText }}</div>
         </div>
 
         <div class="pg-trace-head">
@@ -458,7 +557,7 @@ onBeforeUnmount(stopReplay)
       <aside class="pg-evidence">
         <div class="pg-panel-label">EVIDENCE</div>
         <dl>
-          <div v-for="item in scenario.evidence" :key="item.label">
+          <div v-for="item in displayedEvidence" :key="item.label">
             <dt>{{ item.label }}</dt>
             <dd>{{ item.value }}</dd>
           </div>
@@ -642,15 +741,152 @@ onBeforeUnmount(stopReplay)
   background: color-mix(in srgb, var(--paper) 56%, transparent);
   padding: 20px;
 }
+.pg-request-card.is-live-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 .pg-request-card h2 { margin: 7px 0 0; border: 0; padding: 0; color: var(--ink); font-size: 22px; letter-spacing: -.035em; }
 .pg-request-card p { margin: 8px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
 .pg-request-code { align-self: stretch; border-left: 2px solid var(--cobalt); background: var(--terminal); padding: 13px 14px; }
 .pg-request-code span { display: block; color: #7f8da4; font-family: var(--vp-font-family-mono); font-size: 9px; text-transform: uppercase; }
 .pg-request-code code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 10px; line-height: 1.65; white-space: normal; }
 
-.pg-live-output { margin-top: 16px; border-left: 2px solid var(--cobalt); background: var(--terminal); padding: 13px 14px; }
-.pg-live-output span { display: block; color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; text-transform: uppercase; }
-.pg-live-output code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
+.pg-prompt-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.pg-prompt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pg-prompt-label {
+  color: var(--cobalt);
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.pg-char-count {
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+}
+.pg-prompt-textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 12px 14px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+}
+.pg-prompt-textarea:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 2px var(--cobalt-soft);
+}
+.pg-prompt-textarea:disabled {
+  opacity: 0.65;
+  background: color-mix(in srgb, var(--paper) 80%, var(--mist-strong));
+  cursor: not-allowed;
+}
+.pg-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.pg-chip-lead {
+  color: var(--slate);
+  font-size: 11px;
+  font-family: var(--vp-font-family-mono);
+}
+.pg-chip-btn {
+  border: 1px solid var(--mist-strong);
+  border-radius: 12px;
+  background: var(--paper-raised);
+  padding: 4px 11px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.pg-chip-btn:hover:not(:disabled) {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+  background: var(--cobalt-soft);
+}
+.pg-chip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pg-live-output {
+  margin-top: 20px;
+  border-left: 3px solid var(--cobalt);
+  background: var(--terminal);
+  border-radius: 4px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.pg-output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pg-output-tag-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pg-output-title {
+  color: #fff;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.pg-output-model {
+  background: rgba(47, 91, 234, 0.3);
+  color: #a5b4fc;
+  border: 1px solid rgba(47, 91, 234, 0.5);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+}
+.pg-output-metrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+}
+.pg-output-body {
+  margin-top: 14px;
+  color: #f1f5f9;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .pg-trace-head { display: flex; justify-content: space-between; gap: 20px; margin: 34px 0 10px; }
 .pg-trace-head > span:last-child { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }

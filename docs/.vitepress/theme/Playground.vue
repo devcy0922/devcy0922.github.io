@@ -52,13 +52,9 @@ export interface AvailableTool {
   enabled: boolean
 }
 
-// Available Models
-const models = [
-  { id: 'govail/worker', name: 'GoVail Worker', desc: 'Edge Native · Ultra-low latency (<50ms)', badge: 'Edge Native' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', desc: 'General balanced inference', badge: 'Cloud' },
-  { id: 'anthropic/claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', desc: 'Deep reasoning & agentic code', badge: 'Reasoning' },
-  { id: 'google/gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'High throughput & large context', badge: 'High-QPS' },
-]
+// Fixed Model & Reasoning
+const selectedModel = ref('govail/thinker')
+const reasoningEffort = ref('low')
 
 // Tool configuration
 const tools = ref<AvailableTool[]>([
@@ -97,7 +93,6 @@ const tools = ref<AvailableTool[]>([
 ])
 
 // Routing parameters
-const selectedModel = ref('govail/worker')
 const routingPolicy = ref('LOWEST_LATENCY')
 const temperature = ref(0.5)
 const maxTokens = ref(400)
@@ -136,7 +131,7 @@ function initDefaultSession(): Session {
     id: 'session_' + Date.now(),
     title: '클러스터 메트릭 및 시스템 점검',
     createdAt: Date.now(),
-    model: 'govail/worker',
+    model: 'govail/thinker',
     messages: [
       {
         id: 'msg_user_1',
@@ -171,12 +166,12 @@ function initDefaultSession(): Session {
           },
         ],
         trace: {
-          model: 'govail/worker',
+          model: 'govail/thinker',
           totalLatencyMs: 840,
           ttftMs: 210,
           tokensPerSec: 32.5,
-          routingNode: 'worker-node-edge-01 (192.168.0.10:8080)',
-          policy: 'LOWEST_LATENCY_AFFINITY',
+          routingNode: 'thinker-node-edge-01 (192.168.0.10:8080)',
+          policy: 'REASONING_OPTIMAL',
           usage: { promptTokens: 85, completionTokens: 42 },
         },
         status: 'done',
@@ -706,22 +701,36 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="pg-config-scroll">
-          <!-- Model Selection -->
+          <!-- Model Selection (Fixed) -->
           <div class="pg-config-section">
-            <label class="pg-section-label">ROUTING TARGET MODEL</label>
+            <div class="pg-section-label-row">
+              <label class="pg-section-label">ROUTING TARGET MODEL</label>
+              <span class="pg-fixed-badge">🔒 고정</span>
+            </div>
             <div class="pg-model-options">
-              <div
-                v-for="m in models"
-                :key="m.id"
-                class="pg-model-card"
-                :class="{ selected: selectedModel === m.id }"
-                @click="selectedModel = m.id"
-              >
+              <div class="pg-model-card selected is-locked">
                 <div class="pg-model-name-row">
-                  <span class="pg-model-name">{{ m.name }}</span>
-                  <span class="pg-badge-chip">{{ m.badge }}</span>
+                  <span class="pg-model-name">GoVail Thinker</span>
+                  <span class="pg-badge-chip is-accent">govail/thinker</span>
                 </div>
-                <p class="pg-model-desc">{{ m.desc }}</p>
+                <p class="pg-model-desc">
+                  자체 추론(Reasoning / Chain of Thought) 전문 모델로 고정되어 운영됩니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reasoning Effort (Fixed) -->
+          <div class="pg-config-section">
+            <div class="pg-section-label-row">
+              <label class="pg-section-label">REASONING EFFORT</label>
+              <span class="pg-fixed-badge">🔒 고정</span>
+            </div>
+            <div class="pg-fixed-box">
+              <div class="pg-fixed-val">
+                <span class="pg-effort-dot"></span>
+                <strong>low</strong>
+                <span class="pg-effort-desc">빠르고 명확한 핵심 사고 과정 생성</span>
               </div>
             </div>
           </div>
@@ -1535,6 +1544,12 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.pg-section-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .pg-section-label {
   color: var(--slate);
   font-family: var(--vp-font-family-mono);
@@ -1542,6 +1557,53 @@ onBeforeUnmount(() => {
   font-weight: 750;
   letter-spacing: .06em;
   text-transform: uppercase;
+}
+
+.pg-fixed-badge {
+  background: var(--cobalt-soft);
+  color: var(--cobalt);
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.pg-fixed-box {
+  padding: 10px 12px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 5px;
+  background: var(--paper-raised);
+}
+
+.pg-fixed-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.pg-effort-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.pg-fixed-val strong {
+  color: var(--cobalt);
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+}
+
+.pg-effort-desc {
+  color: var(--slate);
+  font-size: 10px;
+}
+
+.pg-badge-chip.is-accent {
+  background: var(--cobalt);
+  color: #fff;
 }
 
 /* Model cards */

@@ -168,7 +168,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 // run to a relay in front of GoVail Gateway. See architecture.md "예외:
 // Playground · Model Routing 라이브 데모" — Agent Execution and Serving Lab
 // stay pure replay.
-const RELAY_URL = 'https://playground-relay.govail.cloud/v1/model-routing/run'
+const RELAY_URL = 'https://api.govail.cloud/v1/model-routing/run'
 const LIVE_CLIENT_TIMEOUT_MS = 15_000
 
 type LiveState = 'idle' | 'running' | 'locked' | 'rate_limited' | 'disabled' | 'error' | 'done'

@@ -6,7 +6,7 @@ AI 서비스를 운영하면서 model access, durable workflow, observability를
 
 - **성격**: AI Service Platform
 - **핵심 기술**: LiteLLM, Temporal, Langfuse, Prometheus·Grafana·Loki
-- **Source**: [github.com/devcy0922/ai-service-infra ↗](https://github.com/devcy0922/ai-service-infra)
+- **공개 범위**: 설계 사례 공개 · 원본 저장소 접근 없이 아래 내용을 확인할 수 있습니다.
 - **현재 상태**: cy-server의 서비스 허브와 통합 관측성 운영 구성
 
 ## 문제
@@ -101,7 +101,7 @@ provider readiness와 실제 serving은 AI Gateway Infra가 관리합니다. AI 
 - `litellm/config.yaml`에 논리 model slot, provider endpoint, timeout, context와 `max_fallbacks: 0`가 모여 있습니다.
 - `guide/runbook.md`와 `config/observability-targets.json`이 모델·관측 운영 절차의 기준입니다.
 - historical edge/SSO 구성은 `platform-edge-infra`, data/scheduler는 `ai-data-infra`, inference runtime은 `ai-gateway-infra`로 현재 ownership이 분리되어 있습니다.
-- 운영 명령과 최신 구성은 [소스 저장소](https://github.com/devcy0922/ai-service-infra)에서 확인할 수 있습니다.
+- 이 페이지는 구성과 책임 경계를 설명합니다. 운영 접근 권한이나 실시간 상태를 제공하지 않습니다.
 
 ## Current vs Historical
 

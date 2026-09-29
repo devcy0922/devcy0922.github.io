@@ -1,10 +1,10 @@
 # devcy0922.github.io
 
-개인 개발 기록과 선택한 프로젝트 사례를 위한 VitePress 사이트입니다.
+10년차 Backend & AI Platform Engineer의 대표 시스템, 설계 판단, 공개 데모를 담은 VitePress 포트폴리오입니다.
 
 - Site: https://devcy0922.github.io
 - Language: Korean first
-- Runtime: static only
+- Runtime: 정적 사이트와 브라우저 시뮬레이션. 라이브 콘솔만 기존 공개 relay를 호출합니다.
 - Deploy: GitHub Pages
 
 ## Local development
@@ -44,7 +44,9 @@ tags:
 
 ## Information architecture
 
-- `/` — 개발자 홈, 최근 기록, 선택한 작업
+- `/` — 직무와 경력, 대표 시스템, 설계 기준, 기술 기록
+- `/playground` — 규칙 동기화·모델 정책·업무 승인·증거 판정 브라우저 데모
+- `/live-console` — 별도 공개 relay를 호출하는 실제 모델 콘솔
 - `/posts/` — 기록 아카이브
 - `/projects/` — 프로젝트 사례
 - `/about` — 경험과 현재 관심사

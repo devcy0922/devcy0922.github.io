@@ -77,11 +77,38 @@ GoVail Gateway(`https://api.govail.cloud`)에 실제 요청을 보낸다. 이는
 서버 런타임을 요구하지 않는다" 원칙에 대한 의도적이고 범위가 제한된 예외다.
 
 - 정적 빌드 자체는 여전히 네트워크/서버 런타임에 의존하지 않는다. 예외는 브라우저가 방문 중
-  직접 호출하는 별도 공개 relay API 한 개(`POST api.govail.cloud/v1/model-routing/run`)로
+  직접 호출하는 별도 공개 relay API(`POST api.govail.cloud/v1/model-routing/run` 및
+  `/stream`)로
   한정되며, 실패/차단 시 페이지는 기존 replay 애니메이션으로 자동 폴백한다.
-- 자유 텍스트 prompt를 받지 않는다 — 고정 시나리오 id에 매핑된 고정 prompt만 실행한다.
+- relay는 prompt를 길이 제한 후 받으며, 웹 검색이 필요한 요청은 `web_search`를 명시적으로
+  선택한다. 기존 고정 시나리오 id도 회귀 호환을 위해 유지한다.
 - 전역 동시 실행 1회로 제한(relay의 단일 인스턴스 세마포어), IP당 rate limit 있음.
 - 응답은 relay가 필드 화이트리스트로 전달하며, 백엔드 호스트명/모델 식별자/추적 id는 노출하지 않는다.
+- `web_search`는 Tavily 또는 DuckDuckGo에서 실제 결과를 수집하고, 검색 실패 시 mock 결과를
+  만들지 않고 실패 상태를 전달한다.
 - Agent Execution, Serving Lab 랩은 이 예외 대상이 아니며 계속 순수 replay다.
 - kill switch: `playground-relay`의 `PLAYGROUND_LIVE_ENABLED=false`로 즉시 비활성화 가능,
   프론트엔드는 이 경우도 replay로 자동 폴백한다.
+
+### `/playground` 실행 콘솔 UI
+
+Playground는 일반 채팅 화면이 아니라 요청의 실행 경로를 읽는 디버거로 구성한다.
+대화 가독성을 우선하기 위해 도구 입력·결과·출처는 중앙 답변에서 분리해 우측 실행 패널에
+보여준다.
+
+```mermaid
+flowchart LR
+    Session[좌측 · Session 목록] --> Chat[중앙 · Conversation]
+    Chat --> Intent{최신 외부 사실인가?}
+    Intent -->|예| Web[playground-relay · 실제 web_search]
+    Intent -->|아니오| Model[GoVail Gateway · 모델 응답]
+    Web --> Sources[우측 · Tool execution + sources]
+    Web --> Model
+    Model --> Chat
+```
+
+- 중앙은 사용자 질문과 최종 답변, 최소한의 상태만 담당한다.
+- 우측은 도구별 호출 상태, query/input, 결과 payload와 웹 출처를 담당한다.
+- `우루과이전 결과 분석`처럼 경기·뉴스·최신 결과·현재 상태를 묻는 요청은 `web_search`를
+  선택하고, relay는 고정 fixture가 아닌 외부 검색 결과를 사용한다. 검색 실패 시 빈 결과나
+  mock을 성공으로 표시하지 않고 실패 상태를 전달한다.

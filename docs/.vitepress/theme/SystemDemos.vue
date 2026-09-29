@@ -24,7 +24,7 @@ function sync() { applied.value = revision.value; controlLog.value = `공개 예
 </script>
 
 <template>
-  <main class="systems-lab">
+  <section class="systems-lab">
     <header class="lab-heading"><p class="career-line">AI Systems Playground</p><h1>실행 결과보다 먼저,<br>실행 조건을 확인합니다.</h1><p>입력을 바꾸면 정책, 승인 상태, 검증 결과가 어떻게 달라지는지 직접 확인할 수 있습니다.</p></header>
     <div class="lab-notice"><strong>공개용 시나리오 · 브라우저에서 실행</strong><p>실제 프로젝트의 책임 경계를 축약한 독립 데모입니다. 입력과 판정은 브라우저에서 계산하며 원본 백엔드를 실행하지 않습니다. 운영 데이터·내부 주소·실제 업무 변경은 포함하지 않습니다.</p></div>
     <nav class="lab-nav" aria-label="데모 선택"><a href="#control">규칙 동기화</a><a href="#gateway">모델 접근 정책</a><a href="#approval">업무 승인</a><a href="#verification">실행 증거 판정</a><a href="/live-console">라이브 모델 콘솔</a></nav>
@@ -49,5 +49,5 @@ function sync() { applied.value = revision.value; controlLog.value = `공개 예
       <div class="experiment-controls"><label v-for="(name, index) in ['명령 실행', 'HTTP 응답', '브라우저 흐름']" :key="name">{{ name }}<select v-model="checks[index]"><option>PASS</option><option>FAIL</option><option value="NOT_RUN">미실행</option></select></label><output aria-live="polite"><strong>{{ verdict }}</strong><span>입력한 예제 증거의 집계 결과입니다. 실제 명령·HTTP·브라우저 검사를 수행한 결과가 아닙니다.</span></output></div>
     </section>
     <section class="demo-invitation"><div><h2>실제 모델 응답도 확인할 수 있습니다.</h2><p>별도 라이브 콘솔에서 요청을 전송하면 공개 relay를 통해 모델 응답을 받습니다. 서비스 제한이나 장애는 오류로 표시합니다.</p></div><a class="action-primary" href="/live-console">라이브 콘솔 열기</a></section>
-  </main>
+  </section>
 </template>

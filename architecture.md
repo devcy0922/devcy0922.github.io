@@ -2,7 +2,27 @@
 
 ## 목표
 
-이 저장소는 `devcy0922.github.io`에 배포되는 개인 기술 블로그다.
+이 저장소는 `devcy0922.github.io`에 배포되는 Backend & AI Platform Engineer 포트폴리오다. 기술 글은 프로젝트의 판단 근거로 연결한다.
+
+## 포트폴리오 개편 · 2026-09
+
+- 홈: 경력과 직무 → 대표 시스템 → 실행 가능한 데모 → 설계 원칙 → 기록.
+- 대표 프로젝트 데이터는 `docs/selected-projects.js`에서 문제, 결정, 확인 경로를 함께 관리한다.
+- `/playground`는 공개용 브라우저 시뮬레이터와 별도 relay를 호출하는 라이브 콘솔을 명시적으로 분리한다.
+- 브라우저 데모는 정책 허용/거부, 승인/반려, evidence 판정을 실제 JavaScript 상태 전이로 계산한다. 원본 백엔드 실행이나 운영 관측을 주장하지 않는다.
+- 라이브 콘솔은 빈 세션으로 시작한다. 네트워크 오류는 오류로 표시하며 초기 운영 수치 fixture를 넣지 않는다.
+- 비공개 프로젝트는 로컬 문서의 공개 가능한 책임 경계만 설명한다. 인증정보, 업무 데이터, 내부 주소는 데모에 복제하지 않는다.
+
+```mermaid
+flowchart LR
+    Home[직무와 대표 시스템] --> Cases[프로젝트별 문제와 설계 결정]
+    Home --> Lab[공개 브라우저 데모]
+    Lab --> Policy[정책 판정]
+    Lab --> Approval[승인 상태 전이]
+    Lab --> Evidence[검증 판정]
+    Lab --> Live[명시적 전송 · 기존 relay 콘솔]
+    Cases --> Notes[관련 기술 기록]
+```
 
 제품 문서와 개인 기록을 분리한다. GoVail을 포함한 프로젝트는 글과 프로젝트 사례 중 하나일 뿐이며 사이트의 전역 내비게이션, 번역 체계, 런타임 의존성으로 연결하지 않는다.
 
@@ -22,8 +42,8 @@ flowchart LR
 첫 화면에서 다음 세 가지가 보여야 한다.
 
 1. 어떤 개발자인가
-2. 최근 무엇을 생각하고 기록했는가
-3. 어떤 작업을 공개하고 있는가
+2. 어떤 시스템을 설계하고 구현했는가
+3. 어디에서 설계와 동작을 확인할 수 있는가
 
 ### `/posts/`
 
@@ -69,46 +89,10 @@ tags:
 - 클라이언트에서 번역 JSON이나 데모 API를 로드하지 않는다.
 - 사이트 기능보다 콘텐츠 작성 비용을 낮추는 것을 우선한다.
 
-## 예외: Playground · Model Routing 라이브 데모
+## 공개 데모와 라이브 콘솔
 
-`/playground`의 Model Routing 랩 중 두 시나리오(`routing-failover`, `routing-timeout`)는
-방문자당 1회, 별도 운영 중인 `playground-relay` 서비스(`/srv/products/playground-relay`)를 거쳐
-GoVail Gateway(`https://api.govail.cloud`)에 실제 요청을 보낸다. 이는 "빌드 시점 외 네트워크나
-서버 런타임을 요구하지 않는다" 원칙에 대한 의도적이고 범위가 제한된 예외다.
+`/playground`는 `SystemDemos.vue`와 `docs/demo-contracts.js`로 동작한다. 브라우저 상태는 새로고침하면 초기화되며 외부 서비스를 변경하지 않는다. 테스트는 인증 전 실행 차단, 승인 상태 전이, FAIL > PARTIAL > PASS 집계 규칙을 검증한다.
 
-- 정적 빌드 자체는 여전히 네트워크/서버 런타임에 의존하지 않는다. 예외는 브라우저가 방문 중
-  직접 호출하는 별도 공개 relay API(`POST api.govail.cloud/v1/model-routing/run` 및
-  `/stream`)로
-  한정되며, 실패/차단 시 페이지는 기존 replay 애니메이션으로 자동 폴백한다.
-- relay는 prompt를 길이 제한 후 받으며, 웹 검색이 필요한 요청은 `web_search`를 명시적으로
-  선택한다. 기존 고정 시나리오 id도 회귀 호환을 위해 유지한다.
-- 전역 동시 실행 1회로 제한(relay의 단일 인스턴스 세마포어), IP당 rate limit 있음.
-- 응답은 relay가 필드 화이트리스트로 전달하며, 백엔드 호스트명/모델 식별자/추적 id는 노출하지 않는다.
-- `web_search`는 Tavily 또는 DuckDuckGo에서 실제 결과를 수집하고, 검색 실패 시 mock 결과를
-  만들지 않고 실패 상태를 전달한다.
-- Agent Execution, Serving Lab 랩은 이 예외 대상이 아니며 계속 순수 replay다.
-- kill switch: `playground-relay`의 `PLAYGROUND_LIVE_ENABLED=false`로 즉시 비활성화 가능,
-  프론트엔드는 이 경우도 replay로 자동 폴백한다.
+`/live-console`은 기존 `Playground.vue`를 사용한다. 사용자가 전송할 때만 기존 공개 relay의 `/v1/model-routing/stream`을 호출한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.
 
-### `/playground` 실행 콘솔 UI
-
-Playground는 일반 채팅 화면이 아니라 요청의 실행 경로를 읽는 디버거로 구성한다.
-대화 가독성을 우선하기 위해 도구 입력·결과·출처는 중앙 답변에서 분리해 우측 실행 패널에
-보여준다.
-
-```mermaid
-flowchart LR
-    Session[좌측 · Session 목록] --> Chat[중앙 · Conversation]
-    Chat --> Intent{최신 외부 사실인가?}
-    Intent -->|예| Web[playground-relay · 실제 web_search]
-    Intent -->|아니오| Model[GoVail Gateway · 모델 응답]
-    Web --> Sources[우측 · Tool execution + sources]
-    Web --> Model
-    Model --> Chat
-```
-
-- 중앙은 사용자 질문과 최종 답변, 최소한의 상태만 담당한다.
-- 우측은 도구별 호출 상태, query/input, 결과 payload와 웹 출처를 담당한다.
-- `우루과이전 결과 분석`처럼 경기·뉴스·최신 결과·현재 상태를 묻는 요청은 `web_search`를
-  선택하고, relay는 고정 fixture가 아닌 외부 검색 결과를 사용한다. 검색 실패 시 빈 결과나
-  mock을 성공으로 표시하지 않고 실패 상태를 전달한다.
+클라이언트 진행 패널은 관찰 가능한 이벤트를 표시하며 서버 내부 실행 전체나 추론 과정을 나타내지 않는다. relay의 배포·인증·운영 설정은 이 저장소의 변경 범위 밖이다.

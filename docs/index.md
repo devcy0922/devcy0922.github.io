@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "개발 기록"
-description: "백엔드, 서비스 운영, 자동화와 AI를 직접 만들고 굴리면서 남기는 개발 기록"
+title: "Backend & AI Platform Engineer"
+description: "10년차 개발자 devcy0922. Gateway, Agent Runtime, Verification과 서비스 운영의 실행 경계를 설계합니다. 대표 프로젝트와 공개 데모를 확인하세요."
 aside: false
 outline: false
 ---

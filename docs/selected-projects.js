@@ -1,30 +1,8 @@
 export default [
-  {
-    type: 'Control Plane',
-    title: 'GoVail Control',
-    description: '여러 저장소와 코딩 에이전트의 규칙, 상태, 증적을 하나의 운영 계약으로 묶는 작업.',
-    href: '/projects/govail-control',
-    source: 'https://github.com/devcy0922/govail-control',
-  },
-  {
-    type: 'Verification',
-    title: 'PinchQ',
-    description: '그럴듯해 보이는 코드가 아니라 실제 실행 증거로 변경을 판정하는 검증 러너.',
-    href: '/projects/pinchq',
-    source: 'https://github.com/devcy0922/pinchq',
-  },
-  {
-    type: 'Agentic Workflow',
-    title: 'Works Daily Agents',
-    description: '업무 요청을 조사하고, 사람이 승인한 작업만 외부 시스템에 반영하는 운영 도구.',
-    href: '/projects/works-daily-agents',
-    source: 'https://github.com/devcy0922/works-daily-agents',
-  },
-  {
-    type: 'Data Platform',
-    title: 'AI Data Infra',
-    description: 'PostgreSQL, Redis, 이벤트 버스와 스케줄러를 서비스가 공유하는 데이터 기반.',
-    href: '/projects/ai-data-infra',
-    source: 'https://github.com/devcy0922/ai-data-infra',
-  },
+  { type: 'Control Plane', title: 'GoVail Control', description: '여러 AI 코딩 에이전트의 규칙·세션·실행 증거를 중앙에서 관리하는 Control Plane.', problem: '저장소마다 달라지는 규칙과 작업 상태를 같은 계약으로 관리해야 합니다.', decision: '규칙 원본과 생성 결과를 분리하고, manifest와 lock으로 적용 상태를 추적합니다.', href: '/projects/govail-control', demo: '/playground#control' },
+  { type: 'Model Gateway', title: 'GoVail Gateway', description: 'AI 요청의 인증·접근 정책·모델 전달을 담당하는 OpenAI-compatible Gateway.', problem: '애플리케이션마다 흩어진 모델 접근 권한과 오류 처리를 통일해야 합니다.', decision: 'Gateway는 실행 정책을 소유하고, 도구와 업무 흐름은 호출자에게 둡니다.', href: '/projects/govail-gateway', demo: '/playground#gateway' },
+  { type: 'Agent Runtime', title: 'Works Daily Agents', description: '업무를 수집·조사하고, 승인된 작업을 실행한 뒤 결과를 검증하는 업무 실행 플랫폼.', problem: '조사 중 얻은 정보가 검토 없이 외부 시스템 변경으로 이어져서는 안 됩니다.', decision: 'v2는 예약·수동·이벤트 요청을 공통 큐로 받고 capability 계약으로 외부 도구를 연결합니다.', href: '/projects/works-daily-agents', demo: '/playground#approval' },
+  { type: 'Verification', title: 'PinchQ', description: '코드 변경을 실행하고 관찰한 증거로 PASS·FAIL·PARTIAL을 판정하는 검증 러너.', problem: '그럴듯한 코드와 실제로 동작하는 변경을 구분할 근거가 필요합니다.', decision: 'planner와 runner를 분리하고 실행하지 못한 검사를 PARTIAL로 남깁니다.', href: '/projects/pinchq', demo: '/playground#verification' },
+  { type: 'Service Platform', title: 'AI Service Infra', description: '모델 접근, 장기 워크플로우와 관측 도구를 관리하는 AI 서비스 운영 계층.', problem: '모델 요청·업무 상태·로그의 수명과 장애 책임이 서로 다릅니다.', decision: 'LiteLLM·Temporal·Langfuse의 역할을 나누고 추론 런타임과 데이터 계층을 분리합니다.', href: '/projects/ai-service-infra' },
+  { type: 'Data Platform', title: 'AI Data Infra', description: '여러 서비스가 공유하는 DB·캐시·이벤트 버스·스케줄러의 운영 기반.', problem: '애플리케이션 배포와 공용 데이터의 수명을 분리해야 합니다.', decision: 'PostgreSQL·Redis·Kafka·Dagu를 공용 계층으로 관리하고 서비스별 책임을 명시합니다.', href: '/projects/ai-data-infra' },
 ]

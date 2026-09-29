@@ -1,597 +1,859 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-type StepState = 'ok' | 'warn' | 'blocked' | 'fail'
+const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
+const RELAY_RUN_URL = 'https://api.govail.cloud/v1/model-routing/run'
 
-type Step = {
-  name: string
-  detail: string
-  latency?: string
-  state: StepState
+// Types
+export interface ToolCallItem {
+  tool: string
+  callId: string
+  input: Record<string, unknown>
+  output?: Record<string, unknown>
+  durationMs?: number
+  status: 'calling' | 'done' | 'error'
 }
 
-type Scenario = {
+export interface MessageTrace {
+  model: string
+  totalLatencyMs?: number
+  ttftMs?: number
+  tokensPerSec?: number
+  usage?: { promptTokens?: number; completionTokens?: number }
+  routingNode?: string
+  policy?: string
+}
+
+export interface ChatMessage {
   id: string
-  lab: 'agent' | 'routing' | 'serving'
-  eyebrow: string
+  role: 'user' | 'assistant'
+  content: string
+  reasoning?: string
+  tools?: ToolCallItem[]
+  trace?: MessageTrace
+  status?: 'streaming' | 'done' | 'error'
+  timestamp: number
+}
+
+export interface Session {
+  id: string
   title: string
-  description: string
-  request: string
-  outcome: string
-  steps: Step[]
-  evidence: { label: string; value: string }[]
-  note: string
-  live?: boolean
-  promptId?: 'routing-failover' | 'routing-timeout'
+  createdAt: number
+  model: string
+  messages: ChatMessage[]
 }
 
-const scenarios: Scenario[] = [
-  {
-    id: 'agent-approval',
-    lab: 'agent',
-    eyebrow: 'Agent Execution',
-    title: 'Write action with approval',
-    description: '쓰기 작업을 정책 경계에서 멈추고 승인 이후에만 실행하는 흐름입니다.',
-    request: 'Create a GitHub issue from a verified finding',
-    outcome: 'approved · executed · verified',
-    steps: [
-      { name: 'Request', detail: 'ActionRequest accepted', latency: '4 ms', state: 'ok' },
-      { name: 'Policy', detail: 'write scope requires approval', latency: '9 ms', state: 'warn' },
-      { name: 'Grant', detail: 'human approval received', latency: '—', state: 'ok' },
-      { name: 'Executor', detail: 'tool call executed', latency: '183 ms', state: 'ok' },
-      { name: 'Verifier', detail: 'read-back matched intent', latency: '42 ms', state: 'ok' },
-      { name: 'Receipt', detail: 'audit receipt emitted', latency: '3 ms', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'policy', value: 'approval_required' },
-      { label: 'surface', value: 'HTTP_API' },
-      { label: 'verification', value: 'passed' },
-      { label: 'receipt', value: 'rcpt_demo_01' },
-    ],
-    note: '실제 외부 시스템에 쓰지 않습니다. 공개용 trace fixture를 재생합니다.',
-  },
-  {
-    id: 'agent-denied',
-    lab: 'agent',
-    eyebrow: 'Agent Execution',
-    title: 'Policy denied action',
-    description: '허용되지 않은 권한 또는 범위를 가진 작업이 실행 경계에서 차단되는 흐름입니다.',
-    request: 'Execute an ungranted administrative action',
-    outcome: 'blocked before execution',
-    steps: [
-      { name: 'Request', detail: 'ActionRequest accepted', latency: '3 ms', state: 'ok' },
-      { name: 'Policy', detail: 'scope is not granted', latency: '7 ms', state: 'blocked' },
-      { name: 'Grant', detail: 'no grant issued', latency: '—', state: 'blocked' },
-      { name: 'Executor', detail: 'not invoked', latency: '—', state: 'blocked' },
-      { name: 'Verifier', detail: 'execution absent as expected', latency: '2 ms', state: 'ok' },
-      { name: 'Receipt', detail: 'denial receipt emitted', latency: '2 ms', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'policy', value: 'deny' },
-      { label: 'executor_calls', value: '0' },
-      { label: 'fail_closed', value: 'true' },
-      { label: 'receipt', value: 'rcpt_demo_02' },
-    ],
-    note: '정책 거부 시 executor 호출이 발생하지 않는 것을 보여주는 replay입니다.',
-  },
-  {
-    id: 'routing-live',
-    lab: 'routing',
-    live: true,
-    eyebrow: 'Model Routing · Live Engine',
-    title: '실제 프롬프트 처리 & 라우팅',
-    description: '원하는 질문이나 지시를 직접 입력하면 GoVail Gateway가 실제 모델로 라우팅하고 생성 응답과 실행 지표를 반환합니다.',
-    request: 'POST /v1/model-routing/run · engine=GoVail Gateway',
-    outcome: '실행 대기 중 (프롬프트 입력 후 실행)',
-    steps: [
-      { name: 'Gateway', detail: 'request normalized & rate-limit check', latency: '3 ms', state: 'ok' },
-      { name: 'Policy', detail: 'safety guard & origin verified', latency: '4 ms', state: 'ok' },
-      { name: 'Router', detail: 'backend model routed', latency: '—', state: 'ok' },
-      { name: 'Inference', detail: 'LLM prefill & token decode', latency: '—', state: 'ok' },
-      { name: 'Trace', detail: 'live execution metrics emitted', latency: '—', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'engine', value: 'GoVail Gateway' },
-      { label: 'model', value: 'govail/worker' },
-      { label: 'mode', value: 'live inference' },
-      { label: 'policy', value: 'rate_limited · single_lock' },
-    ],
-    note: '방문자가 입력한 프롬프트를 GoVail Gateway에서 실제로 처리한 결과입니다.',
-  },
-  {
-    id: 'routing-failover',
-    lab: 'routing',
-    live: true,
-    promptId: 'routing-failover',
-    eyebrow: 'Model Routing',
-    title: 'Local-first failover',
-    description: '로컬 백엔드를 우선 선택하고, 상태 이상 시 다음 후보로 안전하게 전환하는 흐름입니다.',
-    request: 'POST /v1/chat/completions · policy=local-first',
-    outcome: 'backend-b selected after failover',
-    steps: [
-      { name: 'Gateway', detail: 'request normalized', latency: '6 ms', state: 'ok' },
-      { name: 'Health', detail: 'backend-a marked busy', latency: '2 ms', state: 'warn' },
-      { name: 'Router', detail: 'backend-b selected', latency: '5 ms', state: 'ok' },
-      { name: 'Prefill', detail: 'prompt accepted', latency: '318 ms', state: 'ok' },
-      { name: 'Decode', detail: 'stream completed', latency: '31.4 tok/s', state: 'ok' },
-      { name: 'Trace', detail: 'route decision recorded', latency: '2 ms', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'policy', value: 'local-first' },
-      { label: 'requested', value: 'qwen-local' },
-      { label: 'selected', value: 'backend-b' },
-      { label: 'failover', value: '1' },
-    ],
-    note: '호스트명과 실제 endpoint는 제거된 공개용 routing trace입니다.',
-  },
-  {
-    id: 'routing-timeout',
-    lab: 'routing',
-    live: true,
-    promptId: 'routing-timeout',
-    eyebrow: 'Model Routing',
-    title: 'Backend timeout recovery',
-    description: '추론 백엔드 timeout을 감지하고 circuit 상태를 반영해 대체 경로로 전환합니다.',
-    request: 'Completion request · backend-a timeout injected',
-    outcome: 'recovered in 1.38 s',
-    steps: [
-      { name: 'Gateway', detail: 'request accepted', latency: '5 ms', state: 'ok' },
-      { name: 'Backend A', detail: 'timeout', latency: '1000 ms', state: 'fail' },
-      { name: 'Circuit', detail: 'backend-a opened', latency: '4 ms', state: 'warn' },
-      { name: 'Backend B', detail: 'retry accepted', latency: '71 ms', state: 'ok' },
-      { name: 'Decode', detail: 'stream completed', latency: '29.8 tok/s', state: 'ok' },
-      { name: 'Trace', detail: 'recovery recorded', latency: '3 ms', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'fault', value: 'timeout' },
-      { label: 'circuit', value: 'open' },
-      { label: 'retry', value: '1' },
-      { label: 'recovery', value: '1.38 s' },
-    ],
-    note: '장애 주입 결과를 재생하는 fixture이며 실제 추론 서버를 공격하거나 호출하지 않습니다.',
-  },
-  {
-    id: 'serving-concurrency',
-    lab: 'serving',
-    eyebrow: 'Serving Lab',
-    title: 'Concurrency trade-off',
-    description: '동시성 증가에 따라 요청당 decode 성능과 aggregate throughput이 어떻게 달라지는지 비교합니다.',
-    request: 'Qwen MoE · 128K profile · KV Q8 · parallel 4',
-    outcome: 'aggregate throughput peaks at concurrency 4',
-    steps: [
-      { name: 'C=1', detail: 'request decode', latency: '42.4 tok/s', state: 'ok' },
-      { name: 'C=1 agg', detail: 'aggregate', latency: '36.1 tok/s', state: 'ok' },
-      { name: 'C=2', detail: 'request decode', latency: '26.3 tok/s', state: 'warn' },
-      { name: 'C=2 agg', detail: 'aggregate', latency: '46.8 tok/s', state: 'ok' },
-      { name: 'C=4', detail: 'request decode', latency: '15.5 tok/s', state: 'warn' },
-      { name: 'C=4 agg', detail: 'aggregate', latency: '54.4 tok/s', state: 'ok' },
-    ],
-    evidence: [
-      { label: 'kv_cache', value: 'Q8' },
-      { label: 'context', value: '128K × 4' },
-      { label: 'parallel', value: '4' },
-      { label: 'peak_agg', value: '54.4 tok/s' },
-    ],
-    note: '공개 가능한 실측 요약만 포함합니다. 장비 식별자와 원본 로그는 포함하지 않습니다.',
-  },
+export interface AvailableTool {
+  id: string
+  name: string
+  label: string
+  icon: string
+  desc: string
+  enabled: boolean
+}
+
+// Available Models
+const models = [
+  { id: 'govail/worker', name: 'GoVail Worker', desc: 'Edge Native · Ultra-low latency (<50ms)', badge: 'Edge Native' },
+  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', desc: 'General balanced inference', badge: 'Cloud' },
+  { id: 'anthropic/claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', desc: 'Deep reasoning & agentic code', badge: 'Reasoning' },
+  { id: 'google/gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'High throughput & large context', badge: 'High-QPS' },
 ]
 
-const tabs = [
-  { id: 'routing', label: 'Model Routing (Live)', meta: '실제 프롬프트 처리 · 모델 라우팅' },
-  { id: 'agent', label: 'Agent Policy (Replay)', meta: '정책 검증 · 승인 흐름 시연' },
-  { id: 'serving', label: 'Serving Bench (Replay)', meta: '동시성 · Throughput 벤치마크' },
-] as const
+// Tool configuration
+const tools = ref<AvailableTool[]>([
+  {
+    id: 'system_metrics',
+    name: 'system_metrics',
+    label: '시스템 메트릭 조회',
+    icon: '📊',
+    desc: '클러스터 노드 헬스, 활성 커넥션, P95 지연시간',
+    enabled: true,
+  },
+  {
+    id: 'web_search',
+    name: 'web_search',
+    label: '실시간 웹 검색',
+    icon: '🔍',
+    desc: '최신 아키텍처 문서 및 엔지니어링 벤치마크',
+    enabled: true,
+  },
+  {
+    id: 'code_interpreter',
+    name: 'code_interpreter',
+    label: '코드 실행 샌드박스',
+    icon: '💻',
+    desc: 'Python/JS 통계 연산 및 백분위수 계산',
+    enabled: true,
+  },
+  {
+    id: 'cache_inspector',
+    name: 'cache_inspector',
+    label: '시맨틱 캐시 점검',
+    icon: '⚡',
+    desc: 'GoVail Semantic Cache 적중률 및 TTL 분석',
+    enabled: false,
+  },
+])
 
-const activeLab = ref<(typeof tabs)[number]['id']>('routing')
-const activeScenarioId = ref('routing-live')
-const activeStep = ref(-1)
-const running = ref(false)
-let timer: ReturnType<typeof setInterval> | undefined
+// Routing parameters
+const selectedModel = ref('govail/worker')
+const routingPolicy = ref('LOWEST_LATENCY')
+const temperature = ref(0.5)
+const maxTokens = ref(400)
+const enableThinking = ref(true)
+const systemPrompt = ref(
+  'You are an expert AI engineer at GoVail Cloud. Provide concise, technically accurate conclusions based on verified tool executions.',
+)
 
-// Live mode: exactly two Model Routing scenarios make one real request per
-// run to a relay in front of GoVail Gateway. See architecture.md "예외:
-// Playground · Model Routing 라이브 데모" — Agent Execution and Serving Lab
-// stay pure replay.
-const RELAY_URL = 'https://api.govail.cloud/v1/model-routing/run'
-const LIVE_CLIENT_TIMEOUT_MS = 15_000
-
-type LiveState = 'idle' | 'running' | 'locked' | 'rate_limited' | 'disabled' | 'error' | 'done'
-type LiveResult = {
-  outputText: string
-  latencyMs: number
-  tokensPerSec: number
-  model?: string
-  usage?: { promptTokens?: number | null; completionTokens?: number | null }
-}
-
-const userPrompt = ref('분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.')
-
+// Preset questions
 const promptPresets = [
-  { label: '멱등성 보장 기법', text: '분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.' },
-  { label: '서킷 브레이커 원리', text: 'API 게이트웨이에서 서킷 브레이커(Circuit Breaker)의 상태 전이와 복구 기준은?' },
-  { label: 'LLM 하이브리드 라우팅', text: '로컬 경량 LLM과 클라우드 고성능 LLM 간의 비용 최적화 라우팅 기준은?' },
-  { label: '페일오버 동작 방식', text: '주 추론 백엔드가 응답 불가(Timeout)일 때 게이트웨이의 무중단 전환 원리를 설명해줘.' },
+  { label: '📊 클러스터 메트릭 점검', text: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘' },
+  { label: '🔍 AI 게이트웨이 웹 검색', text: '최신 AI 게이트웨이 라우팅 전략과 모델 폴백 트렌드 웹 검색' },
+  { label: '💻 Python 지연시간 연산', text: 'Python으로 노드 지연시간 리스트의 P50 및 P95 백분위수를 계산해줘' },
+  { label: '⚡ 시맨틱 캐시 분석', text: '시맨틱 캐시 레이어의 임베딩 유사도 임계치와 TTL 상태 점검' },
 ]
+
+// Sessions state
+const sessions = ref<Session[]>([])
+const currentSessionId = ref<string>('')
+const userPrompt = ref('')
+const isStreaming = ref(false)
+const streamStatusText = ref('Ready')
+const activeAbortController = ref<AbortController | null>(null)
+const messagesContainer = ref<HTMLElement | null>(null)
+
+// Computed
+const currentSession = computed(() => {
+  return sessions.value.find((s) => s.id === currentSessionId.value) || sessions.value[0] || null
+})
+
+const activeToolsCount = computed(() => tools.value.filter((t) => t.enabled).length)
+
+// Initial default session setup
+function initDefaultSession(): Session {
+  return {
+    id: 'session_' + Date.now(),
+    title: '클러스터 메트릭 및 시스템 점검',
+    createdAt: Date.now(),
+    model: 'govail/worker',
+    messages: [
+      {
+        id: 'msg_user_1',
+        role: 'user',
+        content: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘',
+        timestamp: Date.now() - 36000,
+      },
+      {
+        id: 'msg_asst_1',
+        role: 'assistant',
+        content:
+          'GoVail 클러스터(`cy-server.internal`) 상태는 현재 **HEALTHY**이며, 4개의 활성 게이트웨이 라우트가 정상 운영 중입니다. P95 응답 지연시간은 38.4ms로 초저지연 수준을 유지하고 있습니다.',
+        reasoning:
+          '1. system_metrics 도구 호출 결과 확인\n2. cluster_node 및 active_gateway_routes 상태 분석\n3. p95_latency_ms (38.4ms)를 기반으로 간결한 상태 보고서 작성',
+        tools: [
+          {
+            tool: 'system_metrics',
+            callId: 'call_init_01',
+            input: { target: 'govail-gateway', metric_window: '5m' },
+            output: {
+              status: 'HEALTHY',
+              cluster_node: 'cy-server.internal (192.168.0.10)',
+              active_gateway_routes: 4,
+              p95_latency_ms: 38.4,
+              uptime_seconds: 43200,
+              heap_used_mb: 18.2,
+              rate_limit_policy: 'sliding_window_10rpm',
+              concurrency_lock: 'single_active_slot',
+            },
+            durationMs: 24,
+            status: 'done',
+          },
+        ],
+        trace: {
+          model: 'govail/worker',
+          totalLatencyMs: 840,
+          ttftMs: 210,
+          tokensPerSec: 32.5,
+          routingNode: 'worker-node-edge-01 (192.168.0.10:8080)',
+          policy: 'LOWEST_LATENCY_AFFINITY',
+          usage: { promptTokens: 85, completionTokens: 42 },
+        },
+        status: 'done',
+        timestamp: Date.now() - 35000,
+      },
+    ],
+  }
+}
+
+// Storage helpers
+const STORAGE_KEY = 'govail_studio_sessions_v2'
+function loadSessions() {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        sessions.value = parsed
+        currentSessionId.value = parsed[0].id
+        return
+      }
+    }
+  } catch {
+    // fallback
+  }
+  const def = initDefaultSession()
+  sessions.value = [def]
+  currentSessionId.value = def.id
+  saveSessions()
+}
+
+function saveSessions() {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.value))
+  } catch {
+    // ignore
+  }
+}
+
+function createNewSession() {
+  const newSession: Session = {
+    id: 'session_' + Date.now(),
+    title: '새 세션 #' + (sessions.value.length + 1),
+    createdAt: Date.now(),
+    model: selectedModel.value,
+    messages: [],
+  }
+  sessions.value.unshift(newSession)
+  currentSessionId.value = newSession.id
+  saveSessions()
+}
+
+function selectSession(id: string) {
+  currentSessionId.value = id
+  scrollToBottom()
+}
+
+function deleteSession(id: string, e?: Event) {
+  if (e) e.stopPropagation()
+  sessions.value = sessions.value.filter((s) => s.id !== id)
+  if (sessions.value.length === 0) {
+    createNewSession()
+  } else if (currentSessionId.value === id) {
+    currentSessionId.value = sessions.value[0].id
+  }
+  saveSessions()
+}
+
+function clearAllSessions() {
+  if (confirm('모든 세션 기록을 삭제하시겠습니까?')) {
+    sessions.value = []
+    createNewSession()
+  }
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
+}
 
 function setPreset(text: string) {
   userPrompt.value = text
 }
 
-const liveState = ref<LiveState>('idle')
-const liveResult = ref<LiveResult | null>(null)
-let liveAbort: AbortController | undefined
-let liveFallbackTimer: ReturnType<typeof setTimeout> | undefined
-
-const labScenarios = computed(() => scenarios.filter((scenario) => scenario.lab === activeLab.value))
-const scenario = computed(() => scenarios.find((item) => item.id === activeScenarioId.value) ?? labScenarios.value[0])
-
-const runButtonLabel = computed(() => {
-  if (running.value || liveState.value === 'running') return 'RUNNING...'
-  return scenario.value.live ? '프롬프트 실행' : 'RUN REPLAY'
-})
-
-const liveStatusClass = computed(() => {
-  if (!scenario.value.live) return ''
-  if (liveState.value === 'done') return 'live-ok'
-  if (liveState.value === 'locked' || liveState.value === 'rate_limited') return 'live-warn'
-  if (liveState.value === 'error' || liveState.value === 'disabled') return 'live-bad'
-  return ''
-})
-
-const displayedOutcome = computed(() => {
-  const s = scenario.value
-  if (!s.live) return s.outcome
-  if (liveState.value === 'done' && liveResult.value) {
-    return `live run — ${liveResult.value.latencyMs}ms · ${liveResult.value.tokensPerSec.toFixed(1)} tok/s · ${liveResult.value.model || 'govail/worker'}`
+function stopExecution() {
+  if (activeAbortController.value) {
+    activeAbortController.value.abort()
+    activeAbortController.value = null
   }
-  if (liveState.value === 'locked') return 'locked — 다른 사용자의 요청을 처리 중입니다'
-  if (liveState.value === 'rate_limited') return 'rate limited — 요청 한도 초과 (잠시 후 다시 시도)'
-  if (liveState.value === 'disabled') return 'live mode disabled — 라이브 비활성화 상태'
-  if (liveState.value === 'error') return 'live demo unavailable — 일시적 오류'
-  return s.outcome
-})
-
-const displayedSteps = computed(() => {
-  const s = scenario.value
-  if (!s.live || (liveState.value !== 'running' && liveState.value !== 'done')) {
-    return s.steps
-  }
-  return s.steps.map((step, index) => {
-    if (liveState.value === 'done' && liveResult.value) {
-      if (index === 2) {
-        return { ...step, detail: `routed to ${liveResult.value.model || 'govail/worker'}` }
-      }
-      if (index === s.steps.length - 2) {
-        return { ...step, latency: `${liveResult.value.tokensPerSec.toFixed(1)} tok/s` }
-      }
-      if (index === s.steps.length - 1) {
-        return { ...step, detail: 'live inference recorded', latency: `${liveResult.value.latencyMs} ms` }
-      }
-    }
-    return { ...step, latency: undefined }
-  })
-})
-
-const displayedEvidence = computed(() => {
-  if (scenario.value.live && liveState.value === 'done' && liveResult.value) {
-    return [
-      { label: 'engine', value: 'GoVail Gateway' },
-      { label: 'model', value: liveResult.value.model || 'govail/worker' },
-      { label: 'latency', value: `${liveResult.value.latencyMs} ms` },
-      { label: 'throughput', value: `${liveResult.value.tokensPerSec.toFixed(1)} tok/s` },
-      { label: 'prompt_tokens', value: `${liveResult.value.usage?.promptTokens ?? '-'}` },
-      { label: 'output_tokens', value: `${liveResult.value.usage?.completionTokens ?? '-'}` },
-    ]
-  }
-  return scenario.value.evidence
-})
-
-const displayedNote = computed(() => {
-  const s = scenario.value
-  if (s.live && liveState.value === 'done') {
-    return '방문자가 입력한 프롬프트를 GoVail Gateway에 실제로 전송하여 실시간 생성된 응답입니다.'
-  }
-  return s.note
-})
-
-function setLab(lab: (typeof tabs)[number]['id']) {
-  stopReplay()
-  activeLab.value = lab
-  activeScenarioId.value = scenarios.find((item) => item.lab === lab)?.id ?? scenarios[0].id
-  activeStep.value = -1
+  isStreaming.value = false
+  streamStatusText.value = 'Stopped by user'
 }
 
-function setScenario(id: string) {
-  stopReplay()
-  activeScenarioId.value = id
-  activeStep.value = -1
-  if (id === 'routing-failover') {
-    userPrompt.value = '장애 발생 시 로컬 백엔드에서 백업 백엔드로 전환되는 페일오버 원리를 2문장으로 설명해줘.'
-  } else if (id === 'routing-timeout') {
-    userPrompt.value = '추론 백엔드 타임아웃 발생 시 게이트웨이가 서킷을 열고 대체 경로로 복구하는 방식을 2문장으로 설명해줘.'
-  } else if (id === 'routing-live') {
-    userPrompt.value = '분산 시스템에서 멱등성(Idempotency)을 보장하는 방법 2가지를 설명해줘.'
-  }
-}
+// SSE Streaming Execution
+async function handleSend() {
+  const prompt = userPrompt.value.trim()
+  if (!prompt || isStreaming.value) return
 
-function stopReplay() {
-  if (timer) clearInterval(timer)
-  timer = undefined
-  running.value = false
-  if (liveFallbackTimer) clearTimeout(liveFallbackTimer)
-  liveFallbackTimer = undefined
-  liveAbort?.abort()
-  liveAbort = undefined
-  liveState.value = 'idle'
-  liveResult.value = null
-}
-
-function replay() {
-  stopReplay()
-  activeStep.value = 0
-  running.value = true
-
-  timer = setInterval(() => {
-    if (activeStep.value >= scenario.value.steps.length - 1) {
-      stopReplay()
-      return
-    }
-    activeStep.value += 1
-  }, 520)
-}
-
-async function runLive() {
-  const promptToSend = userPrompt.value.trim()
-  if (!promptToSend) {
-    return
+  let session = currentSession.value
+  if (!session) {
+    createNewSession()
+    session = currentSession.value!
   }
 
-  stopReplay()
-  liveState.value = 'running'
-  running.value = true
-  activeStep.value = 0
+  // Update session title if first message
+  if (session.messages.length === 0) {
+    session.title = prompt.length > 24 ? prompt.slice(0, 24) + '...' : prompt
+  }
 
-  timer = setInterval(() => {
-    if (activeStep.value >= scenario.value.steps.length - 2) return
-    activeStep.value += 1
-  }, 420)
+  // 1. Add User Message
+  const userMsg: ChatMessage = {
+    id: 'msg_u_' + Date.now(),
+    role: 'user',
+    content: prompt,
+    timestamp: Date.now(),
+  }
+  session.messages.push(userMsg)
+  userPrompt.value = ''
+  scrollToBottom()
 
-  liveAbort = new AbortController()
-  const clientTimeout = setTimeout(() => liveAbort?.abort(), LIVE_CLIENT_TIMEOUT_MS)
+  // 2. Add Assistant Message Placeholder
+  const asstMsg: ChatMessage = {
+    id: 'msg_a_' + Date.now(),
+    role: 'assistant',
+    content: '',
+    reasoning: '',
+    tools: [],
+    trace: {
+      model: selectedModel.value,
+    },
+    status: 'streaming',
+    timestamp: Date.now(),
+  }
+  session.messages.push(asstMsg)
+  scrollToBottom()
+
+  isStreaming.value = true
+  streamStatusText.value = 'Connecting to GoVail Gateway...'
+
+  const controller = new AbortController()
+  activeAbortController.value = controller
+
+  const enabledToolNames = tools.value.filter((t) => t.enabled).map((t) => t.id)
 
   try {
-    const response = await fetch(RELAY_URL, {
+    const response = await fetch(RELAY_STREAM_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: promptToSend }),
-      signal: liveAbort.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model: selectedModel.value,
+        tools: enabledToolNames,
+        temperature: temperature.value,
+        maxTokens: maxTokens.value,
+        enableThinking: enableThinking.value,
+        systemPrompt: systemPrompt.value,
+      }),
+      signal: controller.signal,
     })
-    const payload = await response.json()
 
-    if (payload.status === 'ok') {
-      liveResult.value = {
-        outputText: payload.outputText,
-        latencyMs: payload.latencyMs,
-        tokensPerSec: payload.tokensPerSec,
-        model: payload.model,
-        usage: payload.usage,
+    if (!response.ok) {
+      throw new Error(`Gateway HTTP ${response.status}`)
+    }
+
+    if (!response.body) {
+      throw new Error('No streaming body available')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      let currentEvent = 'message'
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+
+        if (trimmed.startsWith('event:')) {
+          currentEvent = trimmed.slice(6).trim()
+          continue
+        }
+
+        if (trimmed.startsWith('data:')) {
+          const rawData = trimmed.slice(5).trim()
+          try {
+            const data = JSON.parse(rawData)
+            handleStreamEvent(currentEvent, data, asstMsg)
+          } catch {
+            // ignore non-json
+          }
+        }
       }
-      liveState.value = 'done'
-      activeStep.value = scenario.value.steps.length - 1
-      if (timer) clearInterval(timer)
-      timer = undefined
-      running.value = false
-      return
+      scrollToBottom()
     }
 
-    liveState.value =
-      payload.status === 'locked' || payload.status === 'rate_limited' || payload.status === 'disabled'
-        ? payload.status
-        : 'error'
-  } catch {
-    liveState.value = 'error'
+    asstMsg.status = 'done'
+    streamStatusText.value = 'Ready'
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      streamStatusText.value = 'Stopped by user'
+    } else {
+      asstMsg.status = 'error'
+      asstMsg.content += '\n\n⚠️ **실행 오류:** 실시간 게이트웨이 요청 실패 또는 타임아웃이 발생했습니다.'
+      streamStatusText.value = 'Error'
+    }
   } finally {
-    clearTimeout(clientTimeout)
-    if (liveState.value !== 'done') {
-      if (timer) clearInterval(timer)
-      timer = undefined
-      running.value = false
-      activeStep.value = -1
+    isStreaming.value = false
+    activeAbortController.value = null
+    saveSessions()
+    scrollToBottom()
+  }
+}
+
+function handleStreamEvent(event: string, data: Record<string, unknown>, msg: ChatMessage) {
+  if (event === 'routing') {
+    streamStatusText.value = `Routing: ${data.model} -> ${data.targetNode}`
+    if (msg.trace) {
+      msg.trace.routingNode = String(data.targetNode || '')
+      msg.trace.policy = String(data.policy || '')
+      if (data.model) msg.trace.model = String(data.model)
+    }
+  } else if (event === 'status') {
+    streamStatusText.value = String(data.message || data.phase || '')
+  } else if (event === 'tool_call') {
+    streamStatusText.value = `Tool Call: ${data.tool}`
+    if (!msg.tools) msg.tools = []
+    msg.tools.push({
+      tool: String(data.tool),
+      callId: String(data.callId),
+      input: (data.input as Record<string, unknown>) || {},
+      status: 'calling',
+    })
+  } else if (event === 'tool_result') {
+    streamStatusText.value = `Tool Result: ${data.tool}`
+    if (msg.tools) {
+      const toolItem = msg.tools.find((t) => t.callId === data.callId)
+      if (toolItem) {
+        toolItem.output = (data.output as Record<string, unknown>) || {}
+        toolItem.durationMs = Number(data.durationMs) || 0
+        toolItem.status = 'done'
+      }
+    }
+  } else if (event === 'thinking') {
+    if (data.delta) {
+      msg.reasoning = (msg.reasoning || '') + String(data.delta)
+    }
+  } else if (event === 'token') {
+    streamStatusText.value = 'Streaming Response...'
+    if (data.reasoning) {
+      msg.reasoning = (msg.reasoning || '') + String(data.reasoning)
+    }
+    if (data.delta) {
+      msg.content += String(data.delta)
+    }
+    if (data.model && msg.trace) {
+      msg.trace.model = String(data.model)
+    }
+  } else if (event === 'done') {
+    streamStatusText.value = 'Completed'
+    msg.status = 'done'
+    if (msg.trace) {
+      msg.trace.model = String(data.model || msg.trace.model)
+      msg.trace.totalLatencyMs = Number(data.totalLatencyMs)
+      msg.trace.ttftMs = Number(data.ttftMs)
+      msg.trace.tokensPerSec = Number(data.tokensPerSec)
+      msg.trace.usage = data.usage as { promptTokens?: number; completionTokens?: number }
     }
   }
 }
 
-function handleRun() {
-  if (scenario.value.live) {
-    runLive()
-  } else {
-    replay()
-  }
+// Collapsible inspect state for tools
+const expandedTools = ref<Record<string, boolean>>({})
+function toggleToolExpand(callId: string) {
+  expandedTools.value[callId] = !expandedTools.value[callId]
 }
 
-onBeforeUnmount(stopReplay)
+const showReasoning = ref<Record<string, boolean>>({})
+function toggleReasoning(msgId: string) {
+  showReasoning.value[msgId] = !showReasoning.value[msgId]
+}
+
+function formatTime(ts: number) {
+  const date = new Date(ts)
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+}
+
+onMounted(() => {
+  loadSessions()
+})
+
+onBeforeUnmount(() => {
+  if (activeAbortController.value) {
+    activeAbortController.value.abort()
+  }
+})
 </script>
 
 <template>
   <main class="playground-shell">
+    <!-- Top Hero Header -->
     <header class="playground-hero">
-      <p class="utility-label"><span class="status-dot"></span>AI Systems Playground</p>
-      <h1>시스템이 어떻게 판단하고<br><em>실행되는지</em> 보여줍니다.</h1>
+      <div class="pg-panel-label"><span class="status-dot"></span> GoVail Cloud Debug Studio</div>
+      <h1>실시간 <em>추론 & 툴 디버깅</em> 콘솔</h1>
       <p class="pg-lead">
-        원하는 프롬프트를 직접 입력해 GoVail Gateway를 통한 실시간 모델 라우팅 및 추론 결과를 확인할 수 있습니다.
-        정책 경계 및 서빙 벤치마크 랩에서는 실제 환경의 trace 증적과 성능 지표를 함께 비교합니다.
+        GoVail Gateway의 모델 라우팅, 실시간 도구(Tool Calling) 실행, SSE 토큰 스트리밍 및 추론 트레이스를 3분할 디버깅 콘솔에서 직접 검증합니다.
       </p>
     </header>
 
-    <section class="pg-console" aria-label="Systems playground console">
-      <aside class="pg-sidebar">
-        <div class="pg-panel-label">LABS</div>
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="pg-lab-button"
-          :class="{ active: activeLab === tab.id }"
-          type="button"
-          @click="setLab(tab.id)"
-        >
-          <span>{{ tab.label }}</span>
-          <small>{{ tab.meta }}</small>
-        </button>
-
-        <div class="pg-sidebar-note">
-          <span class="status-dot"></span>
-          <div>
-            <strong>Execution boundary</strong>
-            <p>Model Routing은 GoVail Gateway를 통해 실제 실시간 추론을 수행합니다. Agent 및 Serving 랩은 안전한 trace 증적으로 시연됩니다.</p>
-          </div>
-        </div>
-      </aside>
-
-      <div class="pg-main">
-        <div class="pg-toolbar">
-          <div>
-            <span class="pg-panel-label">SCENARIO</span>
-            <div class="pg-scenario-tabs">
-              <button
-                v-for="item in labScenarios"
-                :key="item.id"
-                :class="{ active: item.id === scenario.id }"
-                type="button"
-                @click="setScenario(item.id)"
-              >
-                {{ item.title }}
-              </button>
-            </div>
-          </div>
-          <button class="pg-run" type="button" :disabled="running || liveState === 'running'" @click="handleRun">
-            <span>{{ runButtonLabel }}</span>
-            <span aria-hidden="true">→</span>
+    <!-- 3-Panel Debug Studio -->
+    <div class="pg-studio-container">
+      <!-- ── Panel 1: Sessions (좌측) ────────────────────────── -->
+      <aside class="pg-panel-sessions">
+        <div class="pg-panel-header">
+          <span class="pg-panel-title">세션 (SESSIONS)</span>
+          <button type="button" class="pg-btn-icon" title="새 세션" @click="createNewSession">
+            <span class="pg-icon-plus">+</span>
           </button>
         </div>
 
-        <div class="pg-request-card" :class="{ 'is-live-card': scenario.live }">
-          <div class="pg-scenario-info">
-            <span class="pg-panel-label">{{ scenario.eyebrow }}</span>
-            <h2>{{ scenario.title }}</h2>
-            <p>{{ scenario.description }}</p>
+        <div class="pg-sessions-list">
+          <div
+            v-for="s in sessions"
+            :key="s.id"
+            class="pg-session-item"
+            :class="{ active: s.id === currentSessionId }"
+            @click="selectSession(s.id)"
+          >
+            <div class="pg-session-top">
+              <span class="pg-session-title" :title="s.title">{{ s.title }}</span>
+              <button
+                type="button"
+                class="pg-session-del"
+                title="세션 삭제"
+                @click="deleteSession(s.id, $event)"
+              >
+                ×
+              </button>
+            </div>
+            <div class="pg-session-meta">
+              <span class="pg-meta-badge">{{ s.model.split('/').pop() }}</span>
+              <span class="pg-meta-count">{{ s.messages.length }} msgs</span>
+              <span class="pg-meta-time">{{ formatTime(s.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pg-sessions-footer">
+          <button type="button" class="pg-btn-clear" @click="clearAllSessions">
+            모든 세션 초기화
+          </button>
+        </div>
+      </aside>
+
+      <!-- ── Panel 2: Inference & Tool Execution (가운데) ───── -->
+      <section class="pg-panel-inference">
+        <!-- Console Top Bar -->
+        <div class="pg-inference-topbar">
+          <div class="pg-status-indicator">
+            <span class="pg-pulse-dot" :class="{ 'is-active': isStreaming }"></span>
+            <span class="pg-status-label">{{ streamStatusText }}</span>
           </div>
 
-          <div v-if="scenario.live" class="pg-prompt-box">
-            <div class="pg-prompt-head">
-              <label for="prompt-input" class="pg-prompt-label">실제 프롬프트 입력 (LIVE PROMPT)</label>
-              <span class="pg-char-count">{{ userPrompt.length }} / 400</span>
+          <div v-if="currentSession" class="pg-topbar-meta">
+            <span class="pg-tag-model">{{ selectedModel }}</span>
+            <span class="pg-tag-tools">Tools: {{ activeToolsCount }} on</span>
+          </div>
+        </div>
+
+        <!-- Chat / Trace Viewport -->
+        <div ref="messagesContainer" class="pg-messages-viewport">
+          <div v-if="!currentSession || currentSession.messages.length === 0" class="pg-empty-state">
+            <div class="pg-empty-icon">⚡</div>
+            <h3>실시간 추론 콘솔 준비 완료</h3>
+            <p>하단에 프롬프트를 입력하거나 추천 질문 칩을 클릭하여 GoVail Gateway 실시간 스트리밍을 시작하세요.</p>
+          </div>
+
+          <div
+            v-for="msg in currentSession?.messages || []"
+            :key="msg.id"
+            class="pg-message-row"
+            :class="`role-${msg.role}`"
+          >
+            <!-- User Message -->
+            <div v-if="msg.role === 'user'" class="pg-msg-bubble is-user">
+              <div class="pg-msg-head">
+                <span class="pg-badge-role">USER</span>
+                <span class="pg-msg-time">{{ formatTime(msg.timestamp) }}</span>
+              </div>
+              <div class="pg-msg-text">{{ msg.content }}</div>
             </div>
+
+            <!-- Assistant / Debug Card -->
+            <div v-else class="pg-msg-bubble is-assistant">
+              <div class="pg-msg-head">
+                <span class="pg-badge-role is-govail">GOVAIL GATEWAY</span>
+                <span v-if="msg.trace?.routingNode" class="pg-trace-routing">
+                  ↳ {{ msg.trace.routingNode }}
+                </span>
+                <span class="pg-msg-time">{{ formatTime(msg.timestamp) }}</span>
+              </div>
+
+              <!-- Tool Execution Cards -->
+              <div v-if="msg.tools && msg.tools.length > 0" class="pg-tools-block">
+                <div v-for="t in msg.tools" :key="t.callId" class="pg-tool-card">
+                  <div class="pg-tool-header" @click="toggleToolExpand(t.callId)">
+                    <div class="pg-tool-name-group">
+                      <span class="pg-tool-icon">🛠</span>
+                      <strong class="pg-tool-name">{{ t.tool }}</strong>
+                      <span class="pg-tool-status" :class="`status-${t.status}`">
+                        {{ t.status === 'calling' ? '실행 중...' : 'COMPLETED' }}
+                      </span>
+                    </div>
+                    <div class="pg-tool-right">
+                      <span v-if="t.durationMs" class="pg-tool-latency">⏱ {{ t.durationMs }}ms</span>
+                      <span class="pg-expand-icon">{{ expandedTools[t.callId] ? '▲ 접기' : '▼ 상세' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Expanded Tool Payloads -->
+                  <div v-if="expandedTools[t.callId]" class="pg-tool-body">
+                    <div class="pg-tool-subhead">INPUT ARGUMENTS</div>
+                    <pre class="pg-code-pre"><code>{{ JSON.stringify(t.input, null, 2) }}</code></pre>
+                    <div class="pg-tool-subhead">RETURN PAYLOAD</div>
+                    <pre class="pg-code-pre"><code>{{ JSON.stringify(t.output, null, 2) }}</code></pre>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reasoning / CoT Accordion -->
+              <div v-if="msg.reasoning" class="pg-reasoning-block">
+                <div class="pg-reasoning-head" @click="toggleReasoning(msg.id)">
+                  <span>🧠 추론 과정 (Chain of Thought)</span>
+                  <span class="pg-expand-icon">{{ showReasoning[msg.id] !== false ? '▲ 접기' : '▼ 펼치기' }}</span>
+                </div>
+                <div v-if="showReasoning[msg.id] !== false" class="pg-reasoning-body">
+                  <pre class="pg-reasoning-text">{{ msg.reasoning }}</pre>
+                </div>
+              </div>
+
+              <!-- Generated Content -->
+              <div class="pg-msg-text is-assistant-text">
+                {{ msg.content }}
+                <span v-if="msg.status === 'streaming'" class="pg-cursor-blink">▋</span>
+              </div>
+
+              <!-- Telemetry Metrics Bar -->
+              <div v-if="msg.trace && msg.status === 'done'" class="pg-telemetry-bar">
+                <span class="pg-telem-item">⏱ {{ msg.trace.totalLatencyMs }}ms</span>
+                <span v-if="msg.trace.tokensPerSec" class="pg-telem-item">⚡ {{ msg.trace.tokensPerSec.toFixed(1) }} tok/s</span>
+                <span v-if="msg.trace.ttftMs" class="pg-telem-item">🚀 TTFT: {{ msg.trace.ttftMs }}ms</span>
+                <span v-if="msg.trace.usage?.completionTokens" class="pg-telem-item">🔤 {{ msg.trace.usage.completionTokens }} tokens</span>
+                <span class="pg-telem-model">{{ msg.trace.model }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Area (Docked at Bottom) -->
+        <div class="pg-input-dock">
+          <!-- Preset Chips -->
+          <div class="pg-preset-chips">
+            <button
+              v-for="preset in promptPresets"
+              :key="preset.label"
+              type="button"
+              class="pg-preset-btn"
+              :disabled="isStreaming"
+              @click="setPreset(preset.text)"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+
+          <!-- Prompt Form -->
+          <div class="pg-input-form">
             <textarea
-              id="prompt-input"
               v-model="userPrompt"
-              class="pg-prompt-textarea"
-              rows="3"
-              maxlength="400"
-              placeholder="실제 처리할 프롬프트를 입력하세요... (Ctrl+Enter로 실행)"
-              :disabled="running || liveState === 'running'"
-              @keydown.ctrl.enter="handleRun"
-              @keydown.meta.enter="handleRun"
+              class="pg-textarea-input"
+              rows="2"
+              placeholder="실시간 프롬프트를 입력하세요... (Ctrl+Enter 또는 Cmd+Enter 전송)"
+              :disabled="isStreaming"
+              @keydown.ctrl.enter="handleSend"
+              @keydown.meta.enter="handleSend"
             ></textarea>
-            <div class="pg-preset-chips">
-              <span class="pg-chip-lead">추천 질문:</span>
+            <div class="pg-form-actions">
               <button
-                v-for="preset in promptPresets"
-                :key="preset.label"
+                v-if="isStreaming"
                 type="button"
-                class="pg-chip-btn"
-                :disabled="running || liveState === 'running'"
-                @click="setPreset(preset.text)"
+                class="pg-btn-stop"
+                @click="stopExecution"
               >
-                {{ preset.label }}
+                중단 (Stop)
+              </button>
+              <button
+                v-else
+                type="button"
+                class="pg-btn-send"
+                :disabled="!userPrompt.trim()"
+                @click="handleSend"
+              >
+                전송 (Run) ↵
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Panel 3: Model & Tools Config (우측) ──────────── -->
+      <aside class="pg-panel-config">
+        <div class="pg-panel-header">
+          <span class="pg-panel-title">모델 & 툴 설정 (CONFIG)</span>
+        </div>
+
+        <div class="pg-config-scroll">
+          <!-- Model Selection -->
+          <div class="pg-config-section">
+            <label class="pg-section-label">ROUTING TARGET MODEL</label>
+            <div class="pg-model-options">
+              <div
+                v-for="m in models"
+                :key="m.id"
+                class="pg-model-card"
+                :class="{ selected: selectedModel === m.id }"
+                @click="selectedModel = m.id"
+              >
+                <div class="pg-model-name-row">
+                  <span class="pg-model-name">{{ m.name }}</span>
+                  <span class="pg-badge-chip">{{ m.badge }}</span>
+                </div>
+                <p class="pg-model-desc">{{ m.desc }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Routing Policy -->
+          <div class="pg-config-section">
+            <label class="pg-section-label">ROUTING POLICY</label>
+            <div class="pg-policy-grid">
+              <button
+                type="button"
+                class="pg-policy-btn"
+                :class="{ active: routingPolicy === 'LOWEST_LATENCY' }"
+                @click="routingPolicy = 'LOWEST_LATENCY'"
+              >
+                Lowest Latency
+              </button>
+              <button
+                type="button"
+                class="pg-policy-btn"
+                :class="{ active: routingPolicy === 'COST_OPTIMAL' }"
+                @click="routingPolicy = 'COST_OPTIMAL'"
+              >
+                Cost Optimal
+              </button>
+              <button
+                type="button"
+                class="pg-policy-btn"
+                :class="{ active: routingPolicy === 'FALLBACK_STRICT' }"
+                @click="routingPolicy = 'FALLBACK_STRICT'"
+              >
+                Strict Fallback
               </button>
             </div>
           </div>
 
-          <div v-else class="pg-request-code">
-            <span>request</span>
-            <code>{{ scenario.request }}</code>
-          </div>
-        </div>
-
-        <div v-if="scenario.live && liveState === 'done' && liveResult" class="pg-live-output">
-          <div class="pg-output-header">
-            <div class="pg-output-tag-group">
-              <span class="status-dot"></span>
-              <span class="pg-output-title">LIVE MODEL RESPONSE</span>
-              <span class="pg-output-model">{{ liveResult.model || 'govail/worker' }}</span>
+          <!-- Tools Toggle Switches -->
+          <div class="pg-config-section">
+            <label class="pg-section-label">AVAILABLE TOOLS ({{ activeToolsCount }}/{{ tools.length }})</label>
+            <div class="pg-tools-list">
+              <div v-for="tool in tools" :key="tool.id" class="pg-tool-toggle-row">
+                <div class="pg-tool-toggle-info">
+                  <div class="pg-tool-toggle-title">
+                    <span class="pg-tool-emoji">{{ tool.icon }}</span>
+                    <strong>{{ tool.label }}</strong>
+                  </div>
+                  <span class="pg-tool-toggle-desc">{{ tool.desc }}</span>
+                </div>
+                <label class="pg-switch">
+                  <input v-model="tool.enabled" type="checkbox" />
+                  <span class="pg-slider"></span>
+                </label>
+              </div>
             </div>
-            <div class="pg-output-metrics">
-              <span>⏱ {{ liveResult.latencyMs }}ms</span>
-              <span>⚡ {{ liveResult.tokensPerSec.toFixed(1) }} tok/s</span>
-              <span v-if="liveResult.usage?.completionTokens">🔤 {{ liveResult.usage.completionTokens }} tok</span>
+          </div>
+
+          <!-- Hyperparameters -->
+          <div class="pg-config-section">
+            <label class="pg-section-label">HYPERPARAMETERS</label>
+
+            <!-- Temperature -->
+            <div class="pg-param-row">
+              <div class="pg-param-head">
+                <span>Temperature</span>
+                <strong>{{ temperature.toFixed(1) }}</strong>
+              </div>
+              <input
+                v-model.number="temperature"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                class="pg-slider-range"
+              />
+            </div>
+
+            <!-- Max Tokens -->
+            <div class="pg-param-row">
+              <div class="pg-param-head">
+                <span>Max Tokens</span>
+                <strong>{{ maxTokens }}</strong>
+              </div>
+              <input
+                v-model.number="maxTokens"
+                type="range"
+                min="64"
+                max="1000"
+                step="32"
+                class="pg-slider-range"
+              />
+            </div>
+
+            <!-- Thinking CoT -->
+            <div class="pg-toggle-option">
+              <label class="pg-switch-label">
+                <input v-model="enableThinking" type="checkbox" />
+                <span>Chain of Thought (사고 과정 추론)</span>
+              </label>
             </div>
           </div>
-          <div class="pg-output-body">{{ liveResult.outputText }}</div>
-        </div>
 
-        <div class="pg-trace-head">
-          <span class="pg-panel-label">EXECUTION TRACE</span>
-          <span :class="liveStatusClass">{{ displayedOutcome }}</span>
-        </div>
-
-        <ol class="pg-trace-list">
-          <li
-            v-for="(step, index) in displayedSteps"
-            :key="`${scenario.id}-${step.name}`"
-            :class="[
-              `state-${step.state}`,
-              { reached: activeStep >= index, current: activeStep === index },
-            ]"
-          >
-            <div class="pg-step-index">{{ String(index + 1).padStart(2, '0') }}</div>
-            <div class="pg-step-copy">
-              <strong>{{ step.name }}</strong>
-              <span>{{ step.detail }}</span>
-            </div>
-            <code>{{ step.latency ?? '—' }}</code>
-            <div class="pg-step-state">{{ step.state }}</div>
-          </li>
-        </ol>
-      </div>
-
-      <aside class="pg-evidence">
-        <div class="pg-panel-label">EVIDENCE</div>
-        <dl>
-          <div v-for="item in displayedEvidence" :key="item.label">
-            <dt>{{ item.label }}</dt>
-            <dd>{{ item.value }}</dd>
+          <!-- System Prompt -->
+          <div class="pg-config-section">
+            <label class="pg-section-label">SYSTEM INSTRUCTION</label>
+            <textarea
+              v-model="systemPrompt"
+              class="pg-system-textarea"
+              rows="3"
+              placeholder="시스템 지시문을 입력하세요..."
+            ></textarea>
           </div>
-        </dl>
-
-        <div class="pg-receipt">
-          <span class="pg-panel-label">PUBLICATION BOUNDARY</span>
-          <p>{{ displayedNote }}</p>
-        </div>
-
-        <div class="pg-integrity">
-          <span>{{ scenario.live ? 'execution mode' : 'fixture integrity' }}</span>
-          <strong>{{ scenario.live ? 'LIVE · 1 CONCURRENT' : 'REPLAY' }}</strong>
         </div>
       </aside>
-    </section>
+    </div>
 
+    <!-- How this is exposed / Principles section -->
     <section class="pg-explain">
       <div>
         <p class="pg-panel-label">How this is exposed</p>
-        <h2>코드를 전부 공개하지 않아도<br>설계와 실행 품질은 증명할 수 있습니다.</h2>
+        <h2>코드를 전부 공개하지 않아도<br />설계와 실행 품질은 증명할 수 있습니다.</h2>
       </div>
       <div class="pg-principles">
         <article>
-          <h3>Execution evidence</h3>
-          <p>README 설명보다 실제 실행 단계, 상태 전이, 검증 결과를 우선해서 보여줍니다.</p>
+          <h3>Full SSE Streaming</h3>
+          <p>GoVail Gateway 및 릴레이 백엔드와 Server-Sent Events로 연결되어 토큰과 추론 과정이 실시간 타이핑됩니다.</p>
         </article>
         <article>
-          <h3>Security boundary</h3>
-          <p>credential, 내부 endpoint, 운영 로그와 원본 prompt는 공개 surface에 포함하지 않습니다.</p>
+          <h3>Tool Execution Tracing</h3>
+          <p>시스템 메트릭, 실시간 웹 검색, 파이썬 샌드박스 등의 도구 호출 파라미터와 결과 페이로드를 투명하게 노출합니다.</p>
         </article>
         <article>
-          <h3>Replaceable fixtures</h3>
-          <p>향후 private CI가 생성한 sanitized JSON bundle로 동일 UI를 그대로 갱신할 수 있습니다.</p>
+          <h3>Multi-Model Routing</h3>
+          <p>단일 LLM 종속 없이 GoVail Worker, Claude, GPT, Gemini 간 라우팅 정책을 즉시 교체 및 테스트할 수 있습니다.</p>
         </article>
       </div>
     </section>
@@ -600,17 +862,20 @@ onBeforeUnmount(stopReplay)
 
 <style scoped>
 .playground-shell {
-  width: min(1400px, calc(100% - 48px));
+  width: min(1440px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 72px 0 112px;
+  padding: 56px 0 96px;
   color: var(--ink);
 }
 
 .playground-hero {
-  padding: 28px 0 54px;
+  padding: 16px 0 36px;
 }
 
 .pg-panel-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   color: var(--slate);
   font-family: var(--vp-font-family-mono);
@@ -620,16 +885,14 @@ onBeforeUnmount(stopReplay)
   text-transform: uppercase;
 }
 
-.playground-hero .status-dot { margin-bottom: 2px; }
-
 .playground-hero h1 {
   max-width: 920px;
-  margin: 20px 0 0;
+  margin: 16px 0 0;
   color: var(--ink);
-  font-size: clamp(44px, 6vw, 76px);
-  font-weight: 700;
-  letter-spacing: -.065em;
-  line-height: 1.08;
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 750;
+  letter-spacing: -.055em;
+  line-height: 1.12;
 }
 
 .playground-hero h1 em {
@@ -638,322 +901,954 @@ onBeforeUnmount(stopReplay)
 }
 
 .pg-lead {
-  max-width: 760px;
-  margin: 25px 0 0;
+  max-width: 820px;
+  margin: 18px 0 0;
   color: var(--ink-soft);
-  font-size: 16px;
-  line-height: 1.85;
+  font-size: 15px;
+  line-height: 1.8;
   word-break: keep-all;
 }
 
-.pg-console {
+/* ── 3-Panel Studio Container ────────────────────────────── */
+.pg-studio-container {
   display: grid;
-  grid-template-columns: 220px minmax(500px, 1fr) 250px;
-  min-height: 680px;
-  overflow: hidden;
+  grid-template-columns: 240px minmax(0, 1fr) 300px;
+  height: 820px;
   border: 1px solid var(--mist-strong);
   border-radius: 6px;
   background: var(--paper-raised);
-  box-shadow: 0 18px 52px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
 }
 
-.pg-sidebar,
-.pg-evidence {
-  padding: 22px 18px;
-  background: color-mix(in srgb, var(--paper) 72%, var(--paper-raised));
-}
-
-.pg-sidebar { border-right: 1px solid var(--mist-strong); }
-.pg-evidence { border-left: 1px solid var(--mist-strong); }
-
-.pg-lab-button {
-  width: 100%;
-  margin-top: 8px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  padding: 12px 11px;
-  color: var(--ink-soft);
-  text-align: left;
-  cursor: pointer;
-}
-
-.pg-lab-button span,
-.pg-lab-button small { display: block; }
-.pg-lab-button span { font-size: 12px; font-weight: 650; }
-.pg-lab-button small { margin-top: 4px; color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; line-height: 1.5; }
-.pg-lab-button:hover { background: var(--paper-raised); }
-.pg-lab-button.active { border-color: color-mix(in srgb, var(--cobalt) 30%, var(--mist-strong)); background: var(--cobalt-soft); color: var(--cobalt); }
-
-.pg-sidebar-note {
+/* ── Panel 1: Sessions ───────────────────────────────────── */
+.pg-panel-sessions {
   display: flex;
-  gap: 10px;
-  margin-top: 32px;
-  border-top: 1px solid var(--mist-strong);
-  padding: 20px 9px 0;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--paper) 68%, var(--paper-raised));
+  border-right: 1px solid var(--mist-strong);
+  overflow: hidden;
 }
 
-.pg-sidebar-note .status-dot { flex: 0 0 auto; margin-top: 6px; }
-.pg-sidebar-note strong { color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 11px; }
-.pg-sidebar-note p { margin: 5px 0 0; color: var(--slate); font-size: 11px; line-height: 1.6; }
+.pg-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--mist-strong);
+  background: var(--paper-raised);
+}
 
-.pg-main { min-width: 0; padding: 22px 24px 28px; }
-.pg-toolbar { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
-.pg-scenario-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
-.pg-scenario-tabs button {
-  border: 1px solid var(--mist-strong);
-  border-radius: 3px;
-  background: transparent;
-  padding: 7px 9px;
+.pg-panel-title {
   color: var(--slate);
+  font-family: var(--vp-font-family-mono);
   font-size: 10px;
-  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .07em;
 }
-.pg-scenario-tabs button:hover { border-color: var(--cobalt); color: var(--cobalt); }
-.pg-scenario-tabs button.active { border-color: var(--cobalt); background: var(--cobalt-soft); color: var(--cobalt); font-weight: 650; }
 
-.pg-run {
+.pg-btn-icon {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  min-width: 132px;
-  border: 1px solid var(--cobalt);
-  border-radius: 3px;
-  background: var(--cobalt);
-  padding: 9px 11px;
-  color: #fff;
-  font-family: var(--vp-font-family-mono);
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: .05em;
-  cursor: pointer;
-}
-.pg-run:disabled { opacity: .72; cursor: default; }
-
-.pg-request-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, .7fr);
-  gap: 28px;
-  margin-top: 34px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   border: 1px solid var(--mist-strong);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--paper) 56%, transparent);
-  padding: 20px;
-}
-.pg-request-card.is-live-card {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.pg-request-card h2 { margin: 7px 0 0; border: 0; padding: 0; color: var(--ink); font-size: 22px; letter-spacing: -.035em; }
-.pg-request-card p { margin: 8px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
-.pg-request-code { align-self: stretch; border-left: 2px solid var(--cobalt); background: var(--terminal); padding: 13px 14px; }
-.pg-request-code span { display: block; color: #7f8da4; font-family: var(--vp-font-family-mono); font-size: 9px; text-transform: uppercase; }
-.pg-request-code code { display: block; margin-top: 8px; color: #e7eefb; font-family: var(--vp-font-family-mono); font-size: 10px; line-height: 1.65; white-space: normal; }
-
-.pg-prompt-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-.pg-prompt-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.pg-prompt-label {
+  background: var(--paper-raised);
   color: var(--cobalt);
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-}
-.pg-char-count {
-  color: var(--slate);
-  font-family: var(--vp-font-family-mono);
-  font-size: 10px;
-}
-.pg-prompt-textarea {
-  width: 100%;
-  min-height: 84px;
-  padding: 12px 14px;
-  border: 1px solid var(--mist-strong);
-  border-radius: 4px;
-  background: var(--paper-raised);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  box-sizing: border-box;
-}
-.pg-prompt-textarea:focus {
-  outline: none;
-  border-color: var(--cobalt);
-  box-shadow: 0 0 0 2px var(--cobalt-soft);
-}
-.pg-prompt-textarea:disabled {
-  opacity: 0.65;
-  background: color-mix(in srgb, var(--paper) 80%, var(--mist-strong));
-  cursor: not-allowed;
-}
-.pg-preset-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.pg-chip-lead {
-  color: var(--slate);
-  font-size: 11px;
-  font-family: var(--vp-font-family-mono);
-}
-.pg-chip-btn {
-  border: 1px solid var(--mist-strong);
-  border-radius: 12px;
-  background: var(--paper-raised);
-  padding: 4px 11px;
-  color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 150ms ease;
 }
-.pg-chip-btn:hover:not(:disabled) {
+
+.pg-btn-icon:hover {
   border-color: var(--cobalt);
-  color: var(--cobalt);
   background: var(--cobalt-soft);
 }
-.pg-chip-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+
+.pg-sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.pg-live-output {
-  margin-top: 20px;
-  border-left: 3px solid var(--cobalt);
-  background: var(--terminal);
-  border-radius: 4px;
-  padding: 16px 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+.pg-session-item {
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
 }
-.pg-output-header {
+
+.pg-session-item:hover {
+  background: var(--paper-raised);
+  border-color: var(--mist-strong);
+}
+
+.pg-session-item.active {
+  background: var(--paper-raised);
+  border-color: var(--cobalt);
+  box-shadow: 0 2px 8px rgba(47, 91, 234, 0.08);
+}
+
+.pg-session-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 8px;
 }
-.pg-output-tag-group {
+
+.pg-session-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pg-session-del {
+  border: none;
+  background: transparent;
+  color: var(--slate);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.4;
+  transition: opacity 150ms ease;
+}
+
+.pg-session-del:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.pg-session-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  color: var(--slate);
+}
+
+.pg-meta-badge {
+  background: var(--cobalt-soft);
+  color: var(--cobalt);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.pg-sessions-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--mist-strong);
+  background: var(--paper-raised);
+}
+
+.pg-btn-clear {
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed var(--mist-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--slate);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.pg-btn-clear:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ── Panel 2: Inference & Tool Execution ─────────────────── */
+.pg-panel-inference {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper-raised);
+  overflow: hidden;
+}
+
+.pg-inference-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--mist-strong);
+  background: color-mix(in srgb, var(--paper) 40%, var(--paper-raised));
+}
+
+.pg-status-indicator {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.pg-output-title {
-  color: #fff;
+
+.pg-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.pg-pulse-dot.is-active {
+  background: var(--cobalt);
+  box-shadow: 0 0 0 3px var(--cobalt-soft);
+  animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.pg-status-label {
   font-family: var(--vp-font-family-mono);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .06em;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
-.pg-output-model {
-  background: rgba(47, 91, 234, 0.3);
-  color: #a5b4fc;
-  border: 1px solid rgba(47, 91, 234, 0.5);
+
+.pg-topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pg-tag-model {
+  background: var(--terminal);
+  color: #93c5fd;
   border-radius: 3px;
   padding: 2px 7px;
   font-family: var(--vp-font-family-mono);
   font-size: 10px;
 }
-.pg-output-metrics {
+
+.pg-tag-tools {
+  background: var(--cobalt-soft);
+  color: var(--cobalt);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Messages Viewport */
+.pg-messages-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pg-empty-state {
+  margin: auto;
+  text-align: center;
+  max-width: 440px;
+  padding: 40px 20px;
+}
+
+.pg-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.pg-empty-state h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.pg-empty-state p {
+  margin: 8px 0 0;
+  color: var(--slate);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pg-message-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.pg-msg-bubble {
+  border-radius: 6px;
+  padding: 14px 18px;
+}
+
+.pg-msg-bubble.is-user {
+  align-self: flex-end;
+  max-width: 82%;
+  background: color-mix(in srgb, var(--paper) 70%, var(--mist-strong));
+  border: 1px solid var(--mist-strong);
+}
+
+.pg-msg-bubble.is-assistant {
+  align-self: stretch;
+  background: var(--paper-raised);
+  border: 1px solid var(--mist-strong);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+}
+
+.pg-msg-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #94a3b8;
+  gap: 10px;
+  margin-bottom: 10px;
   font-family: var(--vp-font-family-mono);
-  font-size: 11px;
+  font-size: 10px;
 }
-.pg-output-body {
-  margin-top: 14px;
-  color: #f1f5f9;
-  font-size: 13px;
-  line-height: 1.75;
+
+.pg-badge-role {
+  color: var(--slate);
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+.pg-badge-role.is-govail {
+  color: var(--cobalt);
+}
+
+.pg-trace-routing {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.pg-msg-time {
+  margin-left: auto;
+  color: var(--slate);
+}
+
+.pg-msg-text {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.pg-trace-head { display: flex; justify-content: space-between; gap: 20px; margin: 34px 0 10px; }
-.pg-trace-head > span:last-child { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
-.pg-trace-head > span.live-ok,
-.pg-trace-head > span.live-warn,
-.pg-trace-head > span.live-bad { color: var(--ink); font-weight: 650; }
-.pg-trace-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--mist-strong); }
-.pg-trace-list li {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 96px 64px;
-  gap: 12px;
-  align-items: center;
-  min-height: 66px;
-  border-bottom: 1px solid var(--mist-strong);
-  padding: 8px 8px 8px 0;
-  opacity: .42;
-  transition: opacity 180ms ease, background 180ms ease, transform 180ms ease;
+.pg-cursor-blink {
+  display: inline-block;
+  color: var(--cobalt);
+  font-weight: 700;
+  animation: blink 1s step-end infinite;
 }
-.pg-trace-list li.reached { opacity: 1; }
-.pg-trace-list li.current { background: color-mix(in srgb, var(--cobalt-soft) 55%, transparent); transform: translateX(4px); }
-.pg-step-index { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
-.pg-step-copy strong { display: block; color: var(--ink); font-size: 12px; }
-.pg-step-copy span { display: block; margin-top: 3px; color: var(--slate); font-size: 10px; }
-.pg-trace-list code { color: var(--ink-soft); font-family: var(--vp-font-family-mono); font-size: 10px; text-align: right; }
-.pg-step-state { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
-.state-blocked .pg-step-state,
-.state-fail .pg-step-state { color: var(--ink); }
 
-.pg-evidence dl { margin: 14px 0 0; }
-.pg-evidence dl > div { border-top: 1px solid var(--mist-strong); padding: 13px 0; }
-.pg-evidence dt { color: var(--slate); font-family: var(--vp-font-family-mono); font-size: 10px; }
-.pg-evidence dd { margin: 5px 0 0; color: var(--ink); font-family: var(--vp-font-family-mono); font-size: 11px; font-weight: 600; word-break: break-word; }
-.pg-receipt { margin-top: 24px; border-top: 1px solid var(--mist-strong); padding-top: 18px; }
-.pg-receipt p { margin: 9px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
-.pg-integrity { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border: 1px solid var(--mist-strong); border-radius: 3px; background: var(--cobalt-soft); padding: 9px; font-family: var(--vp-font-family-mono); font-size: 9px; }
-.pg-integrity span { color: var(--slate); }
-.pg-integrity strong { color: var(--cobalt); }
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
 
-.pg-explain { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 72px; padding-top: 96px; }
-.pg-explain h2 { margin: 11px 0 0; color: var(--ink); font-size: clamp(28px, 3vw, 38px); letter-spacing: -.045em; line-height: 1.35; }
-.pg-principles { border-top: 1px solid var(--mist-strong); }
-.pg-principles article { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; border-bottom: 1px solid var(--mist-strong); padding: 20px 0; }
-.pg-principles h3 { margin: 0; color: var(--ink); font-size: 13px; }
-.pg-principles p { margin: 0; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
+/* Tool execution blocks */
+.pg-tools-block {
+  margin: 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
+.pg-tool-card {
+  border: 1px solid var(--mist-strong);
+  border-left: 3px solid #10b981;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--paper) 80%, var(--paper-raised));
+  overflow: hidden;
+}
+
+.pg-tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pg-tool-name-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-tool-icon { font-size: 13px; }
+
+.pg-tool-name {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.pg-tool-status {
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.pg-tool-status.status-done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.pg-tool-status.status-calling {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.pg-tool-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  color: var(--slate);
+}
+
+.pg-expand-icon {
+  font-size: 10px;
+  color: var(--cobalt);
+}
+
+.pg-tool-body {
+  padding: 10px 14px;
+  border-top: 1px solid var(--mist-strong);
+  background: var(--terminal);
+}
+
+.pg-tool-subhead {
+  color: #94a3b8;
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  margin-bottom: 4px;
+}
+
+.pg-code-pre {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #e2e8f0;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* Reasoning block */
+.pg-reasoning-block {
+  margin: 10px 0 14px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.pg-reasoning-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 650;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.pg-reasoning-body {
+  padding: 8px 12px 12px;
+  border-top: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.pg-reasoning-text {
+  margin: 0;
+  color: var(--ink-soft);
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Telemetry Bar */
+.pg-telemetry-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--mist-strong);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  color: var(--slate);
+}
+
+.pg-telem-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pg-telem-model {
+  margin-left: auto;
+  color: var(--cobalt);
+  font-weight: 600;
+}
+
+/* Input Dock */
+.pg-input-dock {
+  padding: 14px 20px;
+  border-top: 1px solid var(--mist-strong);
+  background: color-mix(in srgb, var(--paper) 45%, var(--paper-raised));
+}
+
+.pg-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pg-preset-btn {
+  padding: 4px 9px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 12px;
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.pg-preset-btn:hover:not(:disabled) {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+  background: var(--cobalt-soft);
+}
+
+.pg-input-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.pg-textarea-input {
+  flex: 1;
+  min-height: 52px;
+  max-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 5px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.pg-textarea-input:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 2px var(--cobalt-soft);
+}
+
+.pg-form-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pg-btn-send {
+  padding: 11px 18px;
+  border: 1px solid var(--cobalt);
+  border-radius: 5px;
+  background: var(--cobalt);
+  color: #fff;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 150ms ease;
+}
+
+.pg-btn-send:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.pg-btn-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pg-btn-stop {
+  padding: 11px 18px;
+  border: 1px solid #ef4444;
+  border-radius: 5px;
+  background: #ef4444;
+  color: #fff;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── Panel 3: Model & Tools Config ───────────────────────── */
+.pg-panel-config {
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--paper) 68%, var(--paper-raised));
+  border-left: 1px solid var(--mist-strong);
+  overflow: hidden;
+}
+
+.pg-config-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pg-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pg-section-label {
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Model cards */
+.pg-model-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pg-model-card {
+  padding: 9px 11px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 5px;
+  background: var(--paper-raised);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.pg-model-card:hover {
+  border-color: var(--cobalt);
+}
+
+.pg-model-card.selected {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+  box-shadow: 0 0 0 1px var(--cobalt);
+}
+
+.pg-model-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pg-model-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pg-badge-chip {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pg-model-card.selected .pg-badge-chip {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.pg-model-desc {
+  margin: 4px 0 0;
+  color: var(--slate);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* Policy grid */
+.pg-policy-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.pg-policy-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 150ms ease;
+}
+
+.pg-policy-btn.active {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+  color: var(--cobalt);
+}
+
+/* Tools toggle list */
+.pg-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pg-tool-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 5px;
+  background: var(--paper-raised);
+}
+
+.pg-tool-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pg-tool-toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.pg-tool-toggle-desc {
+  font-size: 9.5px;
+  color: var(--slate);
+  line-height: 1.35;
+}
+
+/* Switches */
+.pg-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.pg-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pg-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--mist-strong);
+  transition: .2s;
+  border-radius: 18px;
+}
+
+.pg-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+
+input:checked + .pg-slider {
+  background-color: var(--cobalt);
+}
+
+input:checked + .pg-slider:before {
+  transform: translateX(14px);
+}
+
+/* Param rows */
+.pg-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.pg-param-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.pg-param-head strong {
+  font-family: var(--vp-font-family-mono);
+  color: var(--cobalt);
+}
+
+.pg-slider-range {
+  width: 100%;
+  accent-color: var(--cobalt);
+}
+
+.pg-toggle-option {
+  margin-top: 6px;
+}
+
+.pg-switch-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.pg-system-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.pg-system-textarea:focus {
+  outline: none;
+  border-color: var(--cobalt);
+}
+
+/* ── Principles / Explanation ────────────────────────────── */
+.pg-explain {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+  gap: 72px;
+  padding-top: 80px;
+}
+
+.pg-explain h2 {
+  margin: 11px 0 0;
+  color: var(--ink);
+  font-size: clamp(26px, 3vw, 36px);
+  letter-spacing: -.045em;
+  line-height: 1.35;
+}
+
+.pg-principles {
+  border-top: 1px solid var(--mist-strong);
+}
+
+.pg-principles article {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 18px;
+  border-bottom: 1px solid var(--mist-strong);
+  padding: 20px 0;
+}
+
+.pg-principles h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pg-principles p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .pg-console { grid-template-columns: 190px minmax(0, 1fr); }
-  .pg-evidence { grid-column: 1 / -1; border-top: 1px solid var(--mist-strong); border-left: 0; }
-  .pg-evidence dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 18px; }
-  .pg-receipt { max-width: 620px; }
+  .pg-studio-container {
+    grid-template-columns: 200px minmax(0, 1fr);
+    height: 760px;
+  }
+  .pg-panel-config {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
-  .playground-shell { width: min(100% - 28px, 1400px); padding-top: 42px; }
-  .playground-hero h1 { font-size: clamp(39px, 12vw, 58px); }
-  .pg-console { display: block; }
-  .pg-sidebar { border-right: 0; border-bottom: 1px solid var(--mist-strong); }
-  .pg-lab-button { display: inline-block; width: auto; margin-right: 5px; }
-  .pg-sidebar-note { display: none; }
-  .pg-toolbar { display: block; }
-  .pg-run { margin-top: 18px; }
-  .pg-request-card { grid-template-columns: 1fr; }
-  .pg-request-code { border-left: 0; border-top: 2px solid var(--cobalt); }
-  .pg-trace-list li { grid-template-columns: 30px minmax(0, 1fr) 64px; }
-  .pg-step-state { display: none; }
-  .pg-evidence dl { grid-template-columns: repeat(2, 1fr); }
-  .pg-explain { grid-template-columns: 1fr; gap: 34px; padding-top: 72px; }
-  .pg-principles article { grid-template-columns: minmax(0, 1fr); }
+  .playground-shell {
+    width: min(100% - 24px, 1440px);
+    padding-top: 36px;
+  }
+  .pg-studio-container {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  .pg-panel-sessions {
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--mist-strong);
+  }
+  .pg-messages-viewport {
+    min-height: 380px;
+    max-height: 480px;
+  }
+  .pg-explain {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-top: 56px;
+  }
+  .pg-principles article {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

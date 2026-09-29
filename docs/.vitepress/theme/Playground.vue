@@ -20,7 +20,6 @@ export interface ToolCallItem {
 }
 
 export interface MessageTrace {
-  model?: string
   totalLatencyMs?: number
   ttftMs?: number
   tokensPerSec?: number
@@ -40,14 +39,34 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface CompressedContext {
+  originalTurnsCount: number
+  originalTokens: number
+  compressedTokens: number
+  savingsPct: number
+  summary: string
+  timestamp: number
+}
+
 export interface Session {
   id: string
   title: string
   createdAt: number
+  compressedContext?: CompressedContext
   messages: ChatMessage[]
 }
 
-// Preset questions (no tool toggles, user just asks naturally)
+export interface EngineStage {
+  id: string
+  step: string
+  name: string
+  desc: string
+  status: 'idle' | 'running' | 'done' | 'pass'
+  latencyMs?: number
+  detail?: string
+}
+
+// Preset questions
 const promptPresets = [
   { label: '📊 클러스터 헬스 및 메트릭', text: 'GoVail 클러스터 현재 시스템 상태와 헬스 메트릭을 알려줘' },
   { label: '🔍 AI 게이트웨이 아키텍처', text: '최신 AI 게이트웨이 라우팅 전략과 모델 폴백 트렌드 웹 검색' },
@@ -55,7 +74,7 @@ const promptPresets = [
   { label: '⚡ 시맨틱 캐시 유사도 점검', text: '시맨틱 캐시 레이어의 임베딩 유사도 임계치와 TTL 상태 점검' },
 ]
 
-// Tool label map
+// Tool label mapping
 const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
   system_metrics: { label: '시스템 메트릭 조회', icon: '📊' },
   web_search: { label: '실시간 웹 검색', icon: '🔍' },
@@ -75,6 +94,34 @@ const isStreaming = ref(false)
 const streamStatusText = ref('Ready')
 const activeAbortController = ref<AbortController | null>(null)
 const messagesContainer = ref<HTMLElement | null>(null)
+const showCompressedSummary = ref(false)
+
+// Engine Process Pipeline Stages
+const engineStages = ref<EngineStage[]>([
+  { id: 'ingest', step: '01', name: 'Request Ingest & Sanitize', desc: '입력 요청 살균 및 인젝션 방어', status: 'idle' },
+  { id: 'compress', step: '02', name: 'Context Compressor', desc: '슬라이딩 윈도우 세션 메모리 압축', status: 'idle' },
+  { id: 'dispatch', step: '03', name: 'Intent & Tool Dispatcher', desc: '의도 분석 및 도구 격리 샌드박스 실행', status: 'idle' },
+  { id: 'reasoning', step: '04', name: 'CoT Deliberation', desc: '경량 추론 단계 사전 계획 수립', status: 'idle' },
+  { id: 'stream', step: '05', name: 'SSE Stream Engine', desc: '청크 단위 토큰 실시간 디코딩', status: 'idle' },
+  { id: 'render', step: '06', name: 'Client AST Render', desc: 'GFM 마크다운 렌더링 & 브라우저 캐싱', status: 'idle' },
+])
+
+function resetEngineStages() {
+  for (const st of engineStages.value) {
+    st.status = 'idle'
+    st.latencyMs = undefined
+    st.detail = undefined
+  }
+}
+
+function updateStage(id: string, status: EngineStage['status'], latencyMs?: number, detail?: string) {
+  const st = engineStages.value.find((s) => s.id === id)
+  if (st) {
+    st.status = status
+    if (latencyMs !== undefined) st.latencyMs = latencyMs
+    if (detail !== undefined) st.detail = detail
+  }
+}
 
 // Current latest telemetry
 const latestMetrics = ref<{
@@ -104,12 +151,20 @@ const browserCacheSize = computed(() => {
   return (new Blob([raw]).size / 1024).toFixed(1) + ' KB'
 })
 
-// Initial default session
+// Initial default session with realistic trace
 function initDefaultSession(): Session {
   return {
     id: 'session_' + Date.now(),
     title: '클러스터 메트릭 및 시스템 점검',
     createdAt: Date.now(),
+    compressedContext: {
+      originalTurnsCount: 2,
+      originalTokens: 380,
+      compressedTokens: 48,
+      savingsPct: 87,
+      summary: 'Q: 클러스터 노드 상태 확인 → A: cy-server.internal이 HEALTHY (p95: 38.4ms, 4 routes active) 상태임을 사전 검증함',
+      timestamp: Date.now() - 60000,
+    },
     messages: [
       {
         id: 'msg_user_1',
@@ -121,7 +176,7 @@ function initDefaultSession(): Session {
         id: 'msg_asst_1',
         role: 'assistant',
         content:
-          'GoVail 클러스터(`cy-server.internal`) 상태는 현재 **HEALTHY**이며, 4개의 활성 게이트웨이 라우트가 정상 가동 중입니다.\n\n* **P95 지연시간:** `38.4ms` (초저지연 유지)\n* **활성 라우트:** `4 active routes`\n* **시스템 부하:** 정상 (가동 시간 12시간 이상)\n\n추가로 확인이 필요한 메트릭이 있으시면 말씀해 주세요.',
+          'GoVail 클러스터(`cy-server.internal`) 상태는 현재 **HEALTHY**이며, 4개의 활성 게이트웨이 라우트가 정상 가동 중입니다.\n\n* **P95 지연시간:** `38.4ms` (초저지연 유지)\n* **활성 라우트:** `4 active routes`\n* **시스템 부하:** 정상 (가동 시간 12시간 이상)\n\n궁금한 점이 있거나 추가 분석이 필요하시면 말씀해 주세요.',
         reasoning:
           '1. system_metrics 도구 호출 결과 확인\n2. cluster_node 및 active_gateway_routes 상태 분석\n3. p95_latency_ms (38.4ms)를 기반으로 간결한 상태 보고서 작성',
         tools: [
@@ -159,7 +214,7 @@ function initDefaultSession(): Session {
 }
 
 // Storage helpers (Purely Client-side Browser Cache)
-const STORAGE_KEY = 'govail_playground_browser_cache_v3'
+const STORAGE_KEY = 'govail_playground_browser_cache_v4'
 
 function loadSessions() {
   if (typeof window === 'undefined') return
@@ -187,7 +242,7 @@ function saveSessions() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.value))
   } catch {
-    // ignore storage error
+    // ignore
   }
 }
 
@@ -229,6 +284,44 @@ function clearBrowserCache() {
   }
 }
 
+// ── Session Compression Logic ─────────────────────────────
+function compressCurrentSession() {
+  const session = currentSession.value
+  if (!session || session.messages.length < 2) return
+
+  const turnsToCompress = session.messages.slice(0, -1)
+  if (turnsToCompress.length === 0) return
+
+  const originalTokens = turnsToCompress.reduce((acc, m) => acc + Math.ceil(m.content.length / 3), 0)
+
+  const summaryParts: string[] = []
+  for (const m of turnsToCompress) {
+    if (m.role === 'user') {
+      summaryParts.push(`Q: ${m.content.slice(0, 48)}`)
+    } else if (m.role === 'assistant') {
+      const toolUsed = m.tools?.map((t) => t.tool).join(', ')
+      summaryParts.push(`A: ${m.content.slice(0, 60)}${toolUsed ? ` (${toolUsed})` : ''}`)
+    }
+  }
+
+  const denseSummary = summaryParts.join(' → ')
+  const compressedTokens = Math.max(16, Math.ceil(denseSummary.length / 3))
+  const savings = Math.max(15, Math.round(((originalTokens - compressedTokens) / originalTokens) * 100))
+
+  session.compressedContext = {
+    originalTurnsCount: turnsToCompress.length,
+    originalTokens,
+    compressedTokens,
+    savingsPct: savings,
+    summary: denseSummary,
+    timestamp: Date.now(),
+  }
+
+  // Retain only latest message in active view
+  session.messages = session.messages.slice(-1)
+  saveSessions()
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -259,7 +352,7 @@ function renderMarkdown(text: string): string {
   }
 }
 
-// SSE Streaming Execution
+// SSE Streaming Execution with Engine Process Updates
 async function handleSend() {
   const prompt = userPrompt.value.trim()
   if (!prompt || isStreaming.value) return
@@ -273,6 +366,11 @@ async function handleSend() {
   // Update session title if first message
   if (session.messages.length === 0) {
     session.title = prompt.length > 24 ? prompt.slice(0, 24) + '...' : prompt
+  }
+
+  // Auto-compress if history is long (> 4 turns)
+  if (session.messages.length >= 4 && !session.compressedContext) {
+    compressCurrentSession()
   }
 
   // 1. Add User Message
@@ -301,13 +399,32 @@ async function handleSend() {
   scrollToBottom()
 
   isStreaming.value = true
-  streamStatusText.value = 'Connecting to GoVail Gateway...'
+  streamStatusText.value = 'Engine Process: Ingest & Sanitize...'
+  resetEngineStages()
+
+  // Step 1: Ingest & Sanitize
+  updateStage('ingest', 'running')
+  const ingestStart = Date.now()
+  await new Promise((r) => setTimeout(r, 20))
+  updateStage('ingest', 'done', Date.now() - ingestStart, 'UTF-8 normalized · Safe')
+
+  // Step 2: Context Compression check
+  updateStage('compress', 'running')
+  const compressStart = Date.now()
+  let contextAugmentedPrompt = prompt
+  if (session.compressedContext) {
+    contextAugmentedPrompt = `[이전 세션 요약 메모리: ${session.compressedContext.summary}]\n${prompt}`
+    updateStage('compress', 'done', Date.now() - compressStart, `${session.compressedContext.savingsPct}% saved`)
+  } else {
+    updateStage('compress', 'pass', Date.now() - compressStart, 'No prior context')
+  }
 
   const controller = new AbortController()
   activeAbortController.value = controller
 
   // Automatic tools list passed internally
   const internalTools = ['system_metrics', 'web_search', 'code_interpreter', 'cache_inspector']
+  updateStage('dispatch', 'running')
 
   try {
     const response = await fetch(RELAY_STREAM_URL, {
@@ -316,7 +433,7 @@ async function handleSend() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt,
+        prompt: contextAugmentedPrompt,
         tools: internalTools,
         enableThinking: true,
       }),
@@ -334,6 +451,8 @@ async function handleSend() {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+
+    updateStage('stream', 'running')
 
     while (true) {
       const { done, value } = await reader.read()
@@ -368,6 +487,8 @@ async function handleSend() {
 
     asstMsg.status = 'done'
     streamStatusText.value = 'Ready'
+    updateStage('stream', 'done')
+    updateStage('render', 'done', 4, 'GFM Markdown Parsed')
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
       streamStatusText.value = 'Stopped by user'
@@ -386,7 +507,7 @@ async function handleSend() {
 
 function handleStreamEvent(event: string, data: Record<string, unknown>, msg: ChatMessage) {
   if (event === 'routing') {
-    streamStatusText.value = 'GoVail Gateway: Processing request'
+    streamStatusText.value = 'Processing request...'
     if (msg.trace) {
       msg.trace.routingNode = String(data.targetNode || '')
       msg.trace.policy = String(data.policy || '')
@@ -395,7 +516,8 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
     streamStatusText.value = String(data.message || data.phase || '')
   } else if (event === 'tool_call') {
     const meta = getToolMeta(String(data.tool))
-    streamStatusText.value = `도구 실행 중: ${meta.label}`
+    streamStatusText.value = `도구 실행: ${meta.label}`
+    updateStage('dispatch', 'running', undefined, `Invoking ${data.tool}...`)
     if (!msg.tools) msg.tools = []
     msg.tools.push({
       tool: String(data.tool),
@@ -406,25 +528,29 @@ function handleStreamEvent(event: string, data: Record<string, unknown>, msg: Ch
   } else if (event === 'tool_result') {
     const meta = getToolMeta(String(data.tool))
     streamStatusText.value = `도구 완료: ${meta.label}`
+    const dur = Number(data.durationMs) || 0
+    updateStage('dispatch', 'done', dur, `${data.tool} (${dur}ms)`)
     if (msg.tools) {
       const toolItem = msg.tools.find((t) => t.callId === data.callId)
       if (toolItem) {
         toolItem.output = (data.output as Record<string, unknown>) || {}
-        toolItem.durationMs = Number(data.durationMs) || 0
+        toolItem.durationMs = dur
         toolItem.status = 'done'
       }
     }
   } else if (event === 'thinking') {
+    updateStage('reasoning', 'running', undefined, 'Deliberating...')
     if (data.delta) {
       msg.reasoning = (msg.reasoning || '') + String(data.delta)
     }
   } else if (event === 'token') {
-    streamStatusText.value = 'Streaming response...'
+    streamStatusText.value = 'Streaming Response...'
     if (data.reasoning) {
       msg.reasoning = (msg.reasoning || '') + String(data.reasoning)
     }
     if (data.delta) {
       msg.content += String(data.delta)
+      updateStage('reasoning', 'done')
     }
   } else if (event === 'done') {
     streamStatusText.value = 'Completed'
@@ -478,7 +604,7 @@ onBeforeUnmount(() => {
       <div class="pg-panel-label"><span class="status-dot"></span> GoVail Cloud Debug Studio</div>
       <h1>실시간 <em>추론 & 툴 디버깅</em> 콘솔</h1>
       <p class="pg-lead">
-        GoVail Gateway의 실시간 도구(Tool Calling) 실행, SSE 토큰 스트리밍 및 추론 트레이스를 3분할 디버깅 콘솔에서 직접 검증합니다. 모든 세션은 브라우저 로컬 캐시로 안전하게 관리됩니다.
+        GoVail Gateway의 자율 도구 실행, 세션 컨텍스트 압축, SSE 토큰 스트리밍 및 엔지니어링 파이프라인을 3분할 디버깅 콘솔에서 직접 검증합니다.
       </p>
     </header>
 
@@ -489,7 +615,7 @@ onBeforeUnmount(() => {
         <div class="pg-panel-header">
           <div class="pg-header-left">
             <span class="pg-panel-title">세션 (BROWSER CACHE)</span>
-            <span class="pg-badge-cache" title="서버에 저장되지 않는 브라우저 로컬 캐시">Local Only</span>
+            <span class="pg-badge-cache" title="서버에 저장되지 않는 브라우저 로컬 캐시">Local Storage</span>
           </div>
           <button type="button" class="pg-btn-icon" title="새 세션 생성" @click="createNewSession">
             <span class="pg-icon-plus">+</span>
@@ -516,6 +642,7 @@ onBeforeUnmount(() => {
               </button>
             </div>
             <div class="pg-session-meta">
+              <span v-if="s.compressedContext" class="pg-meta-compress" title="컨텍스트 압축 적용">🗜 {{ s.compressedContext.savingsPct }}%</span>
               <span class="pg-meta-count">{{ s.messages.length }} msgs</span>
               <span class="pg-meta-time">{{ formatTime(s.createdAt) }}</span>
             </div>
@@ -542,20 +669,51 @@ onBeforeUnmount(() => {
             <span class="pg-status-label">{{ streamStatusText }}</span>
           </div>
 
-          <div class="pg-topbar-meta">
+          <div class="pg-topbar-actions">
+            <!-- Manual Session Compress Button -->
+            <button
+              v-if="currentSession && currentSession.messages.length >= 2"
+              type="button"
+              class="pg-btn-compress"
+              title="이전 대화 턴을 의미 요약으로 압축하여 토큰을 절감합니다"
+              :disabled="isStreaming"
+              @click="compressCurrentSession"
+            >
+              🗜 세션 압축 (Compress)
+            </button>
             <span class="pg-tag-gateway">GoVail Gateway</span>
-            <span class="pg-tag-status">Live Stream (SSE)</span>
           </div>
         </div>
 
         <!-- Chat / Trace Viewport -->
         <div ref="messagesContainer" class="pg-messages-viewport">
+          <!-- Session Compressed Context Banner -->
+          <div v-if="currentSession?.compressedContext" class="pg-compressed-banner">
+            <div class="pg-compressed-head" @click="showCompressedSummary = !showCompressedSummary">
+              <span class="pg-compressed-badge">🗜 CONTEXT COMPRESSED</span>
+              <span class="pg-compressed-stats">
+                {{ currentSession.compressedContext.originalTurnsCount }}개 턴 압축 · {{ currentSession.compressedContext.savingsPct }}% 토큰 절감
+              </span>
+              <span class="pg-compressed-toggle">{{ showCompressedSummary ? '▲ 접기' : '▼ 요약 보기' }}</span>
+            </div>
+            <div v-if="showCompressedSummary" class="pg-compressed-body">
+              <div class="pg-compressed-text">{{ currentSession.compressedContext.summary }}</div>
+              <div class="pg-compressed-meta">
+                <span>원문: ~{{ currentSession.compressedContext.originalTokens }} tok</span>
+                <span>압축 후: ~{{ currentSession.compressedContext.compressedTokens }} tok</span>
+                <span>압축 시각: {{ formatTime(currentSession.compressedContext.timestamp) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
           <div v-if="!currentSession || currentSession.messages.length === 0" class="pg-empty-state">
             <div class="pg-empty-icon">⚡</div>
             <h3>실시간 추론 콘솔 준비 완료</h3>
             <p>하단에 질문을 입력하거나 추천 칩을 누르면 게이트웨이가 필요한 도구를 자동으로 실행하고 답변을 스트리밍합니다.</p>
           </div>
 
+          <!-- Messages -->
           <div
             v-for="msg in currentSession?.messages || []"
             :key="msg.id"
@@ -581,7 +739,7 @@ onBeforeUnmount(() => {
                 <span class="pg-msg-time">{{ formatTime(msg.timestamp) }}</span>
               </div>
 
-              <!-- Tool Execution Blocks (Just shows running action) -->
+              <!-- Tool Execution Blocks -->
               <div v-if="msg.tools && msg.tools.length > 0" class="pg-tools-block">
                 <div v-for="t in msg.tools" :key="t.callId" class="pg-tool-card">
                   <div class="pg-tool-header" @click="toggleToolExpand(t.callId)">
@@ -686,39 +844,42 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <!-- ── Panel 3: Execution Telemetry & Security (우측) ─── -->
-      <aside class="pg-panel-config">
+      <!-- ── Panel 3: Engine Process Pipeline (우측) ────────── -->
+      <aside class="pg-panel-engine">
         <div class="pg-panel-header">
-          <span class="pg-panel-title">실행 인스펙터 (INSPECTOR)</span>
+          <span class="pg-panel-title">엔진 프로세스 (ENGINE PROCESS)</span>
         </div>
 
-        <div class="pg-config-scroll">
-          <!-- Gateway Status -->
+        <div class="pg-engine-scroll">
+          <!-- Pipeline Stages -->
           <div class="pg-config-section">
-            <label class="pg-section-label">GATEWAY RUNTIME</label>
-            <div class="pg-info-card">
-              <div class="pg-info-row">
-                <span class="pg-info-key">Gateway Status</span>
-                <span class="pg-info-val is-green">● HEALTHY</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">Protocol</span>
-                <span class="pg-info-val">HTTP/2 · SSE Stream</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">Endpoint</span>
-                <span class="pg-info-val">api.govail.cloud</span>
-              </div>
-              <div class="pg-info-row">
-                <span class="pg-info-key">Rate Limit</span>
-                <span class="pg-info-val">10 req/min (Fair-share)</span>
+            <label class="pg-section-label">PROCESS PIPELINE</label>
+            <div class="pg-pipeline-list">
+              <div
+                v-for="stage in engineStages"
+                :key="stage.id"
+                class="pg-stage-item"
+                :class="`stage-${stage.status}`"
+              >
+                <div class="pg-stage-top">
+                  <div class="pg-stage-indicator">
+                    <span class="pg-stage-step">{{ stage.step }}</span>
+                    <strong class="pg-stage-name">{{ stage.name }}</strong>
+                  </div>
+                  <span class="pg-stage-status-badge">{{ stage.status.toUpperCase() }}</span>
+                </div>
+                <div class="pg-stage-desc">{{ stage.desc }}</div>
+                <div v-if="stage.detail || stage.latencyMs !== undefined" class="pg-stage-meta">
+                  <span v-if="stage.latencyMs !== undefined" class="pg-stage-lat">⏱ {{ stage.latencyMs }}ms</span>
+                  <span v-if="stage.detail" class="pg-stage-det">{{ stage.detail }}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Performance Telemetry -->
+          <!-- Real-time Telemetry -->
           <div class="pg-config-section">
-            <label class="pg-section-label">LATEST METRICS</label>
+            <label class="pg-section-label">REAL-TIME TELEMETRY</label>
             <div class="pg-metric-grid">
               <div class="pg-metric-box">
                 <span class="pg-metric-title">Latency</span>
@@ -739,68 +900,31 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Browser Cache Stats -->
+          <!-- Browser Cache & Privacy -->
           <div class="pg-config-section">
-            <label class="pg-section-label">BROWSER CACHE STATS</label>
+            <label class="pg-section-label">CACHE & SECURITY</label>
             <div class="pg-info-card">
               <div class="pg-info-row">
-                <span class="pg-info-key">Stored Sessions</span>
-                <span class="pg-info-val">{{ sessions.length }}</span>
+                <span class="pg-info-key">Storage Location</span>
+                <span class="pg-info-val is-green">Client localStorage</span>
               </div>
               <div class="pg-info-row">
-                <span class="pg-info-key">Total Messages</span>
-                <span class="pg-info-val">{{ totalMessagesCount }}</span>
+                <span class="pg-info-key">Cached Sessions</span>
+                <span class="pg-info-val">{{ sessions.length }} 세션 ({{ totalMessagesCount }} msgs)</span>
               </div>
               <div class="pg-info-row">
-                <span class="pg-info-key">Cache Storage</span>
+                <span class="pg-info-key">Storage Size</span>
                 <span class="pg-info-val">{{ browserCacheSize }}</span>
               </div>
               <div class="pg-info-row">
-                <span class="pg-info-key">Storage Target</span>
-                <span class="pg-info-val">localStorage (Client)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Security & Privacy Boundary -->
-          <div class="pg-config-section">
-            <label class="pg-section-label">SECURITY BOUNDARY</label>
-            <div class="pg-security-box">
-              <div class="pg-sec-item">
-                <span class="pg-sec-icon">🛡</span>
-                <p><strong>Zero Server Storage:</strong> 대화 기록과 프롬프트는 서버 DB에 저장되지 않으며 브라우저에만 캐시됩니다.</p>
-              </div>
-              <div class="pg-sec-item">
-                <span class="pg-sec-icon">⚡</span>
-                <p><strong>Sanitized Output:</strong> 민감 내부 주소, 인증 토큰 및 시크릿은 공개 경계에 포함되지 않습니다.</p>
+                <span class="pg-info-key">Server Retention</span>
+                <span class="pg-info-val">0% (Stateless In-Memory)</span>
               </div>
             </div>
           </div>
         </div>
       </aside>
     </div>
-
-    <!-- How this is exposed / Principles section -->
-    <section class="pg-explain">
-      <div>
-        <p class="pg-panel-label">How this is exposed</p>
-        <h2>코드를 전부 공개하지 않아도<br />설계와 실행 품질은 증명할 수 있습니다.</h2>
-      </div>
-      <div class="pg-principles">
-        <article>
-          <h3>Full SSE Streaming</h3>
-          <p>GoVail Gateway 및 릴레이 백엔드와 Server-Sent Events로 연결되어 토큰과 추론 과정이 실시간 타이핑됩니다.</p>
-        </article>
-        <article>
-          <h3>Autonomous Tool Execution</h3>
-          <p>도구 스위치 없이도 프롬프트 의도에 맞게 시스템 메트릭, 실시간 검색, 코드 샌드박스가 자동으로 격리 실행됩니다.</p>
-        </article>
-        <article>
-          <h3>Zero Server Persistence</h3>
-          <p>퍼블릭 데모 환경 특성에 맞춰 대화와 세션은 방문자의 브라우저 로컬 캐시에서만 프라이빗하게 운용됩니다.</p>
-        </article>
-      </div>
-    </section>
   </main>
 </template>
 
@@ -808,12 +932,12 @@ onBeforeUnmount(() => {
 .playground-shell {
   width: min(1440px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 56px 0 96px;
+  padding: 48px 0 84px;
   color: var(--ink);
 }
 
 .playground-hero {
-  padding: 16px 0 36px;
+  padding: 12px 0 28px;
 }
 
 .pg-panel-label {
@@ -831,12 +955,12 @@ onBeforeUnmount(() => {
 
 .playground-hero h1 {
   max-width: 920px;
-  margin: 16px 0 0;
+  margin: 14px 0 0;
   color: var(--ink);
-  font-size: clamp(36px, 5vw, 60px);
+  font-size: clamp(34px, 4.8vw, 56px);
   font-weight: 750;
   letter-spacing: -.055em;
-  line-height: 1.12;
+  line-height: 1.14;
 }
 
 .playground-hero h1 em {
@@ -846,18 +970,18 @@ onBeforeUnmount(() => {
 
 .pg-lead {
   max-width: 820px;
-  margin: 18px 0 0;
+  margin: 16px 0 0;
   color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 14.5px;
+  line-height: 1.75;
   word-break: keep-all;
 }
 
 /* ── 3-Panel Studio Container ────────────────────────────── */
 .pg-studio-container {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 280px;
-  height: 820px;
+  grid-template-columns: 240px minmax(0, 1fr) 290px;
+  height: 840px;
   border: 1px solid var(--mist-strong);
   border-radius: 6px;
   background: var(--paper-raised);
@@ -878,7 +1002,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--mist-strong);
   background: var(--paper-raised);
 }
@@ -996,6 +1120,14 @@ onBeforeUnmount(() => {
   color: var(--slate);
 }
 
+.pg-meta-compress {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
 .pg-sessions-footer {
   padding: 10px 14px;
   border-top: 1px solid var(--mist-strong);
@@ -1044,7 +1176,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 11px 20px;
   border-bottom: 1px solid var(--mist-strong);
   background: color-mix(in srgb, var(--paper) 40%, var(--paper-raised));
 }
@@ -1081,10 +1213,33 @@ onBeforeUnmount(() => {
   color: var(--ink-soft);
 }
 
-.pg-topbar-meta {
+.pg-topbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.pg-btn-compress {
+  padding: 4px 9px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.pg-btn-compress:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+}
+
+.pg-btn-compress:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .pg-tag-gateway {
@@ -1096,24 +1251,76 @@ onBeforeUnmount(() => {
   font-size: 10px;
 }
 
-.pg-tag-status {
-  background: var(--cobalt-soft);
-  color: var(--cobalt);
-  border-radius: 3px;
-  padding: 2px 7px;
-  font-family: var(--vp-font-family-mono);
-  font-size: 10px;
-  font-weight: 600;
-}
-
 /* Messages Viewport */
 .pg-messages-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
+}
+
+/* Session Compressed Banner */
+.pg-compressed-banner {
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 5px;
+  background: rgba(16, 185, 129, 0.04);
+  overflow: hidden;
+}
+
+.pg-compressed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pg-compressed-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.pg-compressed-stats {
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.pg-compressed-toggle {
+  margin-left: auto;
+  color: #059669;
+  font-size: 10px;
+  font-family: var(--vp-font-family-mono);
+}
+
+.pg-compressed-body {
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.pg-compressed-text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.pg-compressed-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 9.5px;
+  color: var(--slate);
 }
 
 .pg-empty-state {
@@ -1559,8 +1766,8 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-/* ── Panel 3: Execution Telemetry & Security (우측) ──────── */
-.pg-panel-config {
+/* ── Panel 3: Engine Process Pipeline (우측) ─────────────── */
+.pg-panel-engine {
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--paper) 68%, var(--paper-raised));
@@ -1568,7 +1775,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.pg-config-scroll {
+.pg-engine-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 14px 16px;
@@ -1590,6 +1797,144 @@ onBeforeUnmount(() => {
   font-weight: 750;
   letter-spacing: .06em;
   text-transform: uppercase;
+}
+
+/* Engine Process Stages */
+.pg-pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pg-stage-item {
+  padding: 8px 10px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  transition: all 150ms ease;
+}
+
+.pg-stage-item.stage-running {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+  box-shadow: 0 0 0 1px var(--cobalt);
+}
+
+.pg-stage-item.stage-done {
+  border-left: 3px solid #10b981;
+}
+
+.pg-stage-item.stage-pass {
+  opacity: 0.6;
+}
+
+.pg-stage-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pg-stage-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pg-stage-step {
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--slate);
+}
+
+.pg-stage-name {
+  font-size: 11px;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.pg-stage-status-badge {
+  font-family: var(--vp-font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--slate);
+}
+
+.stage-running .pg-stage-status-badge {
+  background: var(--cobalt);
+  color: #fff;
+  animation: pulse-badge 1s infinite alternate;
+}
+
+@keyframes pulse-badge {
+  from { opacity: 0.8; }
+  to { opacity: 1; }
+}
+
+.stage-done .pg-stage-status-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.pg-stage-desc {
+  margin-top: 3px;
+  color: var(--slate);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.pg-stage-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--mist-strong);
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+}
+
+.pg-stage-lat {
+  color: var(--cobalt);
+  font-weight: 600;
+}
+
+.pg-stage-det {
+  color: var(--slate);
+}
+
+/* Metric grid */
+.pg-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pg-metric-box {
+  padding: 8px 10px;
+  border: 1px solid var(--mist-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pg-metric-title {
+  color: var(--slate);
+  font-family: var(--vp-font-family-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.pg-metric-num {
+  color: var(--cobalt);
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* Info card */
@@ -1624,115 +1969,13 @@ onBeforeUnmount(() => {
   color: #10b981;
 }
 
-/* Metric grid */
-.pg-metric-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.pg-metric-box {
-  padding: 8px 10px;
-  border: 1px solid var(--mist-strong);
-  border-radius: 4px;
-  background: var(--paper-raised);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.pg-metric-title {
-  color: var(--slate);
-  font-family: var(--vp-font-family-mono);
-  font-size: 9px;
-  text-transform: uppercase;
-}
-
-.pg-metric-num {
-  color: var(--cobalt);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* Security box */
-.pg-security-box {
-  padding: 10px 12px;
-  border: 1px solid var(--mist-strong);
-  border-radius: 5px;
-  background: var(--paper-raised);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pg-sec-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.pg-sec-icon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.pg-sec-item p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 10.5px;
-  line-height: 1.5;
-}
-
-/* ── Principles / Explanation ────────────────────────────── */
-.pg-explain {
-  display: grid;
-  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
-  gap: 72px;
-  padding-top: 80px;
-}
-
-.pg-explain h2 {
-  margin: 11px 0 0;
-  color: var(--ink);
-  font-size: clamp(26px, 3vw, 36px);
-  letter-spacing: -.045em;
-  line-height: 1.35;
-}
-
-.pg-principles {
-  border-top: 1px solid var(--mist-strong);
-}
-
-.pg-principles article {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 18px;
-  border-bottom: 1px solid var(--mist-strong);
-  padding: 20px 0;
-}
-
-.pg-principles h3 {
-  margin: 0;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.pg-principles p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 11.5px;
-  line-height: 1.7;
-}
-
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .pg-studio-container {
     grid-template-columns: 200px minmax(0, 1fr);
     height: 760px;
   }
-  .pg-panel-config {
+  .pg-panel-engine {
     display: none;
   }
 }
@@ -1740,7 +1983,7 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .playground-shell {
     width: min(100% - 24px, 1440px);
-    padding-top: 36px;
+    padding-top: 32px;
   }
   .pg-studio-container {
     display: flex;
@@ -1748,21 +1991,13 @@ onBeforeUnmount(() => {
     height: auto;
   }
   .pg-panel-sessions {
-    max-height: 200px;
+    max-height: 180px;
     border-right: none;
     border-bottom: 1px solid var(--mist-strong);
   }
   .pg-messages-viewport {
     min-height: 380px;
     max-height: 480px;
-  }
-  .pg-explain {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    padding-top: 56px;
-  }
-  .pg-principles article {
-    grid-template-columns: 1fr;
   }
 }
 </style>

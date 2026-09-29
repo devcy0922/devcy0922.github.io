@@ -6,7 +6,6 @@ import SelectedProjects from './SelectedProjects.vue'
 import OtherProjects from './OtherProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
 import Playground from './Playground.vue'
-import SystemDemos from './SystemDemos.vue'
 import './custom.css'
 
 export default {
@@ -19,6 +18,5 @@ export default {
     app.component('OtherProjects', OtherProjects)
     app.component('DiagramFrame', DiagramFrame)
     app.component('Playground', Playground)
-    app.component('SystemDemos', SystemDemos)
   },
 }

@@ -8,7 +8,7 @@
 현재 저장소는 기존 구현을 `v1/`에 보존하고 `v2/`에서 새 코어 런타임을 개발합니다. 예약·수동·이벤트 요청을 공통 큐로 수집하고 Workflow Runtime과 Capability Broker를 통해 외부 도구를 연결합니다. PinchQ는 독립 검증 capability이며 코어에 내부 구현을 결합하지 않습니다. 아래 승인·조사 경계는 설계 원칙이며, 모든 v1 연동이 v2로 이전 완료됐다는 의미는 아닙니다.
 :::
 
-[승인 흐름 직접 실행하기](/playground#approval) — 원본 백엔드와 분리된 공개용 브라우저 시뮬레이션입니다.
+이 사례는 현재 대표 목록에서 제외한 보관 문서입니다. 공개 브라우저 시뮬레이션은 더 이상 제공하지 않습니다.
 
 - **성격**: Agentic Workflow / Human-in-the-loop Automation
 - **핵심 기술**: Python, PostgreSQL, Docker Compose, MCP capability
@@ -110,7 +110,6 @@ sequenceDiagram
 - trigger 수집, 승인 후 Slack/Jira 등록과 고위험 작업 반려 시나리오를 확인하는 구조가 있습니다.
 - 보관·복원과 PR lifecycle에도 승인 게이트를 둡니다.
 - 조사 실행과 승인 후 mutation 실행이 서로 다른 Run으로 분리되어 있습니다.
-- 공개 데모에서 [실행 경계 확인하기](/playground#approval). 원본 서비스 전체의 실행 결과를 대신하지 않습니다.
 
 ## 현재 한계
 

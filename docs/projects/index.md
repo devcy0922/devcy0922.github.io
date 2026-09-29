@@ -20,21 +20,21 @@ aside: false
 
 ```mermaid
 flowchart LR
-    User[사람 / 개발자] --> Control[GoVail Control\n규칙·세션·레포 상태]
-    Control --> Work[Works Daily Agents\n조사·승인·외부 작업]
-    Work --> Verify[PinchQ\n실행 증거·판정]
-    Data[AI Data Infra\nDB·이벤트·스케줄러] --> Work
-    CLI[Engine CLI\n코딩 에이전트] --> Gateway[GoVail Gateway\n모델 실행 경계]
+    User[사람 / 개발자] --> Gateway[GoVail Gateway\n모델 실행 경계]
+    Gateway --> Lingo[LingoAgent\ni18n 배포 게이트]
+    Gateway --> RAG[SliceRAG\n프로젝트 범위 검색]
+    User --> ITGC[ITGC ControlOps\nread-only 증적 수집]
+    Data[AI Data Infra\nDB·이벤트·스케줄러] --> RAG
+    CLI[Engine CLI\n코딩 에이전트] --> Gateway
     Gateway --> Service[AI Service Infra\nmodel · workflow · observe]
     Service --> Inference[AI Gateway Infra\nDGX · M1 · Mac mini]
     Service --> Data
-    Work --> Gateway
 ```
 
 </DiagramFrame>
 
 위 그래프는 제품 간 의존성을 모두 그린 것이 아니라, 시스템을 나누는 기준을 보여주는 지도입니다.
-Control은 상태와 규칙을, Works는 업무 흐름을, PinchQ는 실행 증거를, AI Data Infra는 공용 데이터를 맡습니다.
+Gateway는 모델 실행 정책을, ITGC ControlOps는 원천 증적 수집을, LingoAgent는 번역 배포 품질을, SliceRAG는 프로젝트별 검색 범위를 맡습니다.
 
 ## 대표 시스템
 

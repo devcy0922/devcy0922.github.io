@@ -77,7 +77,7 @@ GoVail Gateway(`https://api.govail.cloud`)에 실제 요청을 보낸다. 이는
 서버 런타임을 요구하지 않는다" 원칙에 대한 의도적이고 범위가 제한된 예외다.
 
 - 정적 빌드 자체는 여전히 네트워크/서버 런타임에 의존하지 않는다. 예외는 브라우저가 방문 중
-  직접 호출하는 별도 공개 relay API 한 개(`POST playground-relay.govail.cloud/v1/model-routing/run`)로
+  직접 호출하는 별도 공개 relay API 한 개(`POST api.govail.cloud/v1/model-routing/run`)로
   한정되며, 실패/차단 시 페이지는 기존 replay 애니메이션으로 자동 폴백한다.
 - 자유 텍스트 prompt를 받지 않는다 — 고정 시나리오 id에 매핑된 고정 prompt만 실행한다.
 - 전역 동시 실행 1회로 제한(relay의 단일 인스턴스 세마포어), IP당 rate limit 있음.

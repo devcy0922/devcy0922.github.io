@@ -1,13 +1,13 @@
 [
   {
-    "name": "ai-gateway-infra-demo",
-    "title": "ai-gateway-infra-demo",
-    "description": "Unified Multi-Node AI Serving Gateway Infrastructure with LiteLLM, Promtail, and Docker Compose.",
-    "href": "/projects/ai-gateway-infra-demo",
-    "repoUrl": "https://github.com/devcy0922/ai-gateway-infra-demo",
-    "language": "Shell",
+    "name": "pr-guardian",
+    "title": "pr-guardian",
+    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
+    "href": "/projects/pr-guardian",
+    "repoUrl": "https://github.com/devcy0922/pr-guardian",
+    "language": "TypeScript",
     "defaultBranch": "main",
-    "pushedAt": "2026-09-04T16:14:48Z"
+    "pushedAt": "2026-09-27T17:16:06Z"
   },
   {
     "name": "coexistgate",
@@ -17,7 +17,27 @@
     "repoUrl": "https://github.com/devcy0922/coexistgate",
     "language": "Rust",
     "defaultBranch": "main",
-    "pushedAt": "2026-09-04T15:57:38Z"
+    "pushedAt": "2026-09-13T18:10:05Z"
+  },
+  {
+    "name": "lingo-agent",
+    "title": "lingo-agent",
+    "description": "Agentic i18n localization translation & validation pipeline console (ICU parser & LLM-as-a-Judge)",
+    "href": "/projects/lingo-agent",
+    "repoUrl": "https://github.com/devcy0922/lingo-agent",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-13T01:50:39Z"
+  },
+  {
+    "name": "ai-gateway-infra-demo",
+    "title": "ai-gateway-infra-demo",
+    "description": "Unified Multi-Node AI Serving Gateway Infrastructure with LiteLLM, Promtail, and Docker Compose.",
+    "href": "/projects/ai-gateway-infra-demo",
+    "repoUrl": "https://github.com/devcy0922/ai-gateway-infra-demo",
+    "language": "Shell",
+    "defaultBranch": "main",
+    "pushedAt": "2026-09-04T16:14:48Z"
   },
   {
     "name": "works-agent-demo",
@@ -50,16 +70,6 @@
     "pushedAt": "2026-09-04T13:16:04Z"
   },
   {
-    "name": "pr-guardian",
-    "title": "pr-guardian",
-    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
-    "href": "/projects/pr-guardian",
-    "repoUrl": "https://github.com/devcy0922/pr-guardian",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-08-21T14:05:37Z"
-  },
-  {
     "name": "coexistgate-demo",
     "title": "coexistgate-demo",
     "description": "Public PR fixtures for CoexistGate release-safety demos",
@@ -78,16 +88,6 @@
     "language": "TypeScript",
     "defaultBranch": "main",
     "pushedAt": "2026-07-31T09:16:32Z"
-  },
-  {
-    "name": "lingo-agent",
-    "title": "lingo-agent",
-    "description": "Agentic i18n localization translation & validation pipeline console (ICU parser & LLM-as-a-Judge)",
-    "href": "/projects/lingo-agent",
-    "repoUrl": "https://github.com/devcy0922/lingo-agent",
-    "language": "Python",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-19T19:57:02Z"
   },
   {
     "name": "aegis-llm",

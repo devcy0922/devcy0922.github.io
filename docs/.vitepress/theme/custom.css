@@ -1,4 +1,4 @@
-/* devcy0922 — build / operate / write */
+/* devcy0922 — 실행 경계를 설명하는 포트폴리오 */
 
 :root {
   --paper: #f5f7fb;
@@ -93,7 +93,7 @@ body { letter-spacing: -0.012em; }
 .trace-rail strong { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 12px; font-weight: 550; }
 @keyframes trace-in { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
 
-.home-section { padding-top: 104px; }
+.home-section { padding-top: 64px; scroll-margin-top: 88px; }
 .section-head { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin-bottom: 28px; }
 .section-head h2 { margin: 8px 0 0; border: 0; padding: 0; color: var(--ink); font-size: clamp(27px, 3vw, 36px); font-weight: 700; letter-spacing: -0.045em; }
 .section-head > a { color: var(--slate); font-size: 12px; font-weight: 600; text-decoration: none; }
@@ -195,6 +195,94 @@ a:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, va
   .section-head { gap: 14px; }
   .section-head > a { white-space: nowrap; }
   .ledger-copy h3, .work-row h3, .archive-ledger .ledger-copy h2 { font-size: 18px; }
+}
+
+.portfolio-hero { display: grid; grid-template-columns: 1.35fr 1fr; align-items: center; gap: 56px; padding: 52px 0 12px; }
+.career-line { color: var(--cobalt); font-size: 13px; font-weight: 600; margin: 0 0 14px; }
+.portfolio-intro h1 { font-size: clamp(34px, 4vw, 52px); line-height: 1.18; letter-spacing: -.045em; font-weight: 700; }
+.portfolio-intro .hero-copy { margin-top: 24px; font-size: 17px; line-height: 1.85; }
+.career-context { margin-top: 18px; max-width: 560px; color: var(--slate); font-size: 13px; line-height: 1.8; }
+.system-map { background: var(--paper-raised); border: 1px solid var(--mist-strong); border-radius: 10px; padding: 22px; }
+.system-map > p { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; }
+.system-map > a { display: grid; grid-template-columns: 94px 1fr; padding: 13px 0; border-top: 1px solid var(--mist); text-decoration: none; }
+.system-map a span { grid-row: span 2; font-size: 12px; color: var(--slate); padding-top: 2px; }
+.system-map a strong { font-size: 15px; }
+.system-map a:hover strong { color: var(--cobalt); }
+.system-map small { font-size: 11px; color: var(--ink-soft); }
+.system-foundation { margin-top: 12px; padding: 14px; border-radius: 4px; background: var(--cobalt-soft); font-size: 12px; font-weight: 600; }
+.system-foundation span { font-size: 11px; font-weight: 400; }
+.section-head p { margin: 12px 0 0; color: var(--slate); font-size: 14px; }
+.case-list { border-top: 1px solid var(--mist-strong); }
+.project-case { display: grid; grid-template-columns: 1fr 1.1fr; gap: 16px 48px; padding: 30px 0; border-bottom: 1px solid var(--mist-strong); }
+.case-identity > span { font-size: 12px; color: var(--cobalt); }
+.case-identity h3 { margin: 7px 0 10px; font-size: 23px; line-height: 1.4; font-weight: 650; }
+.case-identity h3 a { color: var(--ink); text-decoration: none; }
+.case-identity h3 a:hover { color: var(--cobalt); }
+.case-identity p, .project-case dd { margin: 0; font-size: 14px; line-height: 1.85; color: var(--ink-soft); word-break: keep-all; }
+.project-case dl { margin: 0; }
+.project-case dl > div { display: grid; grid-template-columns: 64px 1fr; gap: 16px; margin-bottom: 12px; }
+.project-case dt { font-size: 12px; color: var(--slate); padding-top: 3px; }
+.case-links { display: flex; gap: 22px; grid-column: 1 / -1; }
+.case-links a { color: var(--cobalt); font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.demo-invitation { display: flex; align-items: center; gap: 32px; margin-top: 56px; padding: 30px; background: var(--cobalt-soft); border-radius: 8px; }
+.demo-invitation > div { flex: 1; }
+.demo-invitation h2 { margin: 0; font-size: 23px; line-height: 1.5; font-weight: 600; }
+.demo-invitation p { margin-top: 12px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; }
+.demo-invitation .demo-disclosure { font-size: 12px; }
+.demo-invitation > a { padding: 12px 18px; border-radius: 4px; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.principle-flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; list-style: none; padding: 0; }
+.principle-flow li { border-top: 3px solid var(--mist-strong); padding-top: 18px; }
+.principle-flow strong { display: block; font-size: 15px; }
+.principle-flow span { display: block; margin-top: 10px; font-size: 13px; color: var(--ink-soft); line-height: 1.8; }
+.portfolio-signoff { border-top: 1px solid var(--mist-strong); margin-top: 64px; padding-top: 32px; }
+.portfolio-signoff p { font-size: 23px; line-height: 1.65; font-weight: 600; }
+.portfolio-signoff a { display: inline-block; margin: 20px 24px 0 0; color: var(--cobalt); font-size: 13px; }
+.systems-lab { width: min(1080px, calc(100% - 48px)); margin: auto; padding: 48px 0 80px; }
+.lab-heading h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.35; font-weight: 700; letter-spacing: -.04em; }
+.lab-heading > p:last-child { margin: 20px 0 24px; color: var(--ink-soft); line-height: 1.8; }
+.lab-notice { background: var(--cobalt-soft); border-left: 3px solid var(--cobalt); padding: 18px 22px; font-size: 13px; line-height: 1.8; }
+.lab-notice p { margin-top: 6px; }
+.lab-notice a { color: var(--cobalt); text-decoration: underline; }
+.lab-nav { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 24px 0; }
+.lab-nav a { font-size: 13px; color: var(--cobalt); text-decoration: underline; text-underline-offset: 4px; }
+.lab-experiment { display: grid; grid-template-columns: 1fr 1.2fr; gap: 56px; padding: 40px 0; border-top: 1px solid var(--mist-strong); scroll-margin-top: 85px; }
+.lab-experiment h2 { font-size: 25px; line-height: 1.5; font-weight: 650; }
+.lab-experiment p { font-size: 14px; line-height: 1.85; margin: 12px 0; color: var(--ink-soft); }
+.lab-experiment a { font-size: 13px; color: var(--cobalt); text-decoration: underline; }
+.experiment-controls { padding: 24px; border: 1px solid var(--mist-strong); border-radius: 8px; background: var(--paper-raised); min-width: 0; }
+.experiment-controls label { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 14px; margin-bottom: 14px; }
+.experiment-controls label.check-control { justify-content: start; }
+.experiment-controls input { accent-color: var(--cobalt); width: 18px; height: 18px; }
+.experiment-controls select { border: 1px solid var(--mist-strong); border-radius: 4px; padding: 8px 28px 8px 10px; background: var(--paper); color: var(--ink); appearance: auto; }
+.experiment-controls output { display: block; margin: 20px 0 14px; padding: 16px; background: var(--paper); border-left: 3px solid var(--cobalt); }
+.experiment-controls output strong { display: block; font-family: var(--vp-font-family-mono); font-size: 18px; overflow-wrap: anywhere; }
+.experiment-controls output span { display: block; margin-top: 8px; font-size: 13px; line-height: 1.8; }
+.experiment-controls button { padding: 8px 12px; border: 1px solid var(--mist-strong); border-radius: 4px; font-size: 13px; background: var(--paper); }
+.experiment-controls button:not(:disabled):hover { border-color: var(--cobalt); color: var(--cobalt); }
+.experiment-controls button:disabled { opacity: .45; cursor: not-allowed; }
+.experiment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.experiment-controls .lab-detail { font-size: 12px; color: var(--slate); }
+.event-list { padding-left: 18px; font-family: var(--vp-font-family-mono); font-size: 11px; overflow-wrap: anywhere; margin-top: 16px; }
+select:focus-visible, input:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+@media (max-width: 900px) {
+  .portfolio-hero { gap: 28px; grid-template-columns: 1.2fr 1fr; }
+  .project-case { gap: 18px 28px; }
+  .lab-experiment { gap: 28px; }
+}
+@media (max-width: 760px) {
+  .portfolio-hero { grid-template-columns: 1fr; padding-top: 32px; }
+  .portfolio-intro h1 { font-size: clamp(32px, 8vw, 48px); }
+  .portfolio-intro .hero-copy { font-size: 16px; }
+  .hero-actions { margin-top: 24px; }
+  .home-section { padding-top: 44px; }
+  .project-case, .lab-experiment { grid-template-columns: 1fr; gap: 20px; }
+  .principle-flow { grid-template-columns: 1fr; gap: 16px; }
+  .principle-flow li { display: grid; grid-template-columns: 108px 1fr; gap: 14px; padding-top: 12px; }
+  .principle-flow span { margin: 0; }
+  .demo-invitation { flex-direction: column; align-items: start; padding: 24px; }
+  .systems-lab { width: calc(100% - 32px); padding-top: 30px; }
+  .experiment-controls { padding: 18px; }
+  .portfolio-signoff p { font-size: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

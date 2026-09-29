@@ -19,7 +19,7 @@ export default withMermaid(
   defineConfig({
     title: 'devcy0922',
     titleTemplate: ':title · devcy0922',
-    description: '백엔드, 서비스 운영, 자동화와 AI를 직접 만들고 굴리면서 남기는 개발 기록',
+    description: '10년차 Backend & AI Platform Engineer. 실행 경계, 검증과 운영을 설계하는 devcy0922의 프로젝트와 공개 데모.',
     lang: 'ko-KR',
     cleanUrls: true,
     lastUpdated: true,
@@ -60,10 +60,10 @@ export default withMermaid(
       siteTitle: 'devcy0922',
 
       nav: [
-        { text: '글', link: '/posts/' },
-        { text: '프로젝트', link: '/projects/' },
         { text: 'Playground', link: '/playground' },
-        { text: 'About', link: '/about' },
+        { text: '프로젝트', link: '/projects/' },
+        { text: 'Engineering Notes', link: '/posts/' },
+        { text: '소개', link: '/about' },
         { text: 'GitHub ↗', link: 'https://github.com/devcy0922' },
       ],
 
@@ -115,7 +115,7 @@ export default withMermaid(
       },
 
       footer: {
-        message: 'Build · Operate · Write',
+        message: 'Boundary · Execution · Verification · Operation',
         copyright: 'Copyright © 2026 devcy0922',
       },
     },

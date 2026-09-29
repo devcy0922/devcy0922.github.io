@@ -1,12 +1,14 @@
 # GoVail Control
 
+[규칙 동기화 데모](/playground#control) — 원본 변경과 적용 버전의 차이를 확인하는 브라우저 시뮬레이션입니다.
+
 여러 저장소와 코딩 에이전트가 같은 규칙, 상태, 스킬 배포 계약을 따르도록 만드는 중앙 Control Plane입니다. 저장소를 대신 실행하는 시스템이 아니라, 저장소와 에이전트 사이의 운영 상태와 증적을 관리하는 경계입니다.
 
 ## 한눈에 보기
 
 - **성격**: Platform / Control Plane
 - **핵심 기술**: Go, SQLite WAL, YAML manifest, lockfile
-- **Source**: [github.com/devcy0922/govail-control ↗](https://github.com/devcy0922/govail-control)
+- **공개 범위**: 설계 사례 공개 · 원본 저장소 접근 없이 아래 내용을 확인할 수 있습니다.
 - **현재 범위**: 저장소 초기화, 작업 상태 전이, 세션·감사 이벤트, 에이전트 자산 동기화
 
 ## 문제
@@ -79,7 +81,7 @@ sequenceDiagram
 - 공개 구현에서 manifest, lock, `agents/`와 생성 계층이 분리되어 있습니다.
 - 작업 상태·버전·이벤트를 원자적으로 기록하고 SQLite WAL을 사용합니다.
 - 취소된 작업을 terminal state에서 다시 실행하지 않도록 FSM 종료 상태를 둡니다.
-- 자세한 구현과 실행 방법은 [소스 저장소](https://github.com/devcy0922/govail-control)에서 확인할 수 있습니다.
+- 공개 데모에서 [실행 경계 확인하기](/playground#control). 원본 서비스 전체의 실행 결과를 대신하지 않습니다.
 
 ## 현재 한계
 

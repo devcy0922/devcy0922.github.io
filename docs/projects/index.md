@@ -10,7 +10,7 @@ aside: false
 <div class="project-intro">
   <p class="project-lead">
     프로젝트 개수보다 <strong>어떤 책임을 맡겼고, 어디서 경계를 그었는지</strong>를 먼저 보여줍니다.
-    지금은 AI를 둘러싼 Control, 실행, 검증, 데이터 계층을 하나의 시스템으로 연결해보고 있습니다.
+    AI를 둘러싼 규칙 관리, 모델 접근, 업무 실행, 검증, 공용 인프라를 각각의 책임으로 나눠 설계합니다.
   </p>
 </div>
 
@@ -36,11 +36,11 @@ flowchart LR
 위 그래프는 제품 간 의존성을 모두 그린 것이 아니라, 시스템을 나누는 기준을 보여주는 지도입니다.
 Control은 상태와 규칙을, Works는 업무 흐름을, PinchQ는 실행 증거를, AI Data Infra는 공용 데이터를 맡습니다.
 
-## Selected Projects
+## 대표 시스템
 
 <SelectedProjects />
 
-## Other Work
+## 확장 프로젝트와 실험
 
 대표 프로젝트와 책임 범위가 다르거나, 실험으로 공개한 작업입니다. 설명이 없는 GitHub 레포는 제외하고, 나머지 공개 레포는 빌드 시점에 동기화되어 이 목록 아래에 이어집니다.
 

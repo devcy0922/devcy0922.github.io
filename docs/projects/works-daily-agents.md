@@ -4,9 +4,15 @@
 
 ## 한눈에 보기
 
+::: info v2 전환
+현재 저장소는 기존 구현을 `v1/`에 보존하고 `v2/`에서 새 코어 런타임을 개발합니다. 예약·수동·이벤트 요청을 공통 큐로 수집하고 Workflow Runtime과 Capability Broker를 통해 외부 도구를 연결합니다. PinchQ는 독립 검증 capability이며 코어에 내부 구현을 결합하지 않습니다. 아래 승인·조사 경계는 설계 원칙이며, 모든 v1 연동이 v2로 이전 완료됐다는 의미는 아닙니다.
+:::
+
+[승인 흐름 직접 실행하기](/playground#approval) — 원본 백엔드와 분리된 공개용 브라우저 시뮬레이션입니다.
+
 - **성격**: Agentic Workflow / Human-in-the-loop Automation
 - **핵심 기술**: Python, PostgreSQL, Docker Compose, MCP capability
-- **Source**: [github.com/devcy0922/works-daily-agents ↗](https://github.com/devcy0922/works-daily-agents)
+- **공개 범위**: 설계 사례 공개 · 원본 저장소 접근 없이 아래 내용을 확인할 수 있습니다.
 - **현재 범위**: 업무 수집, 조사, evidence·report 작성, 승인과 별도 mutation run
 
 ## 문제
@@ -15,7 +21,21 @@
 
 그래서 조사 결과는 `Case`와 `Evidence`로 보존하고, 사람이 승인한 뒤 완전히 새로운 mutation run을 시작하는 구조를 택했습니다.
 
-## Architecture
+## v2 실행 구조
+
+```mermaid
+flowchart LR
+    Event[수동 · 이벤트 · 예약] --> Queue[공통 WorkRequest 큐]
+    Queue --> Runtime[Workflow Runtime]
+    Runtime --> Broker[Capability Broker]
+    Broker --> Approval[승인과 실행]
+    Approval --> Verify[독립 검증 capability · PinchQ]
+    Verify --> Audit[감사 기록]
+```
+
+외부 도구는 코어에 직접 import하지 않고 확장 어댑터와 capability 계약으로 연결합니다. 예약 실행도 동일한 입력 계약을 따릅니다.
+
+## 조사·승인 경계 (v1 설계 사례)
 
 <DiagramFrame caption="조사·제안과 외부 변경을 분리하고, 승인 대기 상태를 프로세스 밖에 보존합니다.">
 
@@ -90,7 +110,7 @@ sequenceDiagram
 - trigger 수집, 승인 후 Slack/Jira 등록과 고위험 작업 반려 시나리오를 확인하는 구조가 있습니다.
 - 보관·복원과 PR lifecycle에도 승인 게이트를 둡니다.
 - 조사 실행과 승인 후 mutation 실행이 서로 다른 Run으로 분리되어 있습니다.
-- 자세한 구현과 실행 방법은 [소스 저장소](https://github.com/devcy0922/works-daily-agents)에서 확인할 수 있습니다.
+- 공개 데모에서 [실행 경계 확인하기](/playground#approval). 원본 서비스 전체의 실행 결과를 대신하지 않습니다.
 
 ## 현재 한계
 

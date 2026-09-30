@@ -7,6 +7,7 @@ import OtherProjects from './OtherProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
 import Playground from './Playground.vue'
 import './custom.css'
+import './home.css'
 
 export default {
   extends: DefaultTheme,

@@ -19,7 +19,7 @@ export default withMermaid(
   defineConfig({
     title: 'devcy0922',
     titleTemplate: ':title · devcy0922',
-    description: '10년차 Backend & AI Platform Engineer. 실행 경계, 검증과 운영을 설계하는 devcy0922의 프로젝트와 공개 데모.',
+    description: 'Backend 개발과 LLM 서비스 운영. Gateway, 로컬 모델 서빙, RAG, 검증 파이프라인과 라이브 데모.',
     lang: 'ko-KR',
     cleanUrls: true,
     lastUpdated: true,

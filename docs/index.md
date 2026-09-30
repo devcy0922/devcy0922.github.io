@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Backend & AI Platform Engineer"
-description: "10년차 개발자 devcy0922. Gateway, Agent Runtime, Verification과 서비스 운영의 실행 경계를 설계합니다. 대표 프로젝트와 공개 데모를 확인하세요."
+title: "Backend & LLM Engineer"
+description: "Backend 개발과 LLM 서비스 운영. Gateway, 로컬 모델 서빙, RAG, 검증 파이프라인과 라이브 데모."
 aside: false
 outline: false
 ---

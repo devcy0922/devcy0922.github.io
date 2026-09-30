@@ -7,7 +7,7 @@ const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
 const MAX_PROMPT = 500
 
 interface Preset { label: string; prompt: string; tools: string[] }
-interface TraceLine { key: number; name: string; detail: string; state: 'run' | 'ok' | 'err' }
+interface TraceLine { key: number; name: string; detail: string; state: 'run' | 'ok' | 'err'; output?: string }
 interface Metrics { totalLatencyMs: number; ttftMs: number; tokensPerSec: number; tokens: number }
 
 const presets: Preset[] = [
@@ -68,6 +68,11 @@ function handle(event: string, data: Record<string, any>) {
     if (line) {
       line.state = failed ? 'err' : 'ok'
       line.detail = failed ? String(data.error || '도구 오류') : `${Number(data.durationMs) || 0}ms`
+      // 도구가 돌려준 결과를 그대로 보여준다. 길면 잘라서 표시한다.
+      if (data.output != null) {
+        const text = JSON.stringify(data.output, null, 2)
+        line.output = text.length > 2000 ? `${text.slice(0, 2000)}\n… (이후 생략)` : text
+      }
     }
   } else if (event === 'token') {
     if (data.delta) answer.value += String(data.delta)
@@ -166,6 +171,10 @@ onBeforeUnmount(() => controller?.abort())
           <span class="hd-dot" aria-hidden="true"></span>
           <span class="hd-tname">{{ t.name }}</span>
           <span class="hd-tdetail">{{ t.detail }}</span>
+          <details v-if="t.output" class="hd-out">
+            <summary>도구 결과 보기</summary>
+            <pre>{{ t.output }}</pre>
+          </details>
         </li>
       </ol>
       <div v-if="answer" class="hd-answer">{{ answer }}</div>

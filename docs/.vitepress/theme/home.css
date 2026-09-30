@@ -53,6 +53,9 @@
 .hd-empty { margin: 0; font-size: 14px; line-height: 1.7; color: #93a3c4; }
 .hd-trace { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font: 400 13px/1.5 var(--vp-font-family-mono); }
 .hd-trace li { display: grid; grid-template-columns: 10px auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.hd-out { grid-column: 2 / -1; }
+.hd-out summary { cursor: pointer; color: #8fa9ff; font-size: 12px; }
+.hd-out pre { margin: 6px 0 0; padding: 10px 12px; max-height: 220px; overflow: auto; border: 1px solid #263556; border-radius: 6px; background: #0b1220; color: #c9d4ec; font: 400 12px/1.6 var(--vp-font-family-mono); white-space: pre-wrap; word-break: break-all; }
 .hd-dot { width: 8px; height: 8px; border-radius: 50%; background: #6fd3a0; }
 .hd-trace li.run .hd-dot { background: #f5c451; }
 .hd-trace li.err .hd-dot { background: #ff8a7a; }

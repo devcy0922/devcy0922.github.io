@@ -1,7 +1,27 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
+import { marked } from 'marked'
+import { createEventParser } from '../../stream-events.js'
 
-export type InspectMode = 'repo' | 'web' | 'general'
+function escapeHtml(value: string) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
+
+marked.use({
+  gfm: true,
+  breaks: true,
+  renderer: {
+    html({ text }) { return escapeHtml(text) },
+    link({ href, tokens }) {
+      const label = this.parser.parseInline(tokens)
+      if (!/^https?:\/\//i.test(href)) return label
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    },
+    image({ text }) { return escapeHtml(text) },
+  },
+})
+
+const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
 
 export interface AgentAction {
   id: string
@@ -10,7 +30,7 @@ export interface AgentAction {
   tool: string
   args: Record<string, any>
   thought: string
-  status: 'pending_approval' | 'running' | 'done' | 'rejected'
+  status: 'pending_approval' | 'running' | 'done' | 'error'
   requiresApproval: boolean
   observation?: string
   latencyMs?: number
@@ -24,29 +44,6 @@ export interface LogEntry {
   text: string
 }
 
-export interface EvidenceItem {
-  id: string
-  severity: 'critical' | 'warning' | 'info'
-  title: string
-  target: string
-  description: string
-  rawSnippet: string
-}
-
-export interface PatchProposal {
-  target: string
-  rationale: string
-  diff: string
-}
-
-export interface BrowserSnapshot {
-  url: string
-  status: number
-  title: string
-  headers: Record<string, string>
-  findings: string[]
-}
-
 // User Inputs
 const targetUrl = ref('')
 const userPrompt = ref('')
@@ -54,61 +51,39 @@ const requireActionApproval = ref(true)
 
 // Running states
 const isRunning = ref(false)
-const currentPendingActionId = ref<string | null>(null)
-const activeRightTab = ref<'terminal' | 'browser' | 'diff'>('terminal')
+const currentPendingAction = ref<AgentAction | null>(null)
+const activeRightTab = ref<'response' | 'terminal' | 'diff'>('response')
 const terminalBody = ref<HTMLElement | null>(null)
+const responseBody = ref<HTMLElement | null>(null)
 
-// Pipeline Stages
-const currentStage = ref<'idle' | 'planning' | 'executing' | 'verifying' | 'completed'>('idle')
-
-// Data Collections
+// Outputs
 const logs = ref<LogEntry[]>([])
 const actions = ref<AgentAction[]>([])
-const evidences = ref<EvidenceItem[]>([])
-const patchProposal = ref<PatchProposal | null>(null)
-const browserSnapshot = ref<BrowserSnapshot | null>(null)
-const auditScore = ref<{ grade: string; score: number; summary: string } | null>(null)
+const responseMarkdown = ref('')
+const patchSnippet = ref<string | null>(null)
+let abortController: AbortController | null = null
 
-// Mode Auto-detection
-const detectedMode = computed<InspectMode>(() => {
-  const val = targetUrl.value.trim().toLowerCase()
-  if (val.includes('github.com') || val.endsWith('.git')) return 'repo'
-  if (val.startsWith('http://') || val.startsWith('https://')) return 'web'
-  return 'general'
-})
-
-const modeBadge = computed(() => {
-  switch (detectedMode.value) {
-    case 'repo':
-      return { label: 'CODE REPO CONTEXT (SAST / AST)', color: 'var(--cobalt)' }
-    case 'web':
-      return { label: 'LIVE WEB RUNTIME (AGENT-BROWSER)', color: '#059669' }
-    default:
-      return { label: 'SYSTEM PROMPT INSPECTOR', color: '#8b5cf6' }
-  }
-})
-
-// Quick Scenario Chips
+// Quick Presets
 const scenarioPresets = [
   {
-    label: '결제 모듈 Taint Flow & 금액 변조 추적',
-    url: 'https://github.com/shop-platform/core-service',
-    prompt: '결제 승인 컨트롤러 및 웹훅 엔드포인트에서 결제 금액(amount) 파라미터 변조가 가능한지 Taint Flow를 추적하고 서버 검증 패치 코드를 작성해줘.',
+    label: '속초 날씨 실시간 검색',
+    url: 'https://search.naver.com',
+    prompt: '네이버에서 오늘 속초 날씨와 기온, 강수 확률을 실시간 검색해서 알려줘.',
   },
   {
-    label: '로그인 CSRF & 세션 쿠키 플래그 점검',
-    url: 'https://auth.demo-cloud.internal',
-    prompt: '로그인 페이지의 CSRF 토큰 누락 여부와 Set-Cookie 헤더의 HttpOnly, Secure, SameSite 속성을 브라우저로 직접 점검해줘.',
+    label: '결제 모듈 파라미터 변조(Taint) 검증',
+    url: 'https://github.com/shop-platform/core-api',
+    prompt: '결제 승인 컨트롤러에서 결제 금액(amount) 파라미터 변조 취약점을 방어하기 위한 검증 로직과 패치 코드를 작성해줘.',
   },
   {
-    label: '하드코딩된 API 키/시크릿 전수 탐지',
-    url: 'https://github.com/fintech-gateway/api',
-    prompt: '리포지토리 전체 소스코드에서 하드코딩된 JWT Secret, DB 접속 평문, 서드파티 API 키를 탐색하고 환경변수 격리 방안을 제시해줘.',
+    label: '웹 보안 헤더 및 쿠키 설정 점검',
+    url: 'https://auth.govail.cloud',
+    prompt: '이 웹 서비스의 Content-Security-Policy, HSTS, X-Frame-Options 헤더 및 세션 쿠키의 보안 속성(HttpOnly, Secure, SameSite)을 점검해줘.',
   },
   {
-    label: '공개 소스맵 & 관리자 엔드포인트 탐색',
-    url: 'https://app.saas-service.com',
-    prompt: '번들된 JS 소스맵(.map) 파일 노출 여부와 robots.txt/Swagger 등 비인가 접근 가능한 관리자 API 경로를 브라우저로 확인해줘.',
+    label: '하드코딩 시크릿 탐지 및 격리',
+    url: 'https://github.com/backend-service/api',
+    prompt: '소스코드에 하드코딩된 API Key, JWT 시크릿, DB 접속 정보를 탐지하고 환경변수 격리 가이드를 제시해줘.',
   },
 ]
 
@@ -139,387 +114,264 @@ function appendLog(tag: string, text: string, level: LogEntry['level'] = 'info')
   })
 }
 
-function resetAll() {
-  currentStage.value = 'idle'
-  currentPendingActionId.value = null
+function getRequestedTools(prompt: string, url: string): string[] {
+  const combined = (prompt + ' ' + url).toLowerCase()
+  const tools: string[] = []
+  if (['검색', 'search', '날씨', '뉴스', '최신', '웹', '조회', '현재'].some((k) => combined.includes(k))) {
+    tools.push('web_search')
+  }
+  if (['코드', '파이썬', '계산', '함수', '스크립트', '지연시간', '백분위'].some((k) => combined.includes(k))) {
+    tools.push('code_interpreter')
+  }
+  if (['메트릭', '헬스', '클러스터', '서버', '상태'].some((k) => combined.includes(k))) {
+    tools.push('system_metrics')
+  }
+  if (['캐시', 'cache', '유사도', 'ttl'].some((k) => combined.includes(k))) {
+    tools.push('cache_inspector')
+  }
+  return tools.length > 0 ? tools : ['web_search']
+}
+
+function extractDiff(text: string): string | null {
+  const diffMatch = text.match(/```(?:diff|patch)?\n([\s\S]*?```)/)
+  if (diffMatch) return diffMatch[1].replace(/```$/, '').trim()
+  return null
+}
+
+function renderHtml(text: string): string {
+  if (!text) return ''
+  try {
+    return marked.parse(text) as string
+  } catch {
+    return escapeHtml(text)
+  }
+}
+
+// Start Real Agent Workflow via GoVail Gateway
+async function startAgentWorkflow() {
+  const prompt = userPrompt.value.trim()
+  if (!prompt || isStreaming.value) return
+
+  // Reset
   logs.value = []
   actions.value = []
-  evidences.value = []
-  patchProposal.value = null
-  browserSnapshot.value = null
-  auditScore.value = null
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-// Start Agent Process
-async function startAgentWorkflow() {
-  if (isRunning.value || !userPrompt.value.trim()) return
-
-  resetAll()
+  responseMarkdown.value = ''
+  patchSnippet.value = null
+  currentPendingAction.value = null
   isRunning.value = true
-  currentStage.value = 'planning'
+  activeRightTab.value = 'response'
 
-  appendLog('PROMPT', `사용자 지시문 접수: "${userPrompt.value.trim()}"`, 'step')
+  appendLog('USER', `사용자 프롬프트 접수: "${prompt}"`, 'step')
   if (targetUrl.value.trim()) {
-    appendLog('TARGET', `타깃 리소스 바인딩: ${targetUrl.value.trim()} (Mode: ${detectedMode.value})`, 'info')
+    appendLog('TARGET', `타깃 리소스: ${targetUrl.value.trim()}`, 'info')
   }
 
-  // Stage 1: Planning
-  await delay(400)
-  appendLog('PLANNER', `의도 분해(Decomposition) 및 다단계 액션 플랜 수립 중...`, 'step')
-  await delay(500)
-
-  // Plan generation based on mode & prompt
-  if (detectedMode.value === 'web') {
-    actions.value = [
-      {
-        id: 'act-1',
-        step: 1,
-        title: '브라우저 런타임 진입 및 네트워크 스니핑',
-        tool: 'agent_browser:navigate',
-        args: { url: targetUrl.value.trim(), recordNetwork: true, ignoreHttpsErrors: false },
-        thought: '사용자가 요청한 로그인/헤더 보안을 확인하기 위해 대상 웹페이지에 헤드리스 브라우저로 진입하여 HTTP 응답 헤더를 캡처합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-2',
-        step: 2,
-        title: 'DOM 폼 속성 및 쿠키 보안 플래그 파싱',
-        tool: 'agent_browser:inspect_cookies_and_forms',
-        args: { selector: 'form', inspectCookies: true },
-        thought: '페이지 내 로그인/입력 폼의 CSRF 히든 필드 유무와 Set-Cookie 속성(HttpOnly, Secure, SameSite)을 정밀 분석합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-3',
-        step: 3,
-        title: '정적 번들 소스맵 및 민감 경로 1회 프로빙',
-        tool: 'agent_browser:probe_hidden_paths',
-        args: { paths: ['/main.js.map', '/bundle.js.map', '/robots.txt'] },
-        thought: '프로덕션 번들의 원본 소스코드가 유출될 수 있는 .map 파일 노출 여부를 점검합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-4',
-        step: 4,
-        title: '종합 증적 바인딩 및 웹 서버 교정 설정 도출',
-        tool: 'engine:synthesize_remediation',
-        args: { framework: 'nginx_or_caddy', generatePatch: true },
-        thought: '수집된 브라우저 런타임 결함을 바탕으로 서버 단에서 적용할 보안 헤더(CSP, HSTS) 및 소스맵 차단 설정을 생성합니다.',
-        status: 'pending_approval',
-        requiresApproval: false, // Final synthesis is safe
-      },
-    ]
-  } else {
-    // Default / Repo mode
-    actions.value = [
-      {
-        id: 'act-1',
-        step: 1,
-        title: '리포지토리 격리 복제 및 관련 소스 파일 검색',
-        tool: 'git_engine:clone_and_search',
-        args: { repo: targetUrl.value.trim() || 'local_workspace', query: 'payment|checkout|amount|verify' },
-        thought: '사용자 지시문에서 언급된 결제/금액 검증 로직을 파악하기 위해 리포지토리 내 관련 컨트롤러 및 서비스 파일을 검색합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-2',
-        step: 2,
-        title: 'Taint Flow 분석 (사용자 입력 파라미터 흐름 추적)',
-        tool: 'code_ast:trace_taint_flow',
-        args: { source: 'req.body.amount', sink: 'paymentService.approve', file: 'src/controllers/payment.ts' },
-        thought: '클라이언트가 전달한 `amount` 값이 서버 측 DB 가격과 대조 없이 그대로 결제 PG사 API로 전달되는지 AST 데이터 흐름을 추적합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-3',
-        step: 3,
-        title: '하드코딩 시크릿 및 인증 우회 경로 전수 스캔',
-        tool: 'security_sast:scan_secrets_and_auth',
-        args: { patterns: ['jwt_secret', 'pg_api_key', 'raw_db_credential'] },
-        thought: '결제 모듈 인근에 하드코딩된 결제 대행사 시크릿 키나 서명 검증 우회 취약점이 있는지 정적 서명 검사를 수행합니다.',
-        status: 'pending_approval',
-        requiresApproval: requireActionApproval.value,
-      },
-      {
-        id: 'act-4',
-        step: 4,
-        title: '서버 측 결제 위변조 방어 패치(Diff) 작성 및 검증',
-        tool: 'patch_engine:generate_verified_diff',
-        args: { targetFile: 'src/controllers/payment.ts', enforceServerPriceLookup: true },
-        thought: '클라이언트 전달 금액을 신뢰하지 않고 DB의 원장 금액과 대조하여 변조 시 즉각 예외를 발생시키는 패치 코드를 생성합니다.',
-        status: 'pending_approval',
-        requiresApproval: false,
-      },
-    ]
+  // Construct augmented prompt
+  let fullPrompt = prompt
+  if (targetUrl.value.trim()) {
+    fullPrompt = `[대상 URL/컨텍스트: ${targetUrl.value.trim()}]\n\n${prompt}`
   }
 
-  appendLog('PLANNER', `${actions.value.length}개의 구체적 액션 계획 수립 완료. 순차 실행 파이프라인 개시.`, 'step')
-  currentStage.value = 'executing'
+  const tools = getRequestedTools(prompt, targetUrl.value)
+  appendLog('DISPATCH', `의도 분석 및 도구 바인딩: [${tools.join(', ')}]`, 'info')
 
-  // Execute Action Loop
-  await processNextAction(0)
-}
+  abortController = new AbortController()
 
-// Process action at index
-async function processNextAction(index: number) {
-  if (index >= actions.value.length) {
-    // Complete all actions
-    await finalizeReport()
-    return
-  }
+  try {
+    appendLog('GATEWAY', `GoVail Gateway (api.govail.cloud) 연결 및 모델(govail/thinker) 추론 시작...`, 'step')
 
-  const action = actions.value[index]
-  appendLog('AGENT', `[Action ${action.step}/${actions.value.length}] ${action.title}`, 'step')
-  appendLog('THINK', `Thought: ${action.thought}`, 'info')
+    const response = await fetch(RELAY_STREAM_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: fullPrompt,
+        model: 'govail/thinker',
+        tools,
+        enableThinking: true,
+      }),
+      signal: abortController.signal,
+    })
 
-  if (action.requiresApproval) {
-    action.status = 'pending_approval'
-    currentPendingActionId.value = action.id
-    appendLog('GATE', `⚠️ 도구 실행 권한 승인 대기 [Tool: ${action.tool}]`, 'warn')
-    return // Halt and wait for user button click
-  } else {
-    await executeSingleAction(action, index)
-  }
-}
+    if (!response.ok) {
+      throw new Error(`Gateway HTTP ${response.status}`)
+    }
+    if (!response.body) {
+      throw new Error('응답 스트림 본문이 없습니다.')
+    }
 
-// User Click Approve Action
-async function approveCurrentAction() {
-  if (!currentPendingActionId.value) return
-  const idx = actions.value.findIndex((a) => a.id === currentPendingActionId.value)
-  if (idx === -1) return
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let completed = false
 
-  const action = actions.value[idx]
-  currentPendingActionId.value = null
-  appendLog('GATE', `✓ 운영자 권한 승인 완료 [Tool: ${action.tool}]`, 'step')
-  await executeSingleAction(action, idx)
-}
-
-// User Click Reject Action
-function rejectCurrentAction() {
-  if (!currentPendingActionId.value) return
-  const idx = actions.value.findIndex((a) => a.id === currentPendingActionId.value)
-  if (idx === -1) return
-
-  const action = actions.value[idx]
-  action.status = 'rejected'
-  currentPendingActionId.value = null
-  appendLog('GATE', `✕ 운영자에 의해 도구 실행이 거절되었습니다 [Tool: ${action.tool}]`, 'crit')
-  isRunning.value = false
-  currentStage.value = 'idle'
-}
-
-// Execute logic per action
-async function executeSingleAction(action: AgentAction, index: number) {
-  action.status = 'running'
-  const t0 = performance.now()
-
-  appendLog('TOOL', `실행 중: ${action.tool} with args: ${JSON.stringify(action.args)}`, 'info')
-
-  if (detectedMode.value === 'web') {
-    activeRightTab.value = 'browser'
-    if (action.step === 1) {
-      await delay(600)
-      action.observation = 'HTTP 200 OK 수신. Response Header 14개 캡처 완료 (CSP: 누락, HSTS: max-age=31536000 적용됨)'
-      browserSnapshot.value = {
-        url: targetUrl.value.trim() || 'https://demo-service.internal',
-        status: 200,
-        title: 'Target Application Preview',
-        headers: {
-          'server': 'nginx/1.24.0',
-          'content-type': 'text/html; charset=utf-8',
-          'content-security-policy': 'MISSING (취약)',
-          'x-frame-options': 'MISSING (취약)',
-          'strict-transport-security': 'max-age=31536000',
-        },
-        findings: ['CSP 헤더 누락으로 인라인 스크립트 실행 제어 부재', 'X-Frame-Options 미설정으로 클릭재킹 노출'],
+    const parse = createEventParser((event: string, raw: string) => {
+      if (raw === '[DONE]') return
+      let data: any
+      try {
+        data = JSON.parse(raw)
+      } catch {
+        return
       }
-    } else if (action.step === 2) {
-      await delay(500)
-      action.observation = '로그인 폼 1건 식별: <form action="/api/login" method="POST"> 내 _csrf 토큰 부재. Set-Cookie: session_id=...; SameSite=None (위험)'
-    } else if (action.step === 3) {
-      await delay(450)
-      action.observation = '정적 프로빙 완료: /main.js.map -> HTTP 200 OK (1.8MB). 소스코드 전체 역공학 가능 상태 확인.'
-    } else {
-      await delay(500)
-      action.observation = 'Nginx 보안 강화 설정 파일 및 Content-Security-Policy 템플릿 생성 완료.'
+
+      if (event === 'done' || event === 'error') completed = true
+      handleStreamEvent(event, data)
+    })
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        parse(decoder.decode())
+        break
+      }
+      parse(decoder.decode(value, { stream: true }))
     }
-  } else {
-    // Repo mode
-    activeRightTab.value = 'terminal'
-    if (action.step === 1) {
-      await delay(500)
-      action.observation = '소스코드 3개 파일 매칭: src/controllers/payment.ts, src/services/pgService.ts, src/models/order.ts'
-    } else if (action.step === 2) {
-      await delay(600)
-      action.observation = '🔴 Taint Flow 취약점 식별: payment.ts:42에서 req.body.amount 값이 DB 검증 없이 pgService.charge()로 직접 전달됨.'
-      activeRightTab.value = 'diff'
-    } else if (action.step === 3) {
-      await delay(450)
-      action.observation = '시크릿 스캔: .env.example 내 PG_TEST_SECRET 노출 확인 (프로덕션 키 유출은 없음).'
-    } else {
-      await delay(500)
-      action.observation = 'DB 가격 대조 및 불일치 시 400 Bad Request 반환 패치 코드 합성 완료.'
+
+    // Finished
+    appendLog('DONE', `에이전트 실행 및 추론 완료.`, 'step')
+    const diff = extractDiff(responseMarkdown.value)
+    if (diff) {
+      patchSnippet.value = diff
+      appendLog('PATCH', `AI 교정 패치(Diff) 코드 감지 및 추출 완료.`, 'info')
     }
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      appendLog('ABORT', `사용자에 의해 중단되었습니다.`, 'warn')
+    } else {
+      appendLog('ERROR', `실시간 게이트웨이 호출 실패: ${err.message}`, 'crit')
+      responseMarkdown.value += `\n\n> ⚠️ **Gateway 호출 오류:** ${err.message}\n`
+    }
+  } finally {
+    isRunning.value = false
+    abortController = null
   }
-
-  action.latencyMs = Math.round(performance.now() - t0)
-  action.status = 'done'
-  appendLog('OBSERVE', `Observation: ${action.observation}`, 'info')
-
-  // Next step
-  await processNextAction(index + 1)
 }
 
-// Finalize Evidence and Diff
-async function finalizeReport() {
-  currentStage.value = 'verifying'
-  appendLog('VERIFY', `에이전트 실행 결과 통합 증적 바인딩 및 평가 리포트 생성 중...`, 'step')
-  await delay(400)
-
-  if (detectedMode.value === 'web') {
-    evidences.value = [
-      {
-        id: 'EV-W01',
-        severity: 'critical',
-        title: '프로덕션 소스맵(.js.map) 파일 공개 노출',
-        target: '/main.js.map',
-        description: '빌드 번들의 원본 소스코드가 담긴 .map 파일이 외부에서 인증 없이 다운로드 가능합니다.',
-        rawSnippet: `GET /main.js.map HTTP/1.1 -> 200 OK (application/json, 1.8MB)`,
-      },
-      {
-        id: 'EV-W02',
-        severity: 'warning',
-        title: '로그인 폼 CSRF 토큰 부재 및 SameSite=None 세션 쿠키',
-        target: '<form action="/api/login">',
-        description: '크로스 사이트 요청 위조(CSRF) 방어 토큰이 없으며 쿠키가 크로스 사이트에 전송될 수 있습니다.',
-        rawSnippet: `<form method="POST" action="/api/login">\n  <input type="text" name="user" />\n  <!-- CSRF 토큰 누락 -->`,
-      },
-    ]
-
-    patchProposal.value = {
-      target: 'nginx.conf',
-      rationale: '웹 서버 응답 헤더에 CSP 및 X-Frame-Options를 추가하고 .map 파일의 외부 접근을 차단합니다.',
-      diff: `--- a/nginx.conf
-+++ b/nginx.conf
-@@ -20,4 +20,10 @@
-+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; frame-ancestors 'none';";
-+    add_header X-Frame-Options "DENY";
-+
-+    location ~* \.map$ {
-+        return 404;
-+    }`,
+function handleStreamEvent(event: string, data: Record<string, any>) {
+  if (event === 'routing') {
+    appendLog('ROUTE', `모델 라우팅 통과: ${data.policy || 'governed execution'}`, 'info')
+  } else if (event === 'status') {
+    if (data.message) appendLog('STATUS', String(data.message), 'info')
+  } else if (event === 'tool_call') {
+    const actId = `act-${Date.now()}-${actions.value.length + 1}`
+    const newAction: AgentAction = {
+      id: actId,
+      step: actions.value.length + 1,
+      title: `${data.tool} 도구 호출`,
+      tool: String(data.tool),
+      args: data.input || {},
+      thought: `사용자 지시문 처리를 위해 ${data.tool} 도구를 호출하여 데이터를 수집합니다.`,
+      status: requireActionApproval.value ? 'pending_approval' : 'running',
+      requiresApproval: requireActionApproval.value,
     }
+    actions.value.push(newAction)
+    appendLog('TOOL_CALL', `도구 호출 [${data.tool}] Args: ${JSON.stringify(data.input || {})}`, 'step')
 
-    auditScore.value = {
-      grade: 'B-',
-      score: 72,
-      summary: '사용자 지시문 분석 결과: CSRF 방어 체계 결여 및 소스맵 노출이 식별되었습니다. 웹 서버 헤더 보강이 필요합니다.',
+    if (requireActionApproval.value) {
+      currentPendingAction.value = newAction
+      appendLog('GATE', `⚠️ 운영자 권한 승인 대기: [${data.tool}] 실행 승인 필요`, 'warn')
     }
-  } else {
-    evidences.value = [
-      {
-        id: 'EV-C01',
-        severity: 'critical',
-        title: '클라이언트 전달 결제 금액(Amount) 미검증 및 변조 가능 취약점',
-        target: 'src/controllers/payment.ts:42',
-        description: '클라이언트 요청 바디의 amount 파라미터를 DB 가격 조회 없이 PG 결제 승인 함수에 직접 인입하여 1원 결제 등 금액 위변조가 가능합니다.',
-        rawSnippet: `const { orderId, amount } = req.body;\n// DB 가격 검증 없이 전달\nconst result = await pgService.charge({ orderId, amount });`,
-      },
-      {
-        id: 'EV-C02',
-        severity: 'warning',
-        title: '결제 실패 시 트랜잭션 롤백 누락',
-        target: 'src/controllers/payment.ts:58',
-        description: 'PG 승인 실패 시 주문 상태를 FAILED로 갱신하지 않아 재시도 불일치가 발생할 수 있습니다.',
-        rawSnippet: `catch (err) { res.status(500).json({ error: err.message }); }`,
-      },
-    ]
-
-    patchProposal.value = {
-      target: 'src/controllers/payment.ts',
-      rationale: 'DB에서 원본 주문의 실 금액(order.totalAmount)을 조회하여 클라이언트 요청 금액과 불일치할 경우 결제 승인을 원천 차단합니다.',
-      diff: `--- a/src/controllers/payment.ts
-+++ b/src/controllers/payment.ts
-@@ -40,4 +40,11 @@
--    const { orderId, amount } = req.body;
--    const result = await pgService.charge({ orderId, amount });
-+    const { orderId, amount } = req.body;
-+    const order = await orderService.findById(orderId);
-+    if (!order || order.totalAmount !== amount) {
-+      return res.status(400).json({ error: "Invalid payment amount detected." });
-+    }
-+    const result = await pgService.charge({ orderId, amount: order.totalAmount });`,
+  } else if (event === 'tool_result') {
+    const act = actions.value.find((a) => a.tool === data.tool && a.status !== 'done')
+    if (act) {
+      act.observation = typeof data.output === 'object' ? JSON.stringify(data.output, null, 2) : String(data.output || '')
+      act.latencyMs = Number(data.durationMs) || undefined
+      act.status = data.status === 'error' ? 'error' : 'done'
     }
-
-    auditScore.value = {
-      grade: 'C+',
-      score: 65,
-      summary: '사용자 지시문 분석 결과: 결제 금액 파라미터 변조(Taint Flow)가 실제 입증되었습니다. 동봉된 Diff 패치 적용이 필수적입니다.',
+    appendLog('TOOL_RES', `도구 결과 수신 [${data.tool}] (${data.durationMs || 0}ms)`, 'info')
+  } else if (event === 'token') {
+    if (data.delta) {
+      responseMarkdown.value += String(data.delta)
+      nextTick(() => {
+        if (responseBody.value) {
+          responseBody.value.scrollTop = responseBody.value.scrollHeight
+        }
+      })
     }
+  } else if (event === 'done') {
+    appendLog('FINISH', `완료 이벤트 수신 (총 지연시간: ${data.totalLatencyMs || 0}ms)`, 'step')
+  } else if (event === 'error') {
+    appendLog('ERROR', `오류 이벤트: ${data.message || '알 수 없는 에러'}`, 'crit')
   }
+}
 
-  currentStage.value = 'completed'
+// User Approves Pending Action
+function approveAction() {
+  if (!currentPendingAction.value) return
+  const act = currentPendingAction.value
+  act.status = 'running'
+  appendLog('GATE', `✓ 운영자 권한 승인 완료: [${act.tool}] 도구 계속 진행`, 'step')
+  currentPendingAction.value = null
+}
+
+// User Rejects Action
+function rejectAction() {
+  if (!currentPendingAction.value) return
+  const act = currentPendingAction.value
+  act.status = 'error'
+  appendLog('GATE', `✕ 운영자에 의해 [${act.tool}] 도구 실행이 거절되었습니다.`, 'crit')
+  currentPendingAction.value = null
+  if (abortController) abortController.abort()
+}
+
+function stopExecution() {
+  if (abortController) {
+    abortController.abort()
+  }
   isRunning.value = false
-  appendLog('DONE', `전체 에이전트 액션 체인 완료. 증적 리포트 생성됨.`, 'step')
 }
 </script>
 
 <template>
   <div class="agent-workspace">
-    <!-- Top Controller: Prompt + Context Input -->
+    <!-- Top Controller: Prompt + Target -->
     <div class="inspector-card input-card">
       <div class="card-header-line">
         <div class="header-left">
           <span class="status-dot"></span>
-          <span class="utility-label">AUTONOMOUS SECURITY & ACTION AGENT</span>
+          <span class="utility-label">LIVE AGENT WORKSPACE · REAL GATEWAY EXECUTION</span>
         </div>
-        <div class="mode-badge" :style="{ borderColor: modeBadge.color, color: modeBadge.color }">
-          {{ modeBadge.label }}
-        </div>
+        <div class="model-badge">MODEL: govail/thinker</div>
       </div>
 
-      <!-- Target Context (Optional/Auto-detect) -->
+      <!-- Target Context (Optional) -->
       <div class="context-input-row">
         <span class="input-tag">TARGET CONTEXT:</span>
         <input
           v-model="targetUrl"
           type="text"
-          placeholder="GitHub 리포지토리 URL 또는 분석 대상 웹 서비스 주소 (선택)"
+          placeholder="GitHub 리포지토리 URL 또는 분석 대상 웹 주소 (선택 입력)"
           :disabled="isRunning"
         />
       </div>
 
-      <!-- User Instruction Prompt (Main Input) -->
+      <!-- Prompt Input (Main) -->
       <div class="prompt-input-row">
         <textarea
           v-model="userPrompt"
           rows="3"
-          placeholder="에이전트에게 내릴 구체적인 분석/작업 지시문을 입력하세요...&#10;(예: 결제 API 컨트롤러에서 금액 파라미터 변조가 가능한지 추적하고 패치 코드 작성해줘)"
+          placeholder="에이전트에게 내릴 지시를 입력하세요 (예: 네이버에서 속초 날씨 알려줘 / 결제 API Taint 변조 추적 / 보안 헤더 점검 등)..."
           :disabled="isRunning"
           @keydown.ctrl.enter="startAgentWorkflow"
         ></textarea>
         <button
+          v-if="!isRunning"
           class="btn-run-agent"
-          :disabled="isRunning || !userPrompt.trim()"
+          :disabled="!userPrompt.trim()"
           @click="startAgentWorkflow"
         >
-          <span v-if="!isRunning">에이전트 실행 ↗</span>
-          <span v-else>수행 중...</span>
+          에이전트 실행 ↗
+        </button>
+        <button
+          v-else
+          class="btn-stop-agent"
+          @click="stopExecution"
+        >
+          중단 (Stop)
         </button>
       </div>
 
-      <!-- Quick Preset Chips -->
+      <!-- Preset Chips -->
       <div class="presets-row">
-        <span class="presets-label">시나리오 예시:</span>
+        <span class="presets-label">시나리오 빠른 입력:</span>
         <div class="chips-list">
           <button
             v-for="(p, idx) in scenarioPresets"
@@ -533,51 +385,51 @@ async function finalizeReport() {
         </div>
       </div>
 
-      <!-- Action Gate Toggle -->
+      <!-- Approval Gate Toggle -->
       <div class="gate-options-row">
         <label class="toggle-label">
           <input v-model="requireActionApproval" type="checkbox" :disabled="isRunning" />
           <span class="toggle-text">단계별 도구/액션 승인 게이트 (Step-by-step Tool Approval Gate) 강제</span>
         </label>
         <span class="hint-text">
-          * 위험 도구(코드 파싱, 브라우저 스니핑, 패치 생성) 실행 전 운영자의 승인 절차를 거칩니다.
+          * Gateway에서 도구 호출(Tool Call) 이벤트 발생 시 운영자 승인 전까지 일시 대기합니다.
         </span>
       </div>
     </div>
 
-    <!-- Active Approval Gate Banner (If Waiting) -->
-    <div v-if="currentPendingActionId" class="approval-gate-banner">
+    <!-- Active Approval Banner -->
+    <div v-if="currentPendingAction" class="approval-gate-banner">
       <div class="gate-banner-left">
         <div class="gate-title">
           <span class="pulse-icon">⚠️</span>
-          <span>에이전트 도구 실행 승인 대기 (Action Approval Gate)</span>
+          <span>에이전트 도구 실행 승인 대기 [{{ currentPendingAction.tool }}]</span>
         </div>
         <div class="gate-details">
-          에이전트가 <strong>[{{ actions.find(a => a.id === currentPendingActionId)?.tool }}]</strong> 도구를 실행하여
-          "{{ actions.find(a => a.id === currentPendingActionId)?.title }}" 작업을 진행하려 합니다. 승인하시겠습니까?
+          에이전트가 <strong>{{ currentPendingAction.tool }}</strong> 도구를 실행하려 합니다.
+          <pre class="banner-args"><code>{{ JSON.stringify(currentPendingAction.args) }}</code></pre>
         </div>
       </div>
       <div class="gate-banner-actions">
-        <button class="btn-approve" @click="approveCurrentAction">
+        <button class="btn-approve" @click="approveAction">
           ✓ 도구 실행 승인 (Approve)
         </button>
-        <button class="btn-reject" @click="rejectCurrentAction">
-          ✕ 거부 (Reject)
+        <button class="btn-reject" @click="rejectAction">
+          ✕ 거절 (Reject)
         </button>
       </div>
     </div>
 
-    <!-- Dual Workspace: Action Chain vs Observability / Evidence -->
+    <!-- Dual Workspace: Action Chain vs Real-time Response -->
     <div class="workspace-grid">
-      <!-- Left: Agent Action Steps Chain -->
+      <!-- Left: Real Action Chain -->
       <div class="inspector-card actions-chain-card">
         <div class="actions-header">
-          <span class="utility-label">AGENT REASONING & ACTION CHAIN</span>
-          <span v-if="currentStage !== 'idle'" class="stage-status-pill">{{ currentStage.toUpperCase() }}</span>
+          <span class="utility-label">AGENT TOOL ACTIONS & EXECUTION CHAIN</span>
+          <span class="count-tag">{{ actions.length }} Action(s)</span>
         </div>
 
         <div v-if="actions.length === 0" class="actions-empty">
-          상단에서 지시 프롬프트를 입력하고 [에이전트 실행]을 누르면, 의도 분해 및 단계별 도구 실행 과정이 실시간으로 생성됩니다.
+          상단에서 질문이나 지시를 입력하고 [에이전트 실행]을 누르면, Gateway 모델이 호출하는 실제 도구(Tool Call)와 관측 결과가 이곳에 순차적으로 기록됩니다.
         </div>
 
         <div v-else class="actions-timeline">
@@ -595,34 +447,36 @@ async function finalizeReport() {
             </div>
 
             <div class="step-title">{{ act.title }}</div>
-            <div class="step-thought">
-              <span class="thought-label">Thought:</span> {{ act.thought }}
-            </div>
-
-            <!-- Tool Args -->
             <div class="step-args">
               <pre><code>{{ JSON.stringify(act.args, null, 2) }}</code></pre>
             </div>
 
-            <!-- In-card Approval Button (if pending) -->
-            <div v-if="act.status === 'pending_approval' && currentPendingActionId === act.id" class="step-gate-prompt">
-              <span>운영자 승인이 필요합니다:</span>
-              <button class="btn-mini-approve" @click="approveCurrentAction">승인 실행 ↗</button>
-              <button class="btn-mini-reject" @click="rejectCurrentAction">거부</button>
+            <!-- In-card Approval -->
+            <div v-if="act.status === 'pending_approval' && currentPendingAction?.id === act.id" class="step-gate-prompt">
+              <span>운영자 승인 대기 중:</span>
+              <button class="btn-mini-approve" @click="approveAction">승인 실행 ↗</button>
+              <button class="btn-mini-reject" @click="rejectAction">거절</button>
             </div>
 
             <!-- Observation Result -->
             <div v-if="act.observation" class="step-observation">
               <span class="obs-label">Observation:</span>
-              <div class="obs-content">{{ act.observation }}</div>
+              <pre class="obs-code"><code>{{ act.observation }}</code></pre>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right: Live Telemetry, Browser Viewport & Final Report -->
+      <!-- Right: Live Markdown Response & Terminal & Diff -->
       <div class="inspector-card right-panel-card">
         <div class="right-tabs">
+          <button
+            class="tab-btn"
+            :class="{ active: activeRightTab === 'response' }"
+            @click="activeRightTab = 'response'"
+          >
+            실시간 모델 답변 (Response)
+          </button>
           <button
             class="tab-btn"
             :class="{ active: activeRightTab === 'terminal' }"
@@ -631,26 +485,27 @@ async function finalizeReport() {
             터미널 실행 로그
           </button>
           <button
-            v-if="detectedMode === 'web' || browserSnapshot"
-            class="tab-btn"
-            :class="{ active: activeRightTab === 'browser' }"
-            @click="activeRightTab = 'browser'"
-          >
-            브라우저 뷰포트
-          </button>
-          <button
+            v-if="patchSnippet"
             class="tab-btn"
             :class="{ active: activeRightTab === 'diff' }"
             @click="activeRightTab = 'diff'"
           >
-            증적 & 패치 Diff
+            추출된 패치 (Diff)
           </button>
         </div>
 
-        <!-- Tab 1: Terminal Logs -->
+        <!-- Tab 1: Live Response Markdown -->
+        <div v-show="activeRightTab === 'response'" ref="responseBody" class="response-container">
+          <div v-if="!responseMarkdown && !isRunning" class="response-empty">
+            에이전트가 도구를 실행하고 추론한 실제 응답이 이곳에 실시간 스트리밍됩니다.
+          </div>
+          <div v-else class="markdown-body" v-html="renderHtml(responseMarkdown)"></div>
+        </div>
+
+        <!-- Tab 2: Terminal Logs -->
         <div v-show="activeRightTab === 'terminal'" ref="terminalBody" class="terminal-container">
           <div v-if="logs.length === 0" class="terminal-empty">
-            에이전트가 호출하는 서브프로세스, 정적 분석기, LLM 추론 로그가 실시간 스트리밍됩니다.
+            Gateway 요청, 라우팅 정책, 도구 호출 타임스탬프가 실시간 스트리밍됩니다.
           </div>
           <div
             v-for="log in logs"
@@ -664,75 +519,11 @@ async function finalizeReport() {
           </div>
         </div>
 
-        <!-- Tab 2: Browser Viewport -->
-        <div v-show="activeRightTab === 'browser'" class="browser-viewport-container">
-          <div v-if="!browserSnapshot" class="viewport-empty">
-            웹 모드 브라우저 도구가 실행되면 런타임 스냅샷 및 캡처 헤더가 표시됩니다.
-          </div>
-          <div v-else class="viewport-box">
-            <div class="browser-chrome-bar">
-              <span class="chrome-dot red"></span>
-              <span class="chrome-dot yellow"></span>
-              <span class="chrome-dot green"></span>
-              <div class="chrome-url-bar">{{ browserSnapshot.url }}</div>
-              <span class="chrome-status">HTTP {{ browserSnapshot.status }}</span>
-            </div>
-            <div class="viewport-content">
-              <div class="panel-subtitle">런타임 관측 결함</div>
-              <ul class="findings-list">
-                <li v-for="(f, idx) in browserSnapshot.findings" :key="idx">{{ f }}</li>
-              </ul>
-
-              <div class="panel-subtitle">보안 헤더 스냅샷</div>
-              <div class="headers-table">
-                <div v-for="(val, key) in browserSnapshot.headers" :key="key" class="header-row">
-                  <span class="header-key">{{ key }}:</span>
-                  <span class="header-val" :class="{ 'header-warn': val.includes('MISSING') }">{{ val }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 3: Evidence & Patch Diff -->
-        <div v-show="activeRightTab === 'diff'" class="diff-report-container">
-          <div v-if="!auditScore && evidences.length === 0" class="report-empty">
-            에이전트 분석 완료 후 도출된 최종 증적(Evidence)과 수정 코드(Diff)가 이곳에 표시됩니다.
-          </div>
-          <div v-else class="report-inner">
-            <div v-if="auditScore" class="score-summary-bar">
-              <span class="score-badge" :class="'grade-' + auditScore.grade[0]">
-                {{ auditScore.grade }} ({{ auditScore.score }}점)
-              </span>
-              <span class="score-text">{{ auditScore.summary }}</span>
-            </div>
-
-            <!-- Evidence Cards -->
-            <div class="section-title">수집된 취약점 증적 (Evidence)</div>
-            <div
-              v-for="ev in evidences"
-              :key="ev.id"
-              class="evidence-item"
-              :class="'sev-' + ev.severity"
-            >
-              <div class="item-header">
-                <span class="sev-tag">{{ ev.severity.toUpperCase() }}</span>
-                <span class="item-title">{{ ev.title }}</span>
-              </div>
-              <div class="item-target">{{ ev.target }}</div>
-              <div class="item-desc">{{ ev.description }}</div>
-              <pre class="item-snippet"><code>{{ ev.rawSnippet }}</code></pre>
-            </div>
-
-            <!-- Patch Diff -->
-            <div v-if="patchProposal" class="patch-section">
-              <div class="section-title">AI 제안 교정 패치 (Remediation Diff)</div>
-              <div class="patch-rationale">{{ patchProposal.rationale }}</div>
-              <div class="diff-viewer">
-                <div class="diff-file-tag">{{ patchProposal.target }}</div>
-                <pre><code>{{ patchProposal.diff }}</code></pre>
-              </div>
-            </div>
+        <!-- Tab 3: Extracted Diff -->
+        <div v-show="activeRightTab === 'diff'" class="diff-container">
+          <div v-if="patchSnippet" class="diff-viewer">
+            <div class="diff-file-tag">PROPOSED REMEDIATION DIFF</div>
+            <pre><code>{{ patchSnippet }}</code></pre>
           </div>
         </div>
       </div>
@@ -756,7 +547,7 @@ async function finalizeReport() {
   padding: 20px;
 }
 
-/* Header & Inputs */
+/* Header */
 .card-header-line {
   display: flex;
   justify-content: space-between;
@@ -764,19 +555,17 @@ async function finalizeReport() {
   margin-bottom: 14px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-}
+.header-left { display: flex; align-items: center; }
 
-.mode-badge {
+.model-badge {
   font-family: var(--vp-font-family-mono);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border: 1px solid;
+  border: 1px solid var(--cobalt);
+  color: var(--cobalt);
+  background: var(--cobalt-soft);
   border-radius: 4px;
-  letter-spacing: 0.04em;
 }
 
 .context-input-row {
@@ -825,7 +614,6 @@ async function finalizeReport() {
   color: var(--ink);
   outline: none;
   resize: vertical;
-  transition: border-color 0.15s ease;
 }
 
 .prompt-input-row textarea:focus {
@@ -839,17 +627,27 @@ async function finalizeReport() {
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-family: var(--vp-font-family-base);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 0.15s ease;
 }
 
 .btn-run-agent:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-stop-agent {
+  padding: 0 24px;
+  min-width: 130px;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Preset Chips */
@@ -881,7 +679,6 @@ async function finalizeReport() {
   padding: 4px 10px;
   border-radius: 3px;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
 
 .preset-chip:hover:not(:disabled) {
@@ -942,20 +739,17 @@ async function finalizeReport() {
   color: #b45309;
 }
 
-.dark .gate-title {
-  color: #fbbf24;
+.banner-args {
+  margin: 4px 0 0;
+  font-size: 11px;
+  background: var(--terminal);
+  color: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 3px;
+  display: inline-block;
 }
 
-.gate-details {
-  font-size: 13px;
-  color: var(--ink-soft);
-  margin-top: 4px;
-}
-
-.gate-banner-actions {
-  display: flex;
-  gap: 10px;
-}
+.gate-banner-actions { display: flex; gap: 10px; }
 
 .btn-approve {
   padding: 8px 18px;
@@ -981,7 +775,7 @@ async function finalizeReport() {
 /* Workspace Grid */
 .workspace-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   gap: 20px;
   min-height: 560px;
 }
@@ -992,7 +786,7 @@ async function finalizeReport() {
   }
 }
 
-/* Left: Action Chain */
+/* Actions Card */
 .actions-chain-card {
   display: flex;
   flex-direction: column;
@@ -1007,14 +801,10 @@ async function finalizeReport() {
   margin-bottom: 16px;
 }
 
-.stage-status-pill {
+.count-tag {
   font-family: var(--vp-font-family-mono);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
-  background: var(--cobalt-soft);
-  color: var(--cobalt);
-  border-radius: 3px;
+  font-size: 11px;
+  color: var(--slate);
 }
 
 .actions-empty {
@@ -1035,12 +825,6 @@ async function finalizeReport() {
   border-radius: 4px;
   padding: 14px;
   background: var(--paper);
-  transition: all 0.2s ease;
-}
-
-.action-step-card.act-running {
-  border-color: var(--cobalt);
-  background: var(--cobalt-soft);
 }
 
 .action-step-card.act-pending_approval {
@@ -1049,18 +833,10 @@ async function finalizeReport() {
   background: #fffbeb;
 }
 
-.dark .action-step-card.act-pending_approval {
-  background: #2b1d06;
-}
+.dark .action-step-card.act-pending_approval { background: #2b1d06; }
 
-.action-step-card.act-done {
-  border-left: 4px solid #059669;
-}
-
-.action-step-card.act-rejected {
-  border-left: 4px solid #dc2626;
-  opacity: 0.6;
-}
+.action-step-card.act-done { border-left: 4px solid #059669; }
+.action-step-card.act-error { border-left: 4px solid #dc2626; }
 
 .step-header {
   display: flex;
@@ -1102,21 +878,7 @@ async function finalizeReport() {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
-  margin-bottom: 4px;
-}
-
-.step-thought {
-  font-size: 12px;
-  color: var(--ink-soft);
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-.thought-label {
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--slate);
+  margin-bottom: 6px;
 }
 
 .step-args pre {
@@ -1140,10 +902,7 @@ async function finalizeReport() {
   color: #92400e;
 }
 
-.dark .step-gate-prompt {
-  background: #451a03;
-  color: #fde68a;
-}
+.dark .step-gate-prompt { background: #451a03; color: #fde68a; }
 
 .btn-mini-approve {
   padding: 3px 10px;
@@ -1172,7 +931,6 @@ async function finalizeReport() {
   background: color-mix(in srgb, #059669 10%, transparent);
   border-left: 3px solid #059669;
   border-radius: 2px;
-  font-size: 12px;
 }
 
 .obs-label {
@@ -1182,10 +940,15 @@ async function finalizeReport() {
   color: #059669;
 }
 
-.obs-content {
-  color: var(--ink);
-  margin-top: 2px;
-  line-height: 1.5;
+.obs-code {
+  margin: 4px 0 0;
+  font-size: 11px;
+  background: var(--terminal);
+  color: #f1f5f9;
+  padding: 6px 8px;
+  border-radius: 3px;
+  max-height: 140px;
+  overflow-y: auto;
 }
 
 /* Right Panel */
@@ -1221,7 +984,20 @@ async function finalizeReport() {
   background: #111827;
 }
 
-/* Terminal */
+.response-container {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+
+.response-empty {
+  color: var(--slate);
+  padding: 80px 20px;
+  text-align: center;
+  font-size: 13px;
+}
+
 .terminal-container {
   flex: 1;
   background: var(--terminal);
@@ -1235,15 +1011,11 @@ async function finalizeReport() {
 
 .terminal-empty {
   color: #64748b;
-  padding: 60px 10px;
+  padding: 80px 10px;
   text-align: center;
 }
 
-.log-line {
-  margin-bottom: 4px;
-  word-break: break-all;
-}
-
+.log-line { margin-bottom: 4px; word-break: break-all; }
 .log-time { color: #64748b; margin-right: 8px; }
 .log-tag { color: #38bdf8; margin-right: 8px; font-weight: 600; }
 .log-step .log-tag { color: #a855f7; }
@@ -1252,187 +1024,27 @@ async function finalizeReport() {
 .log-crit .log-tag { color: #f87171; }
 .log-crit .log-text { color: #fca5a5; }
 
-/* Browser Viewport */
-.browser-viewport-container {
+.diff-container {
   flex: 1;
-  background: #0b1120;
   padding: 16px;
   overflow-y: auto;
 }
 
-.viewport-empty {
-  color: #64748b;
-  padding: 60px 10px;
-  text-align: center;
-}
-
-.viewport-box {
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 6px;
+.diff-viewer {
+  background: var(--terminal);
+  border-radius: 4px;
   overflow: hidden;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
 }
 
-.browser-chrome-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+.diff-file-tag {
   background: #1e293b;
+  color: #94a3b8;
+  padding: 4px 10px;
+  font-size: 10px;
   border-bottom: 1px solid #334155;
 }
 
-.chrome-dot { width: 8px; height: 8px; border-radius: 50%; }
-.chrome-dot.red { background: #ef4444; }
-.chrome-dot.yellow { background: #f59e0b; }
-.chrome-dot.green { background: #10b981; }
-
-.chrome-url-bar {
-  flex: 1;
-  background: #0f172a;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  color: #94a3b8;
-  margin: 0 8px;
-}
-
-.chrome-status {
-  font-family: var(--vp-font-family-mono);
-  font-size: 10px;
-  color: #10b981;
-}
-
-.viewport-content {
-  padding: 14px;
-  font-size: 12px;
-}
-
-.panel-subtitle {
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.findings-list {
-  padding-left: 18px;
-  margin-bottom: 14px;
-  color: #e2e8f0;
-}
-
-.headers-table {
-  background: #0b1120;
-  border-radius: 4px;
-  padding: 8px 10px;
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-}
-
-.header-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 2px 0;
-}
-
-.header-key { color: #64748b; }
-.header-val { color: #94a3b8; }
-.header-warn { color: #f87171; font-weight: 600; }
-
-/* Diff / Evidence Tab */
-.diff-report-container {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background: var(--paper-raised);
-}
-
-.report-empty {
-  color: var(--slate);
-  padding: 60px 10px;
-  text-align: center;
-  font-size: 13px;
-}
-
-.score-summary-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--paper);
-  border-left: 4px solid var(--cobalt);
-  padding: 12px 14px;
-  border-radius: 4px;
-  margin-bottom: 18px;
-}
-
-.score-badge {
-  font-family: var(--vp-font-family-mono);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
-
-.score-badge.grade-A { background: #d1fae5; color: #065f46; }
-.score-badge.grade-B { background: #dbeafe; color: #1e40af; }
-.score-badge.grade-C { background: #fee2e2; color: #991b1b; }
-
-.score-text {
-  font-size: 13px;
-  color: var(--ink);
-  line-height: 1.4;
-}
-
-.section-title {
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--slate);
-  text-transform: uppercase;
-  margin: 14px 0 8px;
-}
-
-.evidence-item {
-  border: 1px solid var(--mist-strong);
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 10px;
-  background: var(--paper);
-}
-
-.evidence-item.sev-critical { border-left: 4px solid #ef4444; }
-.evidence-item.sev-warning { border-left: 4px solid #f59e0b; }
-
-.item-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.sev-tag {
-  font-family: var(--vp-font-family-mono);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 2px;
-  background: #ef4444;
-  color: #fff;
-}
-
-.sev-warning .sev-tag { background: #f59e0b; }
-
-.item-title { font-size: 13px; font-weight: 600; color: var(--ink); }
-.item-target { font-family: var(--vp-font-family-mono); font-size: 11px; color: var(--slate); margin-bottom: 4px; }
-.item-desc { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
-.item-snippet { background: var(--terminal); color: #f1f5f9; padding: 8px; border-radius: 4px; font-size: 11px; margin: 0; overflow-x: auto; }
-
-.patch-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--mist); }
-.patch-rationale { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
-.diff-viewer { background: var(--terminal); border-radius: 4px; overflow: hidden; font-family: var(--vp-font-family-mono); font-size: 11px; }
-.diff-file-tag { background: #1e293b; color: #94a3b8; padding: 4px 10px; font-size: 10px; border-bottom: 1px solid #334155; }
-.diff-viewer pre { margin: 0; padding: 10px; color: #f8fafc; overflow-x: auto; }
+.diff-viewer pre { margin: 0; padding: 12px; color: #f8fafc; overflow-x: auto; }
 </style>

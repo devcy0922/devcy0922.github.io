@@ -7,6 +7,7 @@ import OtherProjects from './OtherProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
 import Playground from './Playground.vue'
 import AuditInspector from './AuditInspector.vue'
+import ProcessRunner from './ProcessRunner.vue'
 import './custom.css'
 
 export default {
@@ -20,5 +21,6 @@ export default {
     app.component('DiagramFrame', DiagramFrame)
     app.component('Playground', Playground)
     app.component('AuditInspector', AuditInspector)
+    app.component('ProcessRunner', ProcessRunner)
   },
 }

@@ -6,6 +6,7 @@ import SelectedProjects from './SelectedProjects.vue'
 import OtherProjects from './OtherProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
 import Playground from './Playground.vue'
+import AuditInspector from './AuditInspector.vue'
 import './custom.css'
 
 export default {
@@ -18,5 +19,6 @@ export default {
     app.component('OtherProjects', OtherProjects)
     app.component('DiagramFrame', DiagramFrame)
     app.component('Playground', Playground)
+    app.component('AuditInspector', AuditInspector)
   },
 }

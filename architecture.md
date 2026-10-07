@@ -87,6 +87,21 @@ tags:
 - 클라이언트에서 번역 JSON이나 데모 API를 로드하지 않는다.
 - 사이트 기능보다 콘텐츠 작성 비용을 낮추는 것을 우선한다.
 
+## 2026-09 UI 개편
+
+홈은 방문자가 가장 먼저 확인해야 할 순서에 맞춰 `소개 → 대표 작업 → 공개 데모 → 설계 기준 → 기록`으로 구성한다.
+대표 작업은 `selected-projects.js`의 앞선 세 사례만 홈에 노출하고, 전체 목록과 실험은 `/projects/`에서 계속 제공한다. 화면의 정보 밀도는 얇은 구분선과 여백으로 조절하며, 프로젝트 내용을 임의의 성과 수치나 장식용 카드로 바꾸지 않는다.
+
+```mermaid
+flowchart TB
+    Hero[한국어 소개와 직무] --> Work[대표 작업 3건]
+    Work --> Demo[공개 브라우저 데모]
+    Demo --> Principles[문제·경계·실행·검증·운영]
+    Principles --> Notes[Engineering Notes]
+```
+
+기본 폰트는 한국어 본문 가독성을 위해 Noto Sans KR을 사용하고, IBM Plex Mono는 날짜·상태·코드처럼 실제 유틸리티 정보에만 사용한다. 전체 톤은 기존 `Paper / Ink / Cobalt` 토큰을 유지한다.
+
 ## 공개 라이브 콘솔
 
 `/playground`와 `/live-console`은 같은 `Playground.vue`를 사용한다. 사용자가 전송할 때만 `https://api.govail.cloud/v1/model-routing/stream`을 호출하고, 모델은 `govail/thinker`, reasoning effort는 `low`로 고정한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.

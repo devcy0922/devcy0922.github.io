@@ -51,7 +51,7 @@ export default withMermaid(
         'link',
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap',
         },
       ],
     ],
@@ -60,9 +60,10 @@ export default withMermaid(
       siteTitle: 'devcy0922',
 
       nav: [
+        { text: 'Inspector', link: '/audit' },
         { text: 'Playground', link: '/playground' },
         { text: '프로젝트', link: '/projects/' },
-        { text: 'Engineering Notes', link: '/posts/' },
+        { text: '기술 기록', link: '/posts/' },
         { text: '소개', link: '/about' },
         { text: 'GitHub ↗', link: 'https://github.com/devcy0922' },
       ],

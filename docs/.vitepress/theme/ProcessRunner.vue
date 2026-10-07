@@ -24,7 +24,7 @@ export interface ProcessAction {
   id: string
   step: number
   title: string
-  tool: 'browser_probe' | 'secret_check' | 'ast_tracer' | 'llm_synthesizer'
+  tool: string
   args: Record<string, any>
   argsHash: string
   thought: string
@@ -120,18 +120,42 @@ function renderHtml(text: string): string {
   }
 }
 
-// Extract location from weather prompt
-function extractLocation(prompt: string): string {
-  const matches = prompt.match(/(속초|강릉|서울|부산|대구|인천|광주|대전|울산|수원|제주|원주|춘천|여수|포항|전주|창원|청주)/)
-  return matches ? matches[1] : '속초'
+// Approval Gate resolve/reject holders
+let resolveApproval: (() => void) | null = null
+let rejectApproval: (() => void) | null = null
+
+function approveAction() {
+  if (currentPendingAction.value && resolveApproval) {
+    const act = currentPendingAction.value
+    appendLog('GATE', `✓ [approved] 운영자 서명 확인됨 (${act.argsHash.slice(0, 16)}...)`, 'step')
+    act.status = 'running'
+    currentPendingAction.value = null
+    const res = resolveApproval
+    resolveApproval = null
+    rejectApproval = null
+    res()
+  }
 }
 
-// Start Runner Pipeline
+function rejectAction() {
+  if (currentPendingAction.value && rejectApproval) {
+    const act = currentPendingAction.value
+    act.status = 'error'
+    appendLog('GATE', `✕ [cancelled] 운영자에 의해 실행이 거절되었습니다.`, 'crit')
+    currentPendingAction.value = null
+    const rej = rejectApproval
+    resolveApproval = null
+    rejectApproval = null
+    rej()
+  }
+}
+
+// Start Runner Pipeline (100% Dynamic Tool Execution)
 async function startRunnerWorkflow() {
   const prompt = userPrompt.value.trim()
   if (!prompt || isRunning.value) return
 
-  // Reset
+  // Reset state
   logs.value = []
   actions.value = []
   currentEvidence.value = null
@@ -141,256 +165,244 @@ async function startRunnerWorkflow() {
   isRunning.value = true
   activeTab.value = 'evidence'
 
+  const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
   appendLog('TASK', `engine-process run 초기화: "${prompt}"`, 'step')
   if (targetContext.value.trim()) {
     appendLog('CONTEXT', `타깃 컨텍스트 바인딩: ${targetContext.value.trim()}`, 'info')
   }
 
-  const isWeatherQuery = ['날씨', '기온', '강수', '네이버'].some((k) => prompt.includes(k))
-  const isSecurityQuery = ['취약', '시크릿', '패치', 'taint', '변조', '헤더', '토큰', 'ast', '보안', '결제'].some((k) => prompt.includes(k))
+  // 1. Planner Phase: Determine required tools
+  appendLog('PLANNER', '지시문 의도 분해 및 도구 오케스트레이션 계획 수립 중...', 'info')
+  await delay(200)
 
-  if (isWeatherQuery) {
-    await runBrowserProbePipeline(prompt)
-  } else if (isSecurityQuery) {
-    await runSecretCheckPipeline(prompt)
-  } else {
-    // General browser probe fallback
-    await runBrowserProbePipeline(prompt)
+  const lower = prompt.toLowerCase()
+  const toolsToRequest: string[] = ['web_search']
+  if (lower.includes('코드') || lower.includes('파이썬') || lower.includes('계산') || lower.includes('ast') || lower.includes('함수')) {
+    toolsToRequest.push('code_interpreter')
   }
-}
+  if (lower.includes('메트릭') || lower.includes('상태') || lower.includes('헬스') || lower.includes('서버')) {
+    toolsToRequest.push('system_metrics')
+  }
+  if (lower.includes('캐시') || lower.includes('cache') || lower.includes('ttl')) {
+    toolsToRequest.push('cache_inspector')
+  }
 
-// Pipeline A: Browser Probe via CDP (Playwright / Anti-detect / Evidence)
-async function runBrowserProbePipeline(prompt: string) {
-  const location = extractLocation(prompt)
-  const targetUrl = `https://search.naver.com/search.naver?query=${encodeURIComponent(location + ' 날씨')}`
-  const runId = `probe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  appendLog('PLANNER', `실행 도구 파이프라인 확정: [${toolsToRequest.join(', ')}]`, 'step')
 
-  appendLog('ORCH', `도구 그룹 [browser_probe (CDP)] 스케줄링 완료 (Target: ${location})`, 'info')
-
-  actions.value = [
-    {
-      id: 'act-1',
+  // 2. Approval Gate Handling (if enabled)
+  if (requireApproval.value) {
+    const plannedAction: ProcessAction = {
+      id: `act-gate-1`,
       step: 1,
-      title: `네이버 ${location} 날씨 검색 CDP 진입`,
-      tool: 'browser_probe',
-      args: { url: targetUrl, location, mode: 'desktop', timeoutMs: 15000 },
-      argsHash: generateSha256Sim(targetUrl),
-      thought: `공개 날씨 수치를 검증하기 위해 CDP 헤드리스 브라우저로 실제 네이버 검색 페이지로 이동합니다.`,
+      title: `외부 도구 오케스트레이션 파이프라인 진입 승인`,
+      tool: toolsToRequest[0],
+      args: { prompt, tools: toolsToRequest, context: targetContext.value.trim() || undefined },
+      argsHash: generateSha256Sim(prompt + toolsToRequest.join(',')),
+      thought: `지시문을 처리하기 위해 외부 도구 [${toolsToRequest.join(', ')}] 호출 권한 승인을 요청합니다.`,
       status: 'pending_approval',
-      requiresApproval: requireApproval.value,
-    },
-    {
-      id: 'act-2',
-      step: 2,
-      title: '보안 챌린지 검사 및 마커 텍스트/화면 증적 추출',
-      tool: 'browser_probe',
-      args: { markers: ['현재 온도', '체감온도', '최고기온', '최저기온', '강수확률', '℃'], screenshot: 'naver-weather.png' },
-      argsHash: generateSha256Sim('extract_markers'),
-      thought: `CAPTCHA 챌린지 여부를 확인하고, DOM 텍스트에서 실제 기온 및 상태 수치를 추출하여 스크린샷과 함께 증적에 저장합니다.`,
-      status: 'pending_approval',
-      requiresApproval: false,
-    },
-    {
-      id: 'act-3',
-      step: 3,
-      title: '수집 증적 바인딩 및 정밀 브리핑 합성',
-      tool: 'llm_synthesizer',
-      args: { model: 'govail/thinker', runId, task: `네이버 ${location} 날씨 조회` },
-      argsHash: generateSha256Sim(runId),
-      thought: `수집된 실제 브라우저 증적 데이터를 기반으로 사용자에게 정확한 관측 결과를 보고합니다.`,
-      status: 'pending_approval',
-      requiresApproval: false,
-    },
-  ]
+      requiresApproval: true,
+    }
+    actions.value.push(plannedAction)
+    currentPendingAction.value = plannedAction
+    appendLog('GATE', `⚠️ [waiting_for_approval] 운영자 승인 대기 (Hash: ${plannedAction.argsHash.slice(0, 16)}...)`, 'warn')
 
-  // Step 1
-  await processAction(0, async (act) => {
-    appendLog('CDP', `Chrome DevTools Protocol 세션 연결 (/tmp/cdp-session)...`, 'info')
-    await delay(350)
-    appendLog('NAVIGATE', `page.goto(${targetUrl}) -> DOMContentLoaded (200 OK)`, 'info')
-    await delay(400)
-    act.observation = `네이버 검색 페이지 접속 완료 (URL: ${targetUrl}, 응답시간: 182ms)`
-  })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        resolveApproval = resolve
+        rejectApproval = reject
+      })
+    } catch {
+      isRunning.value = false
+      return
+    }
+  }
 
-  // Step 2
-  await processAction(1, async (act) => {
-    appendLog('GUARD', `보안 챌린지(CAPTCHA/로봇 감지) 스캔: 통과 (정상 탐색 가능)`, 'info')
-    await delay(300)
-    appendLog('PARSE', `extract_weather_lines: 공개 마커 6건 추출 성공`, 'info')
-    await delay(350)
-    appendLog('SNAPSHOT', `화면 캡처 증적 저장: logs/evidence/${runId}/naver-weather.png`, 'step')
+  // 3. Live SSE Streaming Request
+  appendLog('ORCH', 'GoVail Gateway 및 engine-process 실시간 세션 스트림 연결 중...', 'info')
+  const endpoint = 'https://api.govail.cloud/v1/model-routing/stream'
 
-    const tempVal = location === '속초' ? '17.2℃' : location === '강릉' ? '18.5℃' : '19.0℃'
-    const feelVal = location === '속초' ? '16.0℃' : location === '강릉' ? '17.2℃' : '18.1℃'
-    const rainVal = '0%'
-    const statusVal = '맑음'
+  let synthAction: ProcessAction | null = null
 
-    currentEvidence.value = {
-      runId,
-      task: `네이버 ${location} 날씨 조회`,
-      status: 'completed',
-      url: targetUrl,
-      metrics: [
-        { label: '현재 온도', value: tempVal, highlight: true },
-        { label: '체감 온도', value: feelVal },
-        { label: '날씨 상태', value: statusVal },
-        { label: '강수 확률', value: rainVal },
-        { label: '미세 먼지', value: '좋음 (18㎍/㎥)' },
-        { label: '초미세먼지', value: '좋음 (9㎍/㎥)' },
-      ],
-      screenshotName: 'naver-weather.png',
-      selectedLines: [
-        `현재 온도 ${tempVal}`,
-        `어제보다 1.2° 높아요 · ${statusVal}`,
-        `체감 ${feelVal} · 습도 48% · 바람 북동풍 1.8m/s`,
-        `미세먼지 좋음 · 초미세먼지 좋음 · 자외선 보통`,
-        `강수확률 ${rainVal}`,
-      ],
-      manifestHash: generateSha256Sim(runId + tempVal),
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        tools: toolsToRequest,
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`HTTP ${res.status}: ${errText}`)
     }
 
-    act.observation = `실제 관측 수치 추출 완료: 현재 온도 ${tempVal}, 체감 ${feelVal}, ${statusVal}, 강수확률 ${rainVal}`
-  })
+    if (!res.body) {
+      throw new Error('응답 바디 스트림이 비어 있습니다.')
+    }
 
-  // Step 3
-  await processAction(2, async (act) => {
-    appendLog('LLM', `GoVail 모델이 수집된 실제 증적(Evidence)을 토대로 브리핑 작성 중...`, 'step')
-    await delay(450)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
 
-    const ev = currentEvidence.value!
-    briefingMarkdown.value = `### 📍 네이버 실시간 관측 결과 (${location})
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
 
-브라우저 프로브 도구가 실제 네이버 날씨 페이지에 접속하여 확인한 실시간 데이터입니다.
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-* **현재 기온:** **${ev.metrics[0].value}** (어제보다 온화함)
-* **체감 기온:** ${ev.metrics[1].value}
-* **날씨 상태:** ${ev.metrics[2].value}
-* **강수 확률:** ${ev.metrics[3].value}
-* **대기질:** 미세먼지 좋음 / 초미세먼지 좋음
+      let currentEvent = 'message'
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
 
-> **증적 확인:** logs/evidence/${runId}/naver-weather.png 스크린샷과 manifest.json 해시 검증이 완료되었습니다.`
-
-    act.observation = `브리핑 작성 완료 (실제 증적 100% 일치 확인)`
-  })
-
-  appendLog('FINISH', `engine-process run [${runId}] 정상 완료 (Exit Code: 0)`, 'step')
-  isRunning.value = false
-}
-
-// Pipeline B: Secret & SAST Checker
-async function runSecretCheckPipeline(prompt: string) {
-  const runId = `sast-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-  appendLog('ORCH', `도구 그룹 [secret_check / sast_tracer] 스케줄링 완료`, 'info')
-
-  actions.value = [
-    {
-      id: 'act-1',
-      step: 1,
-      title: '소스코드 시크릿 서명 및 AST Taint Flow 검사',
-      tool: 'secret_check',
-      args: { target: targetContext.value.trim() || 'src/controllers/payment.ts', rules: ['hardcoded_keys', 'taint_amount_mismatch'] },
-      argsHash: generateSha256Sim('sast_scan'),
-      thought: `결제/인증 컨트롤러에서 하드코딩된 토큰과 사용자 입력값 미검증(Taint Flow) 경로를 정적 분석합니다.`,
-      status: 'pending_approval',
-      requiresApproval: requireApproval.value,
-    },
-    {
-      id: 'act-2',
-      step: 2,
-      title: '결함 증적 바인딩 및 교정 패치(Diff) 자동 생성',
-      tool: 'secret_check',
-      args: { action: 'generate_patch', targetFile: 'src/controllers/payment.ts' },
-      argsHash: generateSha256Sim('patch_gen'),
-      thought: `검출된 파라미터 변조 위험 지점에 대해 DB 원장 대조 검증 코드를 합성합니다.`,
-      status: 'pending_approval',
-      requiresApproval: false,
-    },
-  ]
-
-  // Step 1
-  await processAction(0, async (act) => {
-    appendLog('AST', `AST 트래버스: req.body.amount 파라미터가 DB 대조 없이 pgService로 직접 인입됨 식별`, 'warn')
-    await delay(450)
-    act.observation = `취약 경로 검출: src/controllers/payment.ts:42 (Taint Flow: Client Input -> PG Charge)`
-  })
-
-  // Step 2
-  await processAction(1, async (act) => {
-    appendLog('PATCH', `교정 패치(Remediation Diff) 생성 및 문법 검증 완료`, 'step')
-    await delay(400)
-
-    patchDiff.value = `--- a/src/controllers/payment.ts
-+++ b/src/controllers/payment.ts
-@@ -40,4 +40,11 @@
--    const { orderId, amount } = req.body;
--    const result = await pgService.charge({ orderId, amount });
-+    const { orderId, amount } = req.body;
-+    const order = await orderService.findById(orderId);
-+    if (!order || order.totalAmount !== amount) {
-+      return res.status(400).json({ error: "Invalid payment amount detected." });
-+    }
-+    const result = await pgService.charge({ orderId, amount: order.totalAmount });`
-
-    activeTab.value = 'diff'
-    briefingMarkdown.value = `### 🛡️ Taint Flow 취약점 식별 및 패치 보고서
-
-* **발견 지점:** \`src/controllers/payment.ts:42\`
-* **결함 요약:** 클라이언트 전달 결제 금액(\`amount\`)을 서버 DB 가격과 대조하지 않고 PG사에 직접 승인 요청함.
-* **조치 방안:** 상단 패치(Diff) 탭에 생성된 원장 금액 대조 코드를 즉시 적용하십시오.`
-
-    act.observation = `패치 코드 생성 완료 (Diff 탭에서 확인 가능)`
-  })
-
-  appendLog('FINISH', `engine-process run [${runId}] 정상 완료 (Exit Code: 0)`, 'step')
-  isRunning.value = false
-}
-
-// Action executor with Approval Gate
-async function processAction(index: number, runFn: (act: ProcessAction) => Promise<void>) {
-  const act = actions.value[index]
-  appendLog('STEP', `[Step ${act.step}/${actions.value.length}] ${act.title}`, 'step')
-  appendLog('THINK', `Thought: ${act.thought}`, 'info')
-
-  if (act.requiresApproval) {
-    act.status = 'pending_approval'
-    currentPendingAction.value = act
-    appendLog('GATE', `⚠️ [waiting_for_approval] 운영자 승인 대기 (Hash: ${act.argsHash.slice(0, 16)}...)`, 'warn')
-
-    // Wait for user click
-    await new Promise<void>((resolve) => {
-      const check = setInterval(() => {
-        if (!currentPendingAction.value) {
-          clearInterval(check)
-          resolve()
+        if (trimmed.startsWith('event:')) {
+          currentEvent = trimmed.slice(6).trim()
+        } else if (trimmed.startsWith('data:')) {
+          const dataRaw = trimmed.slice(5).trim()
+          try {
+            const data = JSON.parse(dataRaw)
+            handleStreamEvent(currentEvent, data, runId, prompt)
+          } catch {
+            // raw string data
+          }
         }
-      }, 100)
-    })
+      }
+    }
+
+    // Flush any remaining buffer
+    if (buffer.trim().startsWith('data:')) {
+      try {
+        const data = JSON.parse(buffer.trim().slice(5).trim())
+        handleStreamEvent('message', data, runId, prompt)
+      } catch {
+        // ignore
+      }
+    }
+
+    // Finalize LLM Synth Action
+    const lastAct = actions.value[actions.value.length - 1]
+    if (lastAct && lastAct.status === 'running') {
+      lastAct.status = 'done'
+    }
+
+    appendLog('FINISH', `engine-process run [${runId}] 정상 완료 (Exit Code: 0)`, 'step')
+  } catch (err: any) {
+    appendLog('ERROR', `실행 오류: ${err.message || err}`, 'crit')
+    if (actions.value.length > 0) {
+      actions.value[actions.value.length - 1].status = 'error'
+    }
+  } finally {
+    isRunning.value = false
+    currentPendingAction.value = null
   }
-
-  act.status = 'running'
-  const t0 = performance.now()
-  await runFn(act)
-  act.latencyMs = Math.round(performance.now() - t0)
-  act.status = 'done'
-  appendLog('OBSERVE', `Observation: ${act.observation}`, 'info')
 }
 
-// User Approves Action
-function approveAction() {
-  if (!currentPendingAction.value) return
-  const act = currentPendingAction.value
-  appendLog('GATE', `✓ [approved] 운영자 서명 확인됨 (${act.argsHash.slice(0, 16)}...)`, 'step')
-  currentPendingAction.value = null
-}
+// Stream Event Dispatcher
+function handleStreamEvent(event: string, data: any, runId: string, prompt: string) {
+  if (event === 'routing') {
+    appendLog('ROUTING', `모델: ${data.model} | 정책: ${data.policy} | 타깃: ${data.targetNode}`, 'info')
+  } else if (event === 'status') {
+    appendLog('STATUS', data.message, 'info')
+  } else if (event === 'tool_call') {
+    const stepNum = actions.value.length + 1
+    const act: ProcessAction = {
+      id: data.callId || `act-tool-${stepNum}`,
+      step: stepNum,
+      title: `도구 [${data.tool}] 실행`,
+      tool: data.tool,
+      args: data.input || {},
+      argsHash: generateSha256Sim(JSON.stringify(data.input || {})),
+      thought: `사용자 지시를 실시간 관측/해결하기 위해 ${data.tool} 도구를 기동합니다.`,
+      status: 'running',
+      requiresApproval: false,
+    }
+    actions.value.push(act)
+    appendLog('TOOL', `실행 중: ${data.tool} with args: ${JSON.stringify(data.input)}`, 'step')
+  } else if (event === 'tool_result') {
+    const act = actions.value.find((a) => a.id === data.callId) || actions.value[actions.value.length - 1]
+    if (act) {
+      act.status = data.status === 'error' ? 'error' : 'done'
+      act.latencyMs = data.durationMs || 0
+      if (data.status === 'error') {
+        act.observation = `오류: ${data.error || '실행 실패'}`
+        appendLog('OBSERVE', `도구 실행 실패: ${data.error}`, 'crit')
+      } else {
+        const hits = data.output?.hits || data.output?.results?.length || (Array.isArray(data.output) ? data.output.length : 1)
+        act.observation = `실제 관측 완료: ${hits}건의 데이터 수집됨 (${data.durationMs}ms)`
+        appendLog('OBSERVE', `Observation: ${hits}건의 데이터 수집 성공 (${data.durationMs}ms)`, 'info')
+      }
+    }
 
-// User Rejects Action
-function rejectAction() {
-  if (!currentPendingAction.value) return
-  const act = currentPendingAction.value
-  act.status = 'error'
-  appendLog('GATE', `✕ [cancelled] 운영자에 의해 실행이 거절되었습니다.`, 'crit')
-  currentPendingAction.value = null
-  isRunning.value = false
+    // Build Evidence Card from real data
+    if (data.status === 'success' && data.output) {
+      const out = data.output
+      const metrics: ParsedMetric[] = []
+      const selectedLines: string[] = []
+      let targetUrl = 'https://search.naver.com/'
+
+      if (out.results && Array.isArray(out.results)) {
+        metrics.push({ label: '검색 엔진', value: out.engine || 'duckduckgo' })
+        metrics.push({ label: '수집 결과 수', value: `${out.results.length}건`, highlight: true })
+        metrics.push({ label: '도구 응답 속도', value: `${data.durationMs || 0}ms` })
+
+        if (out.results.length > 0) {
+          targetUrl = out.results[0].url || targetUrl
+          for (let i = 0; i < Math.min(out.results.length, 5); i++) {
+            const item = out.results[i]
+            selectedLines.push(`[${i + 1}] ${item.title}: ${item.snippet}`)
+          }
+        }
+      } else {
+        metrics.push({ label: '도구', value: data.tool, highlight: true })
+        metrics.push({ label: '응답 속도', value: `${data.durationMs || 0}ms` })
+        selectedLines.push(typeof out === 'string' ? out : JSON.stringify(out, null, 2))
+      }
+
+      currentEvidence.value = {
+        runId,
+        task: prompt,
+        status: 'completed',
+        url: targetUrl,
+        metrics,
+        screenshotName: `evidence-${data.tool}-${Date.now().toString(36)}.png`,
+        selectedLines,
+        manifestHash: generateSha256Sim(runId + JSON.stringify(data.output)),
+      }
+    }
+  } else if (event === 'token') {
+    if (data.reasoning) {
+      // Find or create synthesizer action
+      let synth = actions.value.find((a) => a.tool === 'llm_synthesizer')
+      if (!synth) {
+        const stepNum = actions.value.length + 1
+        synth = {
+          id: `act-synth-${stepNum}`,
+          step: stepNum,
+          title: '수집 증적 바인딩 및 정밀 브리핑 작성',
+          tool: 'llm_synthesizer',
+          args: { model: data.model || 'govail/thinker' },
+          argsHash: generateSha256Sim('synthesize'),
+          thought: '',
+          status: 'running',
+          requiresApproval: false,
+        }
+        actions.value.push(synth)
+      }
+      synth.thought += data.reasoning
+    }
+
+    if (data.delta) {
+      briefingMarkdown.value += data.delta
+    }
+  } else if (event === 'error') {
+    appendLog('ERROR', data.message || '오류 발생', 'crit')
+  }
 }
 </script>
 
@@ -403,7 +415,7 @@ function rejectAction() {
           <span class="status-dot"></span>
           <span class="utility-label">ENGINE-PROCESS RUNNER · TOOL ORCHESTRATION</span>
         </div>
-        <div class="engine-badge">RUNTIME: engine-process (CDP & SAST)</div>
+        <div class="engine-badge">RUNTIME: engine-process</div>
       </div>
 
       <!-- Target Context -->
@@ -412,7 +424,7 @@ function rejectAction() {
         <input
           v-model="targetContext"
           type="text"
-          placeholder="대상 URL, 리포지토리 또는 작업 경로 (선택)"
+          placeholder="대상 URL 또는 작업 컨텍스트 (선택)"
           :disabled="isRunning"
         />
       </div>
@@ -422,7 +434,7 @@ function rejectAction() {
         <textarea
           v-model="userPrompt"
           rows="3"
-          placeholder="실행할 지시를 입력하세요 (예: 네이버에서 속초 날씨 알려줘 / 결제 API Taint 변조 추적 등)..."
+          placeholder="실행할 작업을 입력하세요..."
           :disabled="isRunning"
           @keydown.ctrl.enter="startRunnerWorkflow"
         ></textarea>
@@ -450,7 +462,7 @@ function rejectAction() {
           <span class="toggle-text">engine-process 승인 게이트 (waiting_for_approval) 강제</span>
         </label>
         <span class="hint-text">
-          * CDP 브라우저 진입, 외부 네트워크 요청 등 도구 호출 전 서명 및 해시 검증을 수행합니다.
+          * 외부 네트워크 요청 및 도구 실행 전 운영자 승인을 거칩니다.
         </span>
       </div>
     </div>
@@ -487,7 +499,7 @@ function rejectAction() {
         </div>
 
         <div v-if="actions.length === 0" class="actions-empty">
-          지시문을 입력하고 [실행]을 누르면, engine-process가 도구(browser_probe, secret_check)를 기동하고 수집한 단계별 관측 결과가 실시간으로 표시됩니다.
+          지시문을 입력하고 [실행]을 누르면, 도구 실행 및 실시간 관측 증적이 표시됩니다.
         </div>
 
         <div v-else class="actions-timeline">
@@ -590,15 +602,15 @@ function rejectAction() {
                 <span class="chrome-dot yellow"></span>
                 <span class="chrome-dot green"></span>
                 <div class="chrome-url-bar">{{ currentEvidence.url }}</div>
-                <span class="chrome-badge">PROBE COMPLETED</span>
+                <span class="chrome-badge">RUNTIME OBSERVED</span>
               </div>
               <div class="viewport-body">
                 <div class="viewport-headline">
-                  <span class="pulse-icon">📷</span>
-                  <span>EVIDENCE RECORD: {{ currentEvidence.screenshotName }}</span>
+                  <span class="pulse-icon">🔍</span>
+                  <span>EVIDENCE RECORD (TASK: {{ currentEvidence.task }})</span>
                 </div>
                 <div class="selected-lines-panel">
-                  <div class="lines-title">선별 마커 추출 텍스트 (extract_weather_lines):</div>
+                  <div class="lines-title">실시간 수집 관측 텍스트 (Observation Extracts):</div>
                   <ul>
                     <li v-for="(line, lidx) in currentEvidence.selectedLines" :key="lidx">{{ line }}</li>
                   </ul>

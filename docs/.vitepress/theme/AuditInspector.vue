@@ -63,36 +63,6 @@ const responseMarkdown = ref('')
 const patchSnippet = ref<string | null>(null)
 let abortController: AbortController | null = null
 
-// Quick Presets
-const scenarioPresets = [
-  {
-    label: '속초 날씨 실시간 검색',
-    url: 'https://search.naver.com',
-    prompt: '네이버에서 오늘 속초 날씨와 기온, 강수 확률을 실시간 검색해서 알려줘.',
-  },
-  {
-    label: '결제 모듈 파라미터 변조(Taint) 검증',
-    url: 'https://github.com/shop-platform/core-api',
-    prompt: '결제 승인 컨트롤러에서 결제 금액(amount) 파라미터 변조 취약점을 방어하기 위한 검증 로직과 패치 코드를 작성해줘.',
-  },
-  {
-    label: '웹 보안 헤더 및 쿠키 설정 점검',
-    url: 'https://auth.govail.cloud',
-    prompt: '이 웹 서비스의 Content-Security-Policy, HSTS, X-Frame-Options 헤더 및 세션 쿠키의 보안 속성(HttpOnly, Secure, SameSite)을 점검해줘.',
-  },
-  {
-    label: '하드코딩 시크릿 탐지 및 격리',
-    url: 'https://github.com/backend-service/api',
-    prompt: '소스코드에 하드코딩된 API Key, JWT 시크릿, DB 접속 정보를 탐지하고 환경변수 격리 가이드를 제시해줘.',
-  },
-]
-
-function applyPreset(p: typeof scenarioPresets[0]) {
-  if (isRunning.value) return
-  targetUrl.value = p.url
-  userPrompt.value = p.prompt
-}
-
 function formatTimestamp(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -150,7 +120,7 @@ function renderHtml(text: string): string {
 // Start Real Agent Workflow via GoVail Gateway
 async function startAgentWorkflow() {
   const prompt = userPrompt.value.trim()
-  if (!prompt || isStreaming.value) return
+  if (!prompt || isRunning.value) return
 
   // Reset
   logs.value = []
@@ -178,7 +148,7 @@ async function startAgentWorkflow() {
   abortController = new AbortController()
 
   try {
-    appendLog('GATEWAY', `GoVail Gateway (api.govail.cloud) 연결 및 모델(govail/thinker) 추론 시작...`, 'step')
+    appendLog('GATEWAY', `Gateway 연결 및 모델 추론 시작...`, 'step')
 
     const response = await fetch(RELAY_STREAM_URL, {
       method: 'POST',
@@ -201,7 +171,6 @@ async function startAgentWorkflow() {
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
-    let completed = false
 
     const parse = createEventParser((event: string, raw: string) => {
       if (raw === '[DONE]') return
@@ -212,7 +181,6 @@ async function startAgentWorkflow() {
         return
       }
 
-      if (event === 'done' || event === 'error') completed = true
       handleStreamEvent(event, data)
     })
 
@@ -225,7 +193,6 @@ async function startAgentWorkflow() {
       parse(decoder.decode(value, { stream: true }))
     }
 
-    // Finished
     appendLog('DONE', `에이전트 실행 및 추론 완료.`, 'step')
     const diff = extractDiff(responseMarkdown.value)
     if (diff) {
@@ -258,7 +225,7 @@ function handleStreamEvent(event: string, data: Record<string, any>) {
       title: `${data.tool} 도구 호출`,
       tool: String(data.tool),
       args: data.input || {},
-      thought: `사용자 지시문 처리를 위해 ${data.tool} 도구를 호출하여 데이터를 수집합니다.`,
+      thought: `지시문 처리를 위해 ${data.tool} 도구를 호출하여 데이터를 수집합니다.`,
       status: requireActionApproval.value ? 'pending_approval' : 'running',
       requiresApproval: requireActionApproval.value,
     }
@@ -327,18 +294,17 @@ function stopExecution() {
       <div class="card-header-line">
         <div class="header-left">
           <span class="status-dot"></span>
-          <span class="utility-label">LIVE AGENT WORKSPACE · REAL GATEWAY EXECUTION</span>
+          <span class="utility-label">SECURITY & ACTION INSPECTOR</span>
         </div>
-        <div class="model-badge">MODEL: govail/thinker</div>
       </div>
 
       <!-- Target Context (Optional) -->
       <div class="context-input-row">
-        <span class="input-tag">TARGET CONTEXT:</span>
+        <span class="input-tag">TARGET:</span>
         <input
           v-model="targetUrl"
           type="text"
-          placeholder="GitHub 리포지토리 URL 또는 분석 대상 웹 주소 (선택 입력)"
+          placeholder="대상 URL 또는 Git 리포지토리 (선택)"
           :disabled="isRunning"
         />
       </div>
@@ -348,7 +314,7 @@ function stopExecution() {
         <textarea
           v-model="userPrompt"
           rows="3"
-          placeholder="에이전트에게 내릴 지시를 입력하세요 (예: 네이버에서 속초 날씨 알려줘 / 결제 API Taint 변조 추적 / 보안 헤더 점검 등)..."
+          placeholder="실행할 지시문 또는 분석 요청을 입력하세요."
           :disabled="isRunning"
           @keydown.ctrl.enter="startAgentWorkflow"
         ></textarea>
@@ -358,7 +324,7 @@ function stopExecution() {
           :disabled="!userPrompt.trim()"
           @click="startAgentWorkflow"
         >
-          에이전트 실행 ↗
+          실행 ↗
         </button>
         <button
           v-else
@@ -367,22 +333,6 @@ function stopExecution() {
         >
           중단 (Stop)
         </button>
-      </div>
-
-      <!-- Preset Chips -->
-      <div class="presets-row">
-        <span class="presets-label">시나리오 빠른 입력:</span>
-        <div class="chips-list">
-          <button
-            v-for="(p, idx) in scenarioPresets"
-            :key="idx"
-            class="preset-chip"
-            :disabled="isRunning"
-            @click="applyPreset(p)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
       </div>
 
       <!-- Approval Gate Toggle -->
@@ -402,7 +352,7 @@ function stopExecution() {
       <div class="gate-banner-left">
         <div class="gate-title">
           <span class="pulse-icon">⚠️</span>
-          <span>에이전트 도구 실행 승인 대기 [{{ currentPendingAction.tool }}]</span>
+          <span>도구 실행 승인 대기 [{{ currentPendingAction.tool }}]</span>
         </div>
         <div class="gate-details">
           에이전트가 <strong>{{ currentPendingAction.tool }}</strong> 도구를 실행하려 합니다.
@@ -411,7 +361,7 @@ function stopExecution() {
       </div>
       <div class="gate-banner-actions">
         <button class="btn-approve" @click="approveAction">
-          ✓ 도구 실행 승인 (Approve)
+          ✓ 승인 (Approve)
         </button>
         <button class="btn-reject" @click="rejectAction">
           ✕ 거절 (Reject)
@@ -424,12 +374,12 @@ function stopExecution() {
       <!-- Left: Real Action Chain -->
       <div class="inspector-card actions-chain-card">
         <div class="actions-header">
-          <span class="utility-label">AGENT TOOL ACTIONS & EXECUTION CHAIN</span>
+          <span class="utility-label">AGENT TOOL ACTIONS</span>
           <span class="count-tag">{{ actions.length }} Action(s)</span>
         </div>
 
         <div v-if="actions.length === 0" class="actions-empty">
-          상단에서 질문이나 지시를 입력하고 [에이전트 실행]을 누르면, Gateway 모델이 호출하는 실제 도구(Tool Call)와 관측 결과가 이곳에 순차적으로 기록됩니다.
+          지시문을 입력하고 [실행]을 누르면, 호출되는 도구(Tool Call)와 관측 결과가 순차적으로 기록됩니다.
         </div>
 
         <div v-else class="actions-timeline">
@@ -475,14 +425,14 @@ function stopExecution() {
             :class="{ active: activeRightTab === 'response' }"
             @click="activeRightTab = 'response'"
           >
-            실시간 모델 답변 (Response)
+            응답 (Response)
           </button>
           <button
             class="tab-btn"
             :class="{ active: activeRightTab === 'terminal' }"
             @click="activeRightTab = 'terminal'"
           >
-            터미널 실행 로그
+            터미널 로그
           </button>
           <button
             v-if="patchSnippet"
@@ -490,14 +440,14 @@ function stopExecution() {
             :class="{ active: activeRightTab === 'diff' }"
             @click="activeRightTab = 'diff'"
           >
-            추출된 패치 (Diff)
+            패치 (Diff)
           </button>
         </div>
 
         <!-- Tab 1: Live Response Markdown -->
         <div v-show="activeRightTab === 'response'" ref="responseBody" class="response-container">
           <div v-if="!responseMarkdown && !isRunning" class="response-empty">
-            에이전트가 도구를 실행하고 추론한 실제 응답이 이곳에 실시간 스트리밍됩니다.
+            에이전트가 도구를 실행하고 추론한 응답이 실시간 스트리밍됩니다.
           </div>
           <div v-else class="markdown-body" v-html="renderHtml(responseMarkdown)"></div>
         </div>
@@ -505,7 +455,7 @@ function stopExecution() {
         <!-- Tab 2: Terminal Logs -->
         <div v-show="activeRightTab === 'terminal'" ref="terminalBody" class="terminal-container">
           <div v-if="logs.length === 0" class="terminal-empty">
-            Gateway 요청, 라우팅 정책, 도구 호출 타임스탬프가 실시간 스트리밍됩니다.
+            Gateway 요청, 정책, 도구 호출 타임스탬프가 표시됩니다.
           </div>
           <div
             v-for="log in logs"
@@ -556,17 +506,6 @@ function stopExecution() {
 }
 
 .header-left { display: flex; align-items: center; }
-
-.model-badge {
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border: 1px solid var(--cobalt);
-  color: var(--cobalt);
-  background: var(--cobalt-soft);
-  border-radius: 4px;
-}
 
 .context-input-row {
   display: flex;
@@ -622,7 +561,7 @@ function stopExecution() {
 
 .btn-run-agent {
   padding: 0 24px;
-  min-width: 130px;
+  min-width: 110px;
   background: var(--cobalt);
   color: #fff;
   border: none;
@@ -640,7 +579,7 @@ function stopExecution() {
 
 .btn-stop-agent {
   padding: 0 24px;
-  min-width: 130px;
+  min-width: 110px;
   background: #dc2626;
   color: #fff;
   border: none;
@@ -648,43 +587,6 @@ function stopExecution() {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* Preset Chips */
-.presets-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-.presets-label {
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  color: var(--slate);
-}
-
-.chips-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.preset-chip {
-  background: var(--paper);
-  border: 1px solid var(--mist);
-  color: var(--ink-soft);
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.preset-chip:hover:not(:disabled) {
-  border-color: var(--cobalt);
-  color: var(--cobalt);
-  background: var(--cobalt-soft);
 }
 
 /* Gate Toggle */

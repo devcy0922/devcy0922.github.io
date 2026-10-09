@@ -431,6 +431,7 @@ select:focus-visible, input:focus-visible { outline: 3px solid var(--cobalt); ou
 
 @media (max-width: 420px) {
   .dev-home { width: calc(100% - 24px); }
+  .trace-shell { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
   .portfolio-hero { padding-top: 56px; }
   .career-line { font-size: 10px; }
   .portfolio-intro h1 { font-size: 37px; }

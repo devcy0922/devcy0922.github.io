@@ -60,6 +60,8 @@ export default withMermaid(
       siteTitle: 'devcy0922',
 
       nav: [
+        { text: 'Runner', link: '/runner' },
+        { text: 'Playground', link: '/playground' },
         { text: '프로젝트', link: '/projects/' },
         { text: '기록', link: '/posts/' },
         { text: '소개', link: '/about' },

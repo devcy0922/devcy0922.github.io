@@ -4,7 +4,7 @@
 
 - Site: https://devcy0922.github.io
 - Language: Korean first
-- Runtime: 정적 사이트와 브라우저 시뮬레이션. 라이브 콘솔만 기존 공개 relay를 호출합니다.
+- Runtime: 정적 사이트. 콘솔(`/playground`)만 사용자가 실행할 때 공개 relay를 호출합니다.
 - Deploy: GitHub Pages
 
 ## Local development
@@ -45,8 +45,7 @@ tags:
 ## Information architecture
 
 - `/` — 직무와 경력, 대표 시스템, 설계 기준, 기술 기록
-- `/playground` — 규칙 동기화·모델 정책·업무 승인·증거 판정 브라우저 데모
-- `/live-console` — 별도 공개 relay를 호출하는 실제 모델 콘솔
+- `/playground` — 콘솔. 질문 하나가 GoVail Gateway를 거쳐 도구 호출과 모델 응답으로 처리되는 과정을 실행 증적과 함께 확인하는 라이브 데모 (`/live-console`·`/runner`·`/audit`은 이 주소로 이동)
 - `/posts/` — 기록 아카이브
 - `/projects/` — 프로젝트 사례
 - `/about` — 경험과 현재 관심사

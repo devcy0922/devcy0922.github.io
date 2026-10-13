@@ -1,10 +1,16 @@
 ---
 layout: page
-title: "모델에 질문하기"
-description: "govail/thinker에 실제 요청을 보내고 도구 실행 결과를 확인합니다."
+title: "콘솔로 이동"
+description: "이 주소는 콘솔(/playground)로 통합되었습니다."
 aside: false
 outline: false
-pageClass: playground-page
+head:
+  - - meta
+    - http-equiv: refresh
+      content: "0; url=/playground"
+  - - meta
+    - name: robots
+      content: noindex
 ---
 
-<Playground />
+<RedirectNotice to="/playground" label="콘솔" />

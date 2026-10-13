@@ -5,10 +5,10 @@ import AutoProjects from './AutoProjects.vue'
 import SelectedProjects from './SelectedProjects.vue'
 import OtherProjects from './OtherProjects.vue'
 import DiagramFrame from './DiagramFrame.vue'
-import Playground from './Playground.vue'
-import AuditInspector from './AuditInspector.vue'
-import ProcessRunner from './ProcessRunner.vue'
+import Workbench from './workbench/Workbench.vue'
+import RedirectNotice from './RedirectNotice.vue'
 import './custom.css'
+import './workbench/workbench.css'
 
 export default {
   extends: DefaultTheme,
@@ -19,8 +19,7 @@ export default {
     app.component('SelectedProjects', SelectedProjects)
     app.component('OtherProjects', OtherProjects)
     app.component('DiagramFrame', DiagramFrame)
-    app.component('Playground', Playground)
-    app.component('AuditInspector', AuditInspector)
-    app.component('ProcessRunner', ProcessRunner)
+    app.component('Workbench', Workbench)
+    app.component('RedirectNotice', RedirectNotice)
   },
 }

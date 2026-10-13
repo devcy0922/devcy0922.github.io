@@ -1,6 +1,6 @@
 // GoVail Gateway 스트림 호출의 단일 진입점.
-// 세 화면(Playground·ProcessRunner·AuditInspector)이 각자 fetch/SSE 파싱/오류 처리를 구현하면서
-// 청크 경계 처리와 실패 표시가 서로 달라졌다. 요청·파싱·실패 분류는 여기서만 한다.
+// 화면마다 fetch/SSE 파싱/오류 처리를 따로 구현하면 청크 경계 처리와 실패 표시가 서로 달라진다
+// (예전 Runner는 이벤트가 유실되었다). 요청·파싱·실패 분류는 여기서만 한다.
 import { createEventParser } from './stream-events.js'
 
 export const GATEWAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'

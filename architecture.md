@@ -8,9 +8,9 @@
 
 - 홈: 경력과 직무 → 대표 시스템 → 실행 가능한 데모 → 설계 원칙 → 기록.
 - 대표 프로젝트 데이터는 `docs/selected-projects.js`에서 문제, 결정, 확인 경로를 함께 관리한다.
-- `/playground`는 `govail/thinker`에 실제 요청을 보내는 대화형 클라이언트다. 선택한 도구의 입력과 relay가 반환한 결과만 표시한다.
+- `/playground`는 `govail/thinker`에 실제 요청을 보내는 콘솔 화면이다. 선택한 도구의 입력과 relay가 반환한 결과만 표시한다.
 - 내부 chain-of-thought나 사설 노드 정보는 노출하지 않는다. 관찰 가능한 SSE 이벤트와 도구 결과만 증적으로 남긴다.
-- 라이브 콘솔은 빈 세션으로 시작한다. 네트워크 오류는 오류로 표시하며 초기 운영 수치 fixture를 넣지 않는다.
+- 라이브 콘솔은 빈 작업 기록으로 시작한다. 네트워크 오류는 오류로 표시하며 초기 운영 수치 fixture를 넣지 않는다.
 - 비공개 프로젝트는 로컬 문서의 공개 가능한 책임 경계만 설명한다. 인증정보, 업무 데이터, 내부 주소는 데모에 복제하지 않는다.
 
 ```mermaid
@@ -104,17 +104,17 @@ flowchart TB
 
 ## 공개 라이브 콘솔
 
-`/playground`와 `/live-console`은 같은 `Playground.vue`를 사용한다. 사용자가 전송할 때만 `https://api.govail.cloud/v1/model-routing/stream`을 호출하고, 모델은 `govail/thinker`, reasoning effort는 `low`로 고정한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.
+`/playground`가 단일 콘솔 화면(`Workbench`)이다. 사용자가 실행할 때만 `https://api.govail.cloud/v1/model-routing/stream`을 호출하고, 모델은 `govail/thinker`, reasoning effort는 `low`로 고정한다. 브라우저 기록과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다. `/live-console`·`/runner`·`/audit`은 예전 주소를 위한 이동 안내 페이지다.
 
-클라이언트 진행 패널은 관찰 가능한 이벤트를 표시하며 서버 내부 실행 전체나 추론 과정을 나타내지 않는다. relay의 배포·인증·운영 설정은 이 저장소의 변경 범위 밖이다.
+클라이언트 진행 표시는 관찰 가능한 이벤트만 반영하며 서버 내부 실행 전체나 추론 과정을 나타내지 않는다. relay의 배포·인증·운영 설정은 이 저장소의 변경 범위 밖이다.
 
 ## Gateway 스트림 클라이언트
 
-`/playground`·`/live-console`(`Playground.vue`), `/runner`(`ProcessRunner.vue`), 사용되지 않는 `AuditInspector.vue`가 같은 relay를 호출한다. 화면마다 fetch·SSE 파싱·오류 문구를 따로 구현하면 청크 경계 처리와 실패 표시가 어긋나므로, 요청과 실패 분류는 `docs/gateway-client.js`의 `streamGateway` 하나만 소유한다. 화면은 이벤트를 받아 표시하는 일만 한다.
+relay 호출은 화면 수와 무관하게 `docs/gateway-client.js`의 `streamGateway` 하나만 소유한다. 화면마다 fetch·SSE 파싱·오류 문구를 따로 구현하면 청크 경계 처리와 실패 표시가 어긋나므로(실제로 Runner에서 이벤트가 유실되었다), 화면은 이벤트를 받아 표시하는 일만 한다.
 
 ```mermaid
 flowchart LR
-    UI["Playground · ProcessRunner · AuditInspector"] -->|"body, signal, onEvent"| GC["gateway-client.js<br/>streamGateway"]
+    UI["Workbench"] -->|"body, signal, onEvent"| GC["gateway-client.js<br/>streamGateway"]
     GC -->|POST| Relay["GoVail relay /v1/model-routing/stream"]
     Relay -->|SSE| P["stream-events.js<br/>createEventParser"]
     P -->|"event, data"| GC
@@ -129,4 +129,47 @@ flowchart LR
 | `incomplete` | 완료 이벤트(`done`·`error`·`[DONE]`) 없이 스트림 종료 | 시간 제한이나 중간 프록시 차단 가능성을 안내한다. 성공으로 마감하지 않는다 |
 | `aborted` | 사용자 중단 | 오류가 아닌 중단으로 표시한다 |
 
-규칙: 깨진 JSON 프레임은 스트림을 끊지 않고 건너뛰며 건너뛴 수를 결과로 돌려준다. `onEvent`에서 던진 예외는 화면 코드의 문제이므로 `GatewayError`로 감싸지 않는다. 실패한 실행은 로그 탭이 아닌 화면 상단 배너에 사유를 먼저 보여 주고, `error` 이벤트로 끝난 실행을 "정상 완료"로 기록하지 않는다. 새 화면이 relay를 호출할 때도 `fetch`를 직접 쓰지 않는다.
+규칙: 깨진 JSON 프레임은 스트림을 끊지 않고 건너뛰며 건너뛴 수를 결과로 돌려준다. `onEvent`에서 던진 예외는 화면 코드의 문제이므로 `GatewayError`로 감싸지 않는다. 실패한 실행은 사유와 다음 행동(다시 시도·질문 수정)을 결과 영역에 먼저 보여 주고, `error` 이벤트로 끝난 실행을 성공으로 기록하지 않는다. 새 화면이 relay를 호출할 때도 `fetch`를 직접 쓰지 않는다.
+
+## 콘솔 화면 구조 (Workbench)
+
+### 왜 합쳤나
+
+Playground(대화형)와 Runner(작업형)는 같은 relay에 같은 도구를 호출하는 화면이었다. 방문자는 "무엇을 하는 곳인지, 지금 무엇을 해야 하는지"를 두 화면 모두에서 알 수 없었다. 원인은 세 가지였다.
+
+- 첫 화면에 선택지가 한꺼번에 나왔다(도구 칩 5개, 예시 칩 5개, 모델 배지, 저장 안내).
+- 대화처럼 보이지만 질문마다 독립 요청이었다. 이전 내용은 요약본이 붙을 때만 전달되었다.
+- 실제 이벤트에서 나오지 않은 값(승인 해시, 증거 파일명, 고정된 단계 지연)이 섞여 있었다.
+
+### 모델: 작업(Run) 하나 = 질문 → 증적 → 답변
+
+한 번의 실행을 `Run`으로 다룬다. `Run`은 질문, 요청한 도구, 도구 호출(입력·결과·시간), 답변, 상태(`running · done · error · aborted`), 실패 사유를 가진다. 후속 질문은 새 `Run`이다. 이전 내용을 요약해 덧붙이는 동작은 하지 않는다.
+
+[adm-dashboard-preview](https://github.com/devcy0922/adm-dashboard-preview)에서 가져온 패턴: 목록은 "업무 항목"처럼 `Run` 기록으로, 한 줄 설명과 단 하나의 주 동작(+ 새 작업), 빈 상태가 다음 행동을 알려 주는 안내, 실패는 원인·재시도·수정 경로를 갖는 오류 화면, 좁은 화면에서는 표 대신 한 열 카드.
+
+```mermaid
+flowchart TB
+    subgraph Page["/playground · Workbench"]
+        Head["머리말: 목적 한 줄 + 새 작업"] --> Next["다음 행동 안내 (상태에 따라 한 줄)"]
+        Next --> Composer["질문 입력 + 도구 선택 + 실행"]
+        Composer --> Body{"선택한 Run"}
+        Body -->|없음| Start["예시 실행 카드"]
+        Body -->|있음| RunView["상태 · 단계 · 답변 · 오류와 재시도"]
+        Rail["작업 기록 (Run 목록)"]
+        Evidence["실행 증적: 전송한 요청 · 도구 입력/결과"]
+    end
+    Composer -->|streamGateway| GC["gateway-client.js"]
+    GC -->|"이벤트"| Core["workbench-core.js<br/>reduceStreamEvent"]
+    Core --> RunView
+    Core --> Evidence
+    Core -->|"직렬화"| Store[("localStorage · 이 브라우저만")]
+```
+
+### 규칙
+
+- 순수 로직(도구 결정, 이벤트 → `Run` 변환, 단계 표시, 다음 행동 문구, 저장·이전 형식 변환)은 `docs/workbench-core.js`가 소유하고 `node --test`로 검증한다. Vue 컴포넌트는 상태를 그리기만 한다.
+- 단계 표시는 실제로 받은 이벤트에서만 계산한다. 이벤트가 없으면 완료로 표시하지 않고, 실행 중이던 기록이 새로고침으로 끊기면 `실패(중단됨)`로 복원한다.
+- 예시 카드는 요청할 도구를 명시한다. 자동 선택일 때도 실제로 전송할 도구를 입력창 아래에 미리 보여 준다.
+- 입력창은 항상 맨 위에 둔다. 결과는 그 아래에 쌓이고, 도구 입력·결과는 오른쪽 증적(좁은 화면에서는 아래)에 둔다.
+- 예전 주소 `/live-console`·`/runner`·`/audit`은 `/playground`로 이동시킨다. 예전 `govail_playground_browser_cache_v5` 기록은 첫 로드에 `Run`으로 변환해 가져온다.
+- 지원하지 않는 것: 승인 게이트 연출, 증거 캡처 파일명·해시 같은 시뮬레이션 값, 대화 요약 덧붙이기.

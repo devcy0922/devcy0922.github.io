@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { GatewayError, describeHttpStatus, streamGateway } from '../docs/gateway-client.js'
+import { GatewayError, describeHttpStatus, probeReachability, streamGateway } from '../docs/gateway-client.js'
 
 const enc = new TextEncoder()
 
@@ -64,6 +64,48 @@ test('연결 실패(TypeError)는 network 오류다', async () => {
     streamGateway({ body: {}, onEvent() {}, fetchImpl }),
     (err) => err.kind === 'network' && err.retryable,
   )
+})
+
+test('서버에 닿지 못하면 unreachable로, 닿지만 응답을 못 읽으면 blocked로 원인을 구분한다', async () => {
+  const calls = []
+  const unreachable = async (url, init) => { calls.push([url, init]); throw new TypeError('Failed to fetch') }
+  await assert.rejects(
+    streamGateway({ body: {}, onEvent() {}, fetchImpl: unreachable, url: 'https://gw.example.test/v1/stream' }),
+    (err) => err.kind === 'network' && err.detail === 'unreachable' && /gw\.example\.test 서버에 연결할 수 없습니다/.test(err.message),
+  )
+  assert.equal(calls.length, 2, '요청 1회 + 진단 1회')
+  assert.equal(calls[1][0], 'https://gw.example.test/')
+  assert.equal(calls[1][1].method, 'GET')
+  assert.equal(calls[1][1].mode, 'no-cors')
+
+  let n = 0
+  const blocked = async () => { n += 1; if (n === 1) throw new TypeError('Failed to fetch'); return { type: 'opaque' } }
+  await assert.rejects(
+    streamGateway({ body: {}, onEvent() {}, fetchImpl: blocked, url: 'https://gw.example.test/v1/stream' }),
+    (err) => err.detail === 'blocked' && /응답하지만 브라우저가 응답을 읽지 못했습니다/.test(err.message) && /CORS/.test(err.message),
+  )
+})
+
+test('사용자가 중단하면 연결 진단을 하지 않고, diagnose=false면 진단을 건너뛴다', async () => {
+  let aborted = 0
+  const abortFetch = async () => { aborted += 1; throw new DOMException('aborted', 'AbortError') }
+  await assert.rejects(streamGateway({ body: {}, onEvent() {}, fetchImpl: abortFetch }), (err) => err.kind === 'aborted')
+  assert.equal(aborted, 1)
+
+  let calls = 0
+  const fail = async () => { calls += 1; throw new TypeError('Failed to fetch') }
+  await assert.rejects(
+    streamGateway({ body: {}, onEvent() {}, fetchImpl: fail, diagnose: false }),
+    (err) => err.kind === 'network' && err.detail === undefined && /네트워크 상태를 확인/.test(err.message),
+  )
+  assert.equal(calls, 1)
+})
+
+test('진단 요청이 응답하지 않아도 제한 시간 안에 unreachable로 끝난다', async () => {
+  const hang = (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))
+  const started = Date.now()
+  assert.equal(await probeReachability('https://gw.example.test/x', { fetchImpl: hang, timeoutMs: 30 }), 'unreachable')
+  assert.ok(Date.now() - started < 1000)
 })
 
 test('AbortError는 aborted로 분류되고 재시도 대상이 아니다', async () => {

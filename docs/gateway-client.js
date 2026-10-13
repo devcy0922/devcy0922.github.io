@@ -7,12 +7,14 @@ export const GATEWAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/str
 
 // kind: http(상태 코드 응답) · network(연결 실패) · incomplete(완료 이벤트 없이 종료) · aborted(사용자 중단)
 export class GatewayError extends Error {
-  constructor(kind, message, { status, retryable = false, cause } = {}) {
+  constructor(kind, message, { status, retryable = false, cause, detail } = {}) {
     super(message, cause ? { cause } : undefined)
     this.name = 'GatewayError'
     this.kind = kind
     this.status = status
     this.retryable = retryable
+    // network 오류의 원인 구분: unreachable(서버에 닿지 못함) · blocked(닿지만 브라우저가 응답을 읽지 못함)
+    this.detail = detail
   }
 }
 
@@ -23,6 +25,40 @@ export function describeHttpStatus(status) {
   if (status === 524 || status === 504 || status === 408) return `게이트웨이 응답 시간이 초과되었습니다 (HTTP ${status}). 잠시 후 다시 시도해 주세요.`
   if (status >= 500) return `게이트웨이가 일시적으로 응답하지 않습니다 (HTTP ${status}). 잠시 후 다시 시도해 주세요.`
   return `게이트웨이 요청이 실패했습니다 (HTTP ${status}).`
+}
+
+/**
+ * 연결 실패의 원인을 가른다. 브라우저는 서버 다운·DNS·인증서 실패와 CORS 차단을 모두 같은 TypeError로 보고한다.
+ * no-cors 요청은 응답을 읽지 못하는 대신 "어떤 HTTP 응답이든 왔는지"만 알려 준다.
+ * 응답이 왔으면 reachable(CORS 설정이나 앞단 프록시 오류 응답), 못 받았으면 unreachable이다.
+ */
+export async function probeReachability(url, { fetchImpl = globalThis.fetch, timeoutMs = 4000 } = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    await fetchImpl(new URL('/', url).href, { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: controller.signal })
+    return 'reachable'
+  } catch {
+    return 'unreachable'
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function describeNetworkFailure(url, reach) {
+  let host = url
+  try {
+    host = new URL(url).host
+  } catch {
+    // URL을 해석하지 못하면 문자열 그대로 보여 준다.
+  }
+  if (reach === 'reachable') {
+    return `${host} 서버는 응답하지만 브라우저가 응답을 읽지 못했습니다. 서버의 CORS 설정(이 사이트 주소 허용)이나 앞단 프록시가 돌려준 오류 응답이 원인일 수 있습니다.`
+  }
+  if (reach === 'unreachable') {
+    return `${host} 서버에 연결할 수 없습니다. 서버가 내려갔거나 DNS·인증서 문제이거나, 사내망·브라우저 확장 프로그램이 막고 있을 수 있습니다.`
+  }
+  return `${host} 서버에 연결하지 못했습니다. 네트워크 상태를 확인하거나 잠시 후 다시 시도해 주세요.`
 }
 
 function isAbort(err) {
@@ -42,6 +78,7 @@ export async function streamGateway({
   url = GATEWAY_STREAM_URL,
   fetchImpl = globalThis.fetch,
   requireTerminal = true,
+  diagnose = true,
 }) {
   let response
   try {
@@ -53,8 +90,8 @@ export async function streamGateway({
     })
   } catch (err) {
     if (isAbort(err)) throw new GatewayError('aborted', '사용자가 응답 수신을 중단했습니다.', { cause: err })
-    // 브라우저는 DNS·TLS 실패, CORS 헤더 없는 게이트웨이 장애 응답(502 등)을 모두 같은 TypeError로 보고한다.
-    throw new GatewayError('network', '게이트웨이에 연결하지 못했습니다. 네트워크 상태를 확인하거나 잠시 후 다시 시도해 주세요.', { retryable: true, cause: err })
+    const reach = diagnose ? await probeReachability(url, { fetchImpl }) : undefined
+    throw new GatewayError('network', describeNetworkFailure(url, reach), { retryable: true, cause: err, detail: reach === 'reachable' ? 'blocked' : reach })
   }
 
   if (!response.ok) {

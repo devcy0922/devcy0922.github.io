@@ -1,10 +1,16 @@
 ---
 layout: page
-title: "Process Runner"
-description: "CDP 브라우저 프로브 및 시크릿 검사 도구가 내장된 engine-process 실행 런타임입니다."
+title: "콘솔로 이동"
+description: "이 주소는 콘솔(/playground)로 통합되었습니다."
 aside: false
 outline: false
-pageClass: playground-page
+head:
+  - - meta
+    - http-equiv: refresh
+      content: "0; url=/playground"
+  - - meta
+    - name: robots
+      content: noindex
 ---
 
-<ProcessRunner />
+<RedirectNotice to="/playground" label="콘솔" />

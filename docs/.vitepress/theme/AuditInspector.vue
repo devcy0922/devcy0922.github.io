@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { marked } from 'marked'
-import { createEventParser } from '../../stream-events.js'
+import { GatewayError, streamGateway } from '../../gateway-client.js'
 
 function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
@@ -20,8 +20,6 @@ marked.use({
     image({ text }) { return escapeHtml(text) },
   },
 })
-
-const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
 
 export interface AgentAction {
   id: string
@@ -150,48 +148,16 @@ async function startAgentWorkflow() {
   try {
     appendLog('GATEWAY', `Gateway 연결 및 모델 추론 시작...`, 'step')
 
-    const response = await fetch(RELAY_STREAM_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    await streamGateway({
+      body: {
         prompt: fullPrompt,
         model: 'govail/thinker',
         tools,
         enableThinking: true,
-      }),
+      },
       signal: abortController.signal,
+      onEvent: (event, data) => handleStreamEvent(event, data as Record<string, any>),
     })
-
-    if (!response.ok) {
-      throw new Error(`Gateway HTTP ${response.status}`)
-    }
-    if (!response.body) {
-      throw new Error('응답 스트림 본문이 없습니다.')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-
-    const parse = createEventParser((event: string, raw: string) => {
-      if (raw === '[DONE]') return
-      let data: any
-      try {
-        data = JSON.parse(raw)
-      } catch {
-        return
-      }
-
-      handleStreamEvent(event, data)
-    })
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        parse(decoder.decode())
-        break
-      }
-      parse(decoder.decode(value, { stream: true }))
-    }
 
     appendLog('DONE', `에이전트 실행 및 추론 완료.`, 'step')
     const diff = extractDiff(responseMarkdown.value)
@@ -199,12 +165,14 @@ async function startAgentWorkflow() {
       patchSnippet.value = diff
       appendLog('PATCH', `AI 교정 패치(Diff) 코드 감지 및 추출 완료.`, 'info')
     }
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof GatewayError && err.kind === 'aborted') {
       appendLog('ABORT', `사용자에 의해 중단되었습니다.`, 'warn')
     } else {
-      appendLog('ERROR', `실시간 게이트웨이 호출 실패: ${err.message}`, 'crit')
-      responseMarkdown.value += `\n\n> ⚠️ **Gateway 호출 오류:** ${err.message}\n`
+      const message = err instanceof GatewayError ? err.message : '화면 처리 중 예기치 않은 오류가 발생했습니다.'
+      if (!(err instanceof GatewayError)) console.error('AuditInspector 처리 오류', err)
+      appendLog('ERROR', `실시간 게이트웨이 호출 실패: ${message}`, 'crit')
+      responseMarkdown.value += `\n\n> ⚠️ **Gateway 호출 오류:** ${message}\n`
     }
   } finally {
     isRunning.value = false

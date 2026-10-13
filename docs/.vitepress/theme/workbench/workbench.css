@@ -104,6 +104,7 @@
 }
 
 /* ── 레이아웃 ───────────────────────────────────────── */
+/* 좁은 화면: 한 열. 입력 → 결과 → 증적 → 기록 순서. */
 .wb-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -112,6 +113,7 @@
     'side'
     'rail';
   gap: 20px;
+  align-items: start;
 }
 
 .wb-main {
@@ -132,19 +134,21 @@
   min-width: 0;
 }
 
-@media (min-width: 1080px) {
+/* 중간 폭: 결과(main)와 증적(side) 두 열, 기록은 결과 아래. 가운데 열이 좁아지지 않게 한다. */
+@media (min-width: 900px) {
   .wb-grid {
-    grid-template-columns: 250px minmax(0, 1fr) 360px;
-    grid-template-areas: 'rail main side';
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas:
+      'main side'
+      'rail side';
   }
+}
 
-  .wb-side,
-  .wb-rail {
-    position: sticky;
-    top: calc(var(--vp-nav-height, 64px) + 16px);
-    max-height: calc(100vh - var(--vp-nav-height, 64px) - 32px);
-    overflow-y: auto;
+/* 넓은 화면: 기록 | 결과 | 증적 세 열. */
+@media (min-width: 1280px) {
+  .wb-grid {
+    grid-template-columns: 250px minmax(0, 1fr) 340px;
+    grid-template-areas: 'rail main side';
   }
 }
 
@@ -641,7 +645,7 @@
   color: var(--ink);
   font-size: 15px;
   line-height: 1.75;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .wb-md > :first-child { margin-top: 0; }
@@ -661,7 +665,7 @@
 .wb-md pre code { padding: 0; background: none; color: inherit; }
 .wb-md table { display: block; width: max-content; max-width: 100%; margin: 0 0 12px; overflow-x: auto; border-collapse: collapse; font-size: 13.5px; }
 .wb-md th,
-.wb-md td { padding: 6px 10px; border: 1px solid var(--mist-strong); text-align: left; }
+.wb-md td { min-width: 5em; padding: 6px 10px; border: 1px solid var(--mist-strong); text-align: left; overflow-wrap: normal; word-break: keep-all; }
 .wb-md th { background: var(--mist); }
 
 /* ── 증적 ───────────────────────────────────────────── */
@@ -732,6 +736,8 @@
 
 .wb-sources {
   margin-top: 10px;
+  max-height: 440px;
+  overflow-y: auto;
 }
 
 .wb-source {
@@ -775,6 +781,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: 520px;
+  overflow-y: auto;
 }
 
 .wb-runitem {
@@ -825,7 +833,7 @@
 }
 
 /* 한 열로 쌓이는 화면에서는 실행 전의 빈 증적 패널을 숨겨 예시 아래가 비어 보이지 않게 한다. */
-@media (max-width: 1079px) {
+@media (max-width: 899px) {
   .wb-side-idle {
     display: none;
   }

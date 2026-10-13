@@ -34,7 +34,13 @@ export default withMermaid(
             .map((post) => post.url.replace(/\.html$/, '')),
         )
 
-        return items.filter((item) => ![...futurePostPaths].some((path) => item.url.endsWith(path)))
+        // 콘솔로 이동시키는 예전 주소는 검색 색인에서 뺀다.
+        const redirectedPaths = ['live-console', 'runner', 'audit']
+        return items.filter(
+          (item) =>
+            ![...futurePostPaths].some((path) => item.url.endsWith(path)) &&
+            !redirectedPaths.some((slug) => item.url.endsWith(`/${slug}`)),
+        )
       },
     },
 
@@ -60,8 +66,7 @@ export default withMermaid(
       siteTitle: 'devcy0922',
 
       nav: [
-        { text: 'Runner', link: '/runner' },
-        { text: 'Playground', link: '/playground' },
+        { text: '콘솔', link: '/playground' },
         { text: '프로젝트', link: '/projects/' },
         { text: '기록', link: '/posts/' },
         { text: '소개', link: '/about' },

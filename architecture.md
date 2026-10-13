@@ -107,3 +107,26 @@ flowchart TB
 `/playground`와 `/live-console`은 같은 `Playground.vue`를 사용한다. 사용자가 전송할 때만 `https://api.govail.cloud/v1/model-routing/stream`을 호출하고, 모델은 `govail/thinker`, reasoning effort는 `low`로 고정한다. 브라우저 세션 저장과 relay 서버의 처리 범위는 구분한다. 운영 데이터 fixture나 실패 시 성공 응답으로 바꾸는 폴백은 없다.
 
 클라이언트 진행 패널은 관찰 가능한 이벤트를 표시하며 서버 내부 실행 전체나 추론 과정을 나타내지 않는다. relay의 배포·인증·운영 설정은 이 저장소의 변경 범위 밖이다.
+
+## Gateway 스트림 클라이언트
+
+`/playground`·`/live-console`(`Playground.vue`), `/runner`(`ProcessRunner.vue`), 사용되지 않는 `AuditInspector.vue`가 같은 relay를 호출한다. 화면마다 fetch·SSE 파싱·오류 문구를 따로 구현하면 청크 경계 처리와 실패 표시가 어긋나므로, 요청과 실패 분류는 `docs/gateway-client.js`의 `streamGateway` 하나만 소유한다. 화면은 이벤트를 받아 표시하는 일만 한다.
+
+```mermaid
+flowchart LR
+    UI["Playground · ProcessRunner · AuditInspector"] -->|"body, signal, onEvent"| GC["gateway-client.js<br/>streamGateway"]
+    GC -->|POST| Relay["GoVail relay /v1/model-routing/stream"]
+    Relay -->|SSE| P["stream-events.js<br/>createEventParser"]
+    P -->|"event, data"| GC
+    GC -->|"onEvent(event, data)"| UI
+    GC -.->|"GatewayError(kind, status, retryable)"| UI
+```
+
+| kind | 의미 | 화면 표시 |
+|---|---|---|
+| `http` | relay가 상태 코드로 응답 | 상태 코드를 담은 한국어 문구. 응답 본문(HTML 오류 페이지 등)은 싣지 않는다 |
+| `network` | 연결 실패 | 브라우저는 DNS·TLS·CORS 헤더 없는 게이트웨이 장애(502 등)를 구분하지 못하므로 한 문구로 안내한다 |
+| `incomplete` | 완료 이벤트(`done`·`error`·`[DONE]`) 없이 스트림 종료 | 시간 제한이나 중간 프록시 차단 가능성을 안내한다. 성공으로 마감하지 않는다 |
+| `aborted` | 사용자 중단 | 오류가 아닌 중단으로 표시한다 |
+
+규칙: 깨진 JSON 프레임은 스트림을 끊지 않고 건너뛰며 건너뛴 수를 결과로 돌려준다. `onEvent`에서 던진 예외는 화면 코드의 문제이므로 `GatewayError`로 감싸지 않는다. 실패한 실행은 로그 탭이 아닌 화면 상단 배너에 사유를 먼저 보여 주고, `error` 이벤트로 끝난 실행을 "정상 완료"로 기록하지 않는다. 새 화면이 relay를 호출할 때도 `fetch`를 직접 쓰지 않는다.

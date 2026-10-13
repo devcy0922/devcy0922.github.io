@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { marked } from 'marked'
-import { createEventParser } from '../../stream-events.js'
+import { GatewayError, streamGateway } from '../../gateway-client.js'
 
 function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
@@ -20,8 +20,6 @@ marked.use({
     image({ text }) { return escapeHtml(text) },
   },
 })
-
-const RELAY_STREAM_URL = 'https://api.govail.cloud/v1/model-routing/stream'
 
 // Types
 export interface ToolCallItem {
@@ -441,50 +439,21 @@ async function handleSend() {
   updateStage('dispatch', 'running')
 
   try {
-    const response = await fetch(RELAY_STREAM_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    updateStage('stream', 'running')
+    await streamGateway({
+      body: {
         prompt: contextAugmentedPrompt,
         model: 'govail/thinker',
         tools: internalTools,
         // 내부 reasoning 토큰은 화면에 렌더링하지 않고, 모델 실행에는 low effort로 전달한다.
         enableThinking: true,
-      }),
+      },
       signal: controller.signal,
+      onEvent: (event, data) => {
+        handleStreamEvent(event, data as Record<string, unknown>, asstMsg)
+        scrollToBottom()
+      },
     })
-
-    if (!response.ok) {
-      throw new Error(`Gateway HTTP ${response.status}`)
-    }
-
-    if (!response.body) {
-      throw new Error('No streaming body available')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let completed = false
-    const parse = createEventParser((event: string, raw: string) => {
-      if (raw === '[DONE]') return
-      const data = JSON.parse(raw)
-      if (event === 'done' || event === 'error') completed = true
-      handleStreamEvent(event, data, asstMsg)
-    })
-
-    updateStage('stream', 'running')
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        parse(decoder.decode())
-        if (!completed) throw new Error('완료 이벤트 없이 응답이 종료되었습니다.')
-        break
-      }
-      parse(decoder.decode(value, { stream: true }))
-      scrollToBottom()
-    }
 
     if (asstMsg.status !== 'error') {
       asstMsg.status = 'done'
@@ -493,14 +462,18 @@ async function handleSend() {
       updateStage('render', 'done', undefined, '응답 표시 완료')
     }
   } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      asstMsg.status = 'error'
-      asstMsg.content += '\n\n사용자가 응답 수신을 중단했습니다.'
+    asstMsg.status = 'error'
+    if (err instanceof GatewayError && err.kind === 'aborted') {
+      asstMsg.content += `\n\n${err.message}`
       streamStatusText.value = 'Stopped by user'
+    } else if (err instanceof GatewayError) {
+      // 상태 코드·연결 실패·중간 종료를 구분해 보여 준다. 응답 본문은 싣지 않는다.
+      asstMsg.content += `\n\n**실행 오류:** ${err.message}`
+      streamStatusText.value = err.kind === 'http' && err.status ? `Error · HTTP ${err.status}` : 'Error'
     } else {
-      asstMsg.status = 'error'
-      asstMsg.content += '\n\n**실행 오류:** 실시간 게이트웨이 요청 실패 또는 타임아웃이 발생했습니다.'
+      asstMsg.content += '\n\n**실행 오류:** 화면 처리 중 예기치 않은 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.'
       streamStatusText.value = 'Error'
+      console.error('Playground 처리 오류', err)
     }
   } finally {
     isStreaming.value = false

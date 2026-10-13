@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { marked } from 'marked'
+import { GatewayError, streamGateway } from '../../gateway-client.js'
+
+// 이번 실행에서 게이트웨이가 error 이벤트를 보냈는지. 성공 마감 여부를 가른다.
+let streamFailed = false
 
 function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
@@ -68,6 +72,8 @@ const requireApproval = ref(true)
 const isRunning = ref(false)
 const currentPendingAction = ref<ProcessAction | null>(null)
 const activeTab = ref<'evidence' | 'terminal' | 'diff' | 'briefing'>('evidence')
+// 이번 실행이 실패한 이유. 로그 탭에만 남기면 사용자가 원인을 못 찾으므로 화면 상단에도 보여 준다.
+const runError = ref<string | null>(null)
 const terminalBody = ref<HTMLElement | null>(null)
 
 // Outputs
@@ -162,6 +168,7 @@ async function startRunnerWorkflow() {
   patchDiff.value = null
   briefingMarkdown.value = ''
   currentPendingAction.value = null
+  runError.value = null
   isRunning.value = true
   activeTab.value = 'evidence'
 
@@ -219,84 +226,43 @@ async function startRunnerWorkflow() {
 
   // 3. Live SSE Streaming Request
   appendLog('ORCH', 'GoVail Gateway 및 engine-process 실시간 세션 스트림 연결 중...', 'info')
-  const endpoint = 'https://api.govail.cloud/v1/model-routing/stream'
-
-  let synthAction: ProcessAction | null = null
+  streamFailed = false
 
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const result = await streamGateway({
+      body: {
         prompt,
         tools: toolsToRequest,
-      }),
+      },
+      onEvent: (event, data) => handleStreamEvent(event, data, runId, prompt),
     })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`HTTP ${res.status}: ${errText}`)
+    if (result.droppedFrames > 0) {
+      appendLog('WARN', `해석할 수 없는 이벤트 ${result.droppedFrames}건을 건너뛰었습니다.`, 'warn')
     }
 
-    if (!res.body) {
-      throw new Error('응답 바디 스트림이 비어 있습니다.')
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      let currentEvent = 'message'
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-
-        if (trimmed.startsWith('event:')) {
-          currentEvent = trimmed.slice(6).trim()
-        } else if (trimmed.startsWith('data:')) {
-          const dataRaw = trimmed.slice(5).trim()
-          try {
-            const data = JSON.parse(dataRaw)
-            handleStreamEvent(currentEvent, data, runId, prompt)
-          } catch {
-            // raw string data
-          }
-        }
+    // 게이트웨이가 error 이벤트로 끝냈다면 성공으로 마감하지 않는다.
+    if (streamFailed) {
+      const lastAct = actions.value[actions.value.length - 1]
+      if (lastAct && lastAct.status === 'running') lastAct.status = 'error'
+      runError.value = runError.value || '게이트웨이가 오류 이벤트로 실행을 종료했습니다.'
+      appendLog('FINISH', `engine-process run [${runId}] 실패로 종료되었습니다.`, 'crit')
+    } else {
+      // Finalize LLM Synth Action
+      const lastAct = actions.value[actions.value.length - 1]
+      if (lastAct && lastAct.status === 'running') {
+        lastAct.status = 'done'
       }
+      appendLog('FINISH', `engine-process run [${runId}] 정상 완료`, 'step')
     }
-
-    // Flush any remaining buffer
-    if (buffer.trim().startsWith('data:')) {
-      try {
-        const data = JSON.parse(buffer.trim().slice(5).trim())
-        handleStreamEvent('message', data, runId, prompt)
-      } catch {
-        // ignore
-      }
-    }
-
-    // Finalize LLM Synth Action
+  } catch (err: unknown) {
+    const message = err instanceof GatewayError ? err.message : '화면 처리 중 예기치 않은 오류가 발생했습니다.'
+    if (!(err instanceof GatewayError)) console.error('ProcessRunner 처리 오류', err)
+    runError.value = message
+    appendLog('ERROR', `실행 오류: ${message}`, 'crit')
+    // 실행 중이던 단계만 실패로 표시한다. 이미 끝난 단계의 상태는 건드리지 않는다.
     const lastAct = actions.value[actions.value.length - 1]
-    if (lastAct && lastAct.status === 'running') {
-      lastAct.status = 'done'
-    }
-
-    appendLog('FINISH', `engine-process run [${runId}] 정상 완료 (Exit Code: 0)`, 'step')
-  } catch (err: any) {
-    appendLog('ERROR', `실행 오류: ${err.message || err}`, 'crit')
-    if (actions.value.length > 0) {
-      actions.value[actions.value.length - 1].status = 'error'
-    }
+    if (lastAct && lastAct.status === 'running') lastAct.status = 'error'
   } finally {
     isRunning.value = false
     currentPendingAction.value = null
@@ -401,6 +367,8 @@ function handleStreamEvent(event: string, data: any, runId: string, prompt: stri
       briefingMarkdown.value += data.delta
     }
   } else if (event === 'error') {
+    streamFailed = true
+    runError.value = String(data.message || '오류가 발생했습니다.')
     appendLog('ERROR', data.message || '오류 발생', 'crit')
   }
 }
@@ -486,6 +454,18 @@ function handleStreamEvent(event: string, data: any, runId: string, prompt: stri
         <button class="btn-reject" @click="rejectAction">
           ✕ 취소 (Cancel)
         </button>
+      </div>
+    </div>
+
+    <!-- Run Error Banner -->
+    <div v-if="runError" class="run-error-banner" role="alert">
+      <div class="run-error-text">
+        <strong>실행에 실패했습니다</strong>
+        <span>{{ runError }}</span>
+      </div>
+      <div class="gate-banner-actions">
+        <button class="btn-reject" @click="activeTab = 'terminal'">로그 보기</button>
+        <button class="btn-reject" @click="runError = null">닫기</button>
       </div>
     </div>
 
@@ -820,6 +800,31 @@ function handleStreamEvent(event: string, data: any, runId: string, prompt: stri
 .dark .approval-gate-banner {
   background: #2b1d06;
   border-color: #b45309;
+}
+
+.run-error-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  border-left: 4px solid #dc2626;
+  border-radius: 4px;
+  padding: 14px 20px;
+}
+
+.dark .run-error-banner {
+  background: #2a1010;
+  border-color: #b91c1c;
+}
+
+.run-error-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--ink-soft); }
+.run-error-text strong { font-size: 14px; color: #b91c1c; }
+.dark .run-error-text strong { color: #fca5a5; }
+
+@media (max-width: 720px) {
+  .run-error-banner { flex-direction: column; align-items: stretch; }
 }
 
 .gate-title {

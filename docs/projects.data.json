@@ -1,13 +1,83 @@
 [
   {
-    "name": "pr-guardian",
-    "title": "pr-guardian",
-    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
-    "href": "/projects/pr-guardian",
-    "repoUrl": "https://github.com/devcy0922/pr-guardian",
+    "name": "aws-localstack-pipeline",
+    "title": "aws-localstack-pipeline",
+    "description": "AWS 개인 계정 없이 LocalStack + Serverless Framework + GitHub Actions를 이용한 클라우드 배포 & E2E 통합 테스트 파이프라인 데모",
+    "href": "/projects/aws-localstack-pipeline",
+    "repoUrl": "https://github.com/devcy0922/aws-localstack-pipeline",
     "language": "TypeScript",
     "defaultBranch": "main",
-    "pushedAt": "2026-09-27T17:16:06Z"
+    "pushedAt": "2026-10-13T19:47:40Z"
+  },
+  {
+    "name": "agentsecops-playground",
+    "title": "agentsecops-playground",
+    "description": "AI 에이전트 거버넌스의 인증, DLP, RAG 격리, 정책 차단을 재현하는 E2E 데모",
+    "href": "/projects/agentsecops-playground",
+    "repoUrl": "https://github.com/devcy0922/agentsecops-playground",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:38Z"
+  },
+  {
+    "name": "infra-security",
+    "title": "infra-security",
+    "description": "ProxySQL 기반 MySQL 감사 로깅 + Keycloak HA SSO 인프라 구성 (Docker Compose)",
+    "href": "/projects/infra-security",
+    "repoUrl": "https://github.com/devcy0922/infra-security",
+    "language": "Java",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:36Z"
+  },
+  {
+    "name": "aegis-llm",
+    "title": "aegis-llm",
+    "description": "Rust 기반 LLM 보안 게이트웨이: API 인증, PII DLP, 프롬프트 정책, 감사 로그",
+    "href": "/projects/aegis-llm",
+    "repoUrl": "https://github.com/devcy0922/aegis-llm",
+    "language": "Rust",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:34Z"
+  },
+  {
+    "name": "aperture-mcp",
+    "title": "aperture-mcp",
+    "description": "MCP tools/call 요청을 정책으로 통제하는 Zero-trust 보안 프록시",
+    "href": "/projects/aperture-mcp",
+    "repoUrl": "https://github.com/devcy0922/aperture-mcp",
+    "language": "Rust",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:31Z"
+  },
+  {
+    "name": "leandraft-linter",
+    "title": "leandraft-linter",
+    "description": "설계 문서와 PR 계획의 과도한 복잡도를 탐지하는 CLI 및 Web UI 린터",
+    "href": "/projects/leandraft-linter",
+    "repoUrl": "https://github.com/devcy0922/leandraft-linter",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:29Z"
+  },
+  {
+    "name": "mysql-mcp",
+    "title": "mysql-mcp",
+    "description": "MySQL & MariaDB MCP server for safe, read-only data access with OIDC authorization & audit logging.",
+    "href": "/projects/mysql-mcp",
+    "repoUrl": "https://github.com/devcy0922/mysql-mcp",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:27Z"
+  },
+  {
+    "name": "office-tone",
+    "title": "office-tone",
+    "description": "오피스톤 — 할 말은 그대로, 톤만 다듬어요",
+    "href": "/projects/office-tone",
+    "repoUrl": "https://github.com/devcy0922/office-tone",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:11Z"
   },
   {
     "name": "coexistgate",
@@ -17,7 +87,17 @@
     "repoUrl": "https://github.com/devcy0922/coexistgate",
     "language": "Rust",
     "defaultBranch": "main",
-    "pushedAt": "2026-09-13T18:10:05Z"
+    "pushedAt": "2026-10-13T19:47:09Z"
+  },
+  {
+    "name": "pr-guardian",
+    "title": "pr-guardian",
+    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
+    "href": "/projects/pr-guardian",
+    "repoUrl": "https://github.com/devcy0922/pr-guardian",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-13T19:47:06Z"
   },
   {
     "name": "lingo-agent",
@@ -27,7 +107,7 @@
     "repoUrl": "https://github.com/devcy0922/lingo-agent",
     "language": "Python",
     "defaultBranch": "main",
-    "pushedAt": "2026-09-13T01:50:39Z"
+    "pushedAt": "2026-10-13T19:47:04Z"
   },
   {
     "name": "ai-gateway-infra-demo",
@@ -50,16 +130,6 @@
     "pushedAt": "2026-09-04T13:56:05Z"
   },
   {
-    "name": "office-tone",
-    "title": "office-tone",
-    "description": "오피스톤 — 할 말은 그대로, 톤만 다듬어요",
-    "href": "/projects/office-tone",
-    "repoUrl": "https://github.com/devcy0922/office-tone",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-09-04T13:39:55Z"
-  },
-  {
     "name": "slicerag",
     "title": "slicerag",
     "description": "Gateway 인증 기반 프로젝트 격리 RAG 메모리 서비스 (FastAPI + pgvector)",
@@ -78,75 +148,5 @@
     "language": "TypeScript",
     "defaultBranch": "main",
     "pushedAt": "2026-08-18T18:44:50Z"
-  },
-  {
-    "name": "mysql-mcp",
-    "title": "mysql-mcp",
-    "description": "MySQL & MariaDB MCP server for safe, read-only data access with OIDC authorization & audit logging.",
-    "href": "/projects/mysql-mcp",
-    "repoUrl": "https://github.com/devcy0922/mysql-mcp",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-31T09:16:32Z"
-  },
-  {
-    "name": "aegis-llm",
-    "title": "aegis-llm",
-    "description": "Rust 기반 LLM 보안 게이트웨이: API 인증, PII DLP, 프롬프트 정책, 감사 로그",
-    "href": "/projects/aegis-llm",
-    "repoUrl": "https://github.com/devcy0922/aegis-llm",
-    "language": "Rust",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T23:29:24Z"
-  },
-  {
-    "name": "leandraft-linter",
-    "title": "leandraft-linter",
-    "description": "설계 문서와 PR 계획의 과도한 복잡도를 탐지하는 CLI 및 Web UI 린터",
-    "href": "/projects/leandraft-linter",
-    "repoUrl": "https://github.com/devcy0922/leandraft-linter",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T21:22:01Z"
-  },
-  {
-    "name": "aws-localstack-pipeline",
-    "title": "aws-localstack-pipeline",
-    "description": "AWS 개인 계정 없이 LocalStack + Serverless Framework + GitHub Actions를 이용한 클라우드 배포 & E2E 통합 테스트 파이프라인 데모",
-    "href": "/projects/aws-localstack-pipeline",
-    "repoUrl": "https://github.com/devcy0922/aws-localstack-pipeline",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T21:22:01Z"
-  },
-  {
-    "name": "aperture-mcp",
-    "title": "aperture-mcp",
-    "description": "MCP tools/call 요청을 정책으로 통제하는 Zero-trust 보안 프록시",
-    "href": "/projects/aperture-mcp",
-    "repoUrl": "https://github.com/devcy0922/aperture-mcp",
-    "language": "Rust",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T21:22:01Z"
-  },
-  {
-    "name": "infra-security",
-    "title": "infra-security",
-    "description": "ProxySQL 기반 MySQL 감사 로깅 + Keycloak HA SSO 인프라 구성 (Docker Compose)",
-    "href": "/projects/infra-security",
-    "repoUrl": "https://github.com/devcy0922/infra-security",
-    "language": "Java",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T21:22:01Z"
-  },
-  {
-    "name": "agentsecops-playground",
-    "title": "agentsecops-playground",
-    "description": "AI 에이전트 거버넌스의 인증, DLP, RAG 격리, 정책 차단을 재현하는 E2E 데모",
-    "href": "/projects/agentsecops-playground",
-    "repoUrl": "https://github.com/devcy0922/agentsecops-playground",
-    "language": "Python",
-    "defaultBranch": "main",
-    "pushedAt": "2026-07-17T21:22:01Z"
   }
 ]

@@ -1,11 +1,11 @@
 ---
-title: "프로젝트"
+title: "플랫폼 사례"
 description: "직접 만든 도구와 실험의 문제, 책임 경계, 현재 검증 범위를 정리합니다."
 outline: [2, 3]
 aside: false
 ---
 
-# 프로젝트
+# 플랫폼 사례
 
 <div class="project-intro">
   <p class="project-lead">

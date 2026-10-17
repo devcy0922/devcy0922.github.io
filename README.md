@@ -23,6 +23,12 @@ pnpm docs:preview
 
 `pnpm docs:build`는 배포 전 렌더링과 내부 dead-link 검증까지 통과해야 합니다.
 
+## 작업 추가
+
+1. `docs/lab-projects.js`에 항목을 추가한다(`status`: `live` · `prototype` · `design`, 실제 구현 범위와 같아야 함).
+2. `docs/lab/<id>.md`를 만들고 frontmatter에 `lab: <id>`를 넣는다. 헤더와 이전/다음 작업 링크는 자동으로 붙는다.
+3. 브라우저 프로토타입은 `docs/.vitepress/theme/lab/`에 Vue 컴포넌트로 두고 `theme/index.ts`에 등록한다.
+
 ## 기록 작성
 
 `docs/posts/<slug>.md`를 추가합니다.
@@ -44,10 +50,11 @@ tags:
 
 ## Information architecture
 
-- `/` — 직무와 경력, 대표 시스템, 설계 기준, 기술 기록
+- `/` — 브랜드 문장과 실제 제품 화면, 한 줄에 하나씩 보이는 제품 목록(자세히 보기 팝업), 함께 쓰는 기반, 만든 사람
+- `/lab/` — 제품 목록과 제품별 페이지(데모·핵심 기능·동작 방식·로드맵). 목록 데이터는 `docs/lab-projects.js` 하나만 수정
 - `/playground` — 콘솔. 질문 하나가 GoVail Gateway를 거쳐 도구 호출과 모델 응답으로 처리되는 과정을 실행 증적과 함께 확인하는 라이브 데모 (`/live-console`·`/runner`·`/audit`은 이 주소로 이동)
 - `/posts/` — 기록 아카이브
-- `/projects/` — 프로젝트 사례
+- `/projects/` — 운영 중인 플랫폼 사례
 - `/about` — 경험과 현재 관심사
 
 디자인 및 콘텐츠 원칙은 [DESIGN.md](./DESIGN.md), 구조는 [architecture.md](./architecture.md)를 기준으로 유지합니다.

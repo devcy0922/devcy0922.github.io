@@ -19,9 +19,10 @@ export default withMermaid(
   defineConfig({
     title: 'devcy0922',
     titleTemplate: ':title · devcy0922',
-    description: '10년차 Backend & AI Platform Engineer. 실행 경계, 검증과 운영을 설계하는 devcy0922의 프로젝트와 공개 데모.',
+    description: '10년차 Backend & AI Platform Engineer devcy0922. 업무에 AI를 붙여 실제로 돌려본 작업과 브라우저에서 바로 써볼 수 있는 프로토타입.',
     lang: 'ko-KR',
     cleanUrls: true,
+    appearance: false,
     lastUpdated: true,
 
     sitemap: {
@@ -45,19 +46,27 @@ export default withMermaid(
     },
 
     head: [
-      ['meta', { name: 'theme-color', content: '#f5f7fb' }],
+      ['meta', { name: 'theme-color', content: '#ffffff' }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:site_name', content: 'devcy0922' }],
       ['meta', { property: 'og:locale', content: 'ko_KR' }],
       ['link', { rel: 'alternate', type: 'application/rss+xml', title: 'devcy0922 RSS', href: '/rss.xml' }],
       ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      ['link', { rel: 'preconnect', href: 'https://cdn.jsdelivr.net', crossorigin: '' }],
       ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
       ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
       [
         'link',
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap',
+          href: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css',
+        },
+      ],
+      [
+        'link',
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap',
         },
       ],
     ],
@@ -66,12 +75,11 @@ export default withMermaid(
       siteTitle: 'devcy0922',
 
       nav: [
+        { text: '제품', link: '/lab/', activeMatch: '^/lab/' },
         { text: '콘솔', link: '/playground' },
-        { text: '프로젝트', link: '/projects/' },
-        { text: '기록', link: '/posts/' },
+        { text: '플랫폼', link: '/projects/', activeMatch: '^/projects/' },
+        { text: '기록', link: '/posts/', activeMatch: '^/posts/' },
         { text: '소개', link: '/about' },
-        { text: 'GoVail ↗', link: 'https://console.govail.cloud' },
-        { text: 'GitHub ↗', link: 'https://github.com/devcy0922' },
       ],
 
       search: {
@@ -122,9 +130,16 @@ export default withMermaid(
       },
 
       footer: {
-        message: 'Boundary · Execution · Verification · Operation',
+        message: '업무에 AI를 붙여 실제로 돌려봅니다.',
         copyright: 'Copyright © 2026 devcy0922',
       },
+    },
+
+    // 다이어그램은 흑백 톤으로 그린다. mermaid는 웹폰트가 로드되기 전에 글자 폭을 재므로
+    // 박스가 잘리지 않도록 이미 설치된 시스템 한글 글꼴을 쓴다.
+    mermaid: {
+      theme: 'neutral',
+      themeVariables: { fontFamily: '-apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif', fontSize: '14px' },
     },
 
     async buildEnd(siteConfig) {

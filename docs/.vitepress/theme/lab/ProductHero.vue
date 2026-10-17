@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useData } from 'vitepress'
-import products, { STATUS } from '../../../lab-projects.js'
+import products, { STATUS } from '../../../lab-projects'
 import ProductPreview from './ProductPreview.vue'
 
 const { frontmatter } = useData()

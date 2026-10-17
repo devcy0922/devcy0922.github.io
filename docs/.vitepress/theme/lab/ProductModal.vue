@@ -1,6 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import products, { STATUS } from '../../../lab-projects.js'
+import products, { STATUS } from '../../../lab-projects'
 import ProductPreview from './ProductPreview.vue'
 
 // 제품 하나를 설명·화면·플랜으로 안내하는 대화상자. 주소에 #제품id를 남겨 링크로 공유할 수 있다.

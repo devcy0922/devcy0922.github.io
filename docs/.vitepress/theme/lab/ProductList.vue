@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import products, { STATUS } from '../../../lab-projects.js'
+import products, { STATUS } from '../../../lab-projects'
 import ProductPreview from './ProductPreview.vue'
 import ProductModal from './ProductModal.vue'
 

@@ -7,8 +7,9 @@
   "description": "devcy0922 engineering technical portfolio site",
   "scripts": {
     "docs:dev": "vitepress dev docs --port 9097 --host 0.0.0.0",
-    "docs:build": "node scripts/sync-projects.mjs && vitepress build docs",
+    "docs:build": "pnpm typecheck && node scripts/sync-projects.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
@@ -16,6 +17,7 @@
     "grapesjs": "^0.22",
     "marked": "^18.0.14",
     "mermaid": "^11.16.0",
+    "typescript": "^5.9.3",
     "vitepress": "^1.0.0",
     "vitepress-plugin-mermaid": "^2.0.17",
     "vue": "^3.3.0"

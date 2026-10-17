@@ -1,0 +1,13 @@
+{
+  // 타입 검사 대상: 제품 목록 SSOT. Vite는 타입을 지우기만 하므로 pnpm typecheck가 검사를 맡는다.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["docs/lab-projects.ts"]
+}

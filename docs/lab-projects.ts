@@ -1,14 +1,45 @@
 // 제품 목록의 단일 출처(SSOT). 홈·/lab/·제품 상세 헤더가 모두 이 파일만 읽는다.
 // status는 실제 구현 범위와 일치해야 한다: live(운영 중) · prototype(미리 써보기) · design(준비 중)
 // plan의 state: done(완료) · now(진행 중) · next(예정). 실제 진행 상황과 같아야 한다.
+// 타입은 `pnpm typecheck`(docs:build 앞에서 실행)가 검사한다. 잘못된 status·state는 빌드를 막는다.
 
-export const STATUS = {
+export type Status = 'live' | 'prototype' | 'design'
+export type PlanState = 'done' | 'now' | 'next'
+
+export interface Link {
+  label: string
+  href: string
+}
+
+export interface Product {
+  id: string
+  title: string
+  area: string
+  status: Status
+  tagline: string
+  summary: string
+  stack: string[]
+  /** 제품 페이지 경로 (/lab/<id>) */
+  href: string
+  /** 제품 페이지 안의 데모 앵커 */
+  demo?: string
+  problem: string
+  plan: Array<{ state: PlanState; text: string }>
+  /** 핵심 기능. 화면에는 앞의 3개를 쓴다 */
+  features: Array<{ title: string; body: string }>
+  /** 바로 써보기 링크 (prototype·live) */
+  tools?: Link[]
+  /** 외부·관련 링크 */
+  links?: Link[]
+}
+
+export const STATUS: Record<Status, { label: string; hint: string }> = {
   live: { label: '운영 중', hint: '실제 환경에서 돌아가는 중' },
   prototype: { label: '미리 써보기', hint: '이 사이트에서 바로 써볼 수 있음' },
   design: { label: '준비 중', hint: '설계와 화면 뼈대까지 공개' },
 }
 
-export default [
+const products = [
   {
     id: 'genians-rag',
     title: '공개자료 안내 챗봇',
@@ -22,9 +53,11 @@ export default [
     problem: '제품 문의와 온보딩에서 같은 질문이 반복되고, 답은 이미 홈페이지·보도자료·공시에 흩어져 있습니다. 일반 챗봇은 그럴듯하지만 출처 없는 답을 만들기 때문에 회사 이름을 걸고 쓸 수 없습니다.',
     plan: [
       { state: 'done', text: '설계안과 화면 뼈대, 질문 거르기 규칙' },
+      { state: 'done', text: '수집기(robots.txt·허용 URL 검사)와 HTML 정규화, 출처 증적 기록' },
+      { state: 'done', text: '인용 검증기와 평가 질문 시드 17개' },
       { state: 'now', text: '출처별 이용 조건 확인과 수집 허용 URL 확정' },
-      { state: 'next', text: '수집기와 정규화(HTML·PDF → Markdown)' },
-      { state: 'next', text: '평가 질문 세트와 인용 검증기' },
+      { state: 'next', text: '본문 수집·색인과 PDF 정규화' },
+      { state: 'next', text: '평가 질문 70개로 인용 정확도 측정' },
       { state: 'next', text: '회사 확인 후 공개 범위 결정' },
     ],
     features: [
@@ -63,13 +96,14 @@ export default [
     status: 'prototype',
     tagline: '사업보고서 비교, Slack 변환처럼 반복 업무를 한 번에',
     summary: '입력 하나, 결과 하나로 끝나는 작은 도구들. 쓸 만해지면 서비스로 떼어냅니다.',
-    stack: ['Vue', 'jsdiff', 'Slack Block Kit'],
+    stack: ['Vue', 'Vite', 'jsdiff', 'Slack Block Kit'],
     href: '/lab/vibe-post-it',
     demo: '#report-diff',
     problem: '공시 문서 두 버전을 나란히 놓고 숫자를 찾거나, 레거시 Slack 알림을 손으로 고치는 일은 매번 조금씩 다르지만 매번 같은 시간이 듭니다.',
     plan: [
       { state: 'done', text: '사업보고서 버전 비교와 수치 변경 요약' },
       { state: 'done', text: 'Slack 레거시 메시지 변환과 5개 언어 전송 코드' },
+      { state: 'done', text: '웹·CLI를 한 패키지로: 문서 판 저장과 LLM 요약 숫자 검사' },
       { state: 'next', text: 'OpenDART에서 두 해 보고서 자동으로 불러오기' },
       { state: 'next', text: '재무제표 표의 셀 단위 비교' },
       { state: 'next', text: '변환 릴레이를 Docker 이미지로 배포' },
@@ -166,15 +200,16 @@ export default [
     href: '/lab/vibe-mcp',
     problem: 'MCP 서버를 하나씩 만들다 보면 저장소마다 인증, 로그, 테스트, 클라이언트 설정 방법이 달라집니다. 새 서버를 붙일 때마다 같은 결정을 다시 합니다.',
     plan: [
-      { state: 'done', text: '모노레포 뼈대와 읽기 전용 mcp-mysql(로컬 저장소)' },
+      { state: 'done', text: '모노레포 뼈대와 읽기 전용 mcp-mysql' },
+      { state: 'done', text: 'mcp-postgres: 레포별 계정·스키마 프로필, role·DB 현황 점검' },
       { state: 'next', text: 'mcp-git, mcp-docs' },
       { state: 'next', text: 'mcp-dart: 사업보고서 비교와 연결' },
       { state: 'next', text: 'write 등급 서버의 사람 승인 연결' },
     ],
     features: [
       { title: '디렉토리 하나에 서버 하나', body: 'make new NAME=jira 로 같은 규칙의 서버 뼈대가 생깁니다.' },
-      { title: '읽기 전용 DB 조회', body: 'mcp-mysql은 SELECT만 통과시키고 민감 컬럼을 가립니다.' },
-      { title: '설정 파일 하나로 연결', body: 'make registry 가 Claude Code·Cursor용 .mcp.json을 만듭니다.' },
+      { title: '읽기 전용 DB 조회', body: 'mcp-mysql·mcp-postgres는 조회 구문만 통과시키고 민감 컬럼을 가립니다.' },
+      { title: '어디서든 같은 연결', body: 'make clients 가 Claude Code·Codex 등록 명령을 만듭니다. 비밀번호는 설정에 남기지 않습니다.' },
     ],
   },
   {
@@ -245,4 +280,6 @@ export default [
       { title: 'make up 한 번', body: '빈 GCP 프로젝트에 Terraform과 Ansible로 서비스가 뜹니다.' },
     ],
   },
-]
+] satisfies Product[]
+
+export default products

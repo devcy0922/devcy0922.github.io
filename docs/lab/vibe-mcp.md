@@ -21,6 +21,7 @@ vibe-mcp/
 ├── shared/                  # 공통: 설정 로딩, 감사 로그, 결과 크기 제한
 ├── templates/mcp-ts/        # make new NAME=... 의 뼈대
 ├── mcp-mysql/               # 읽기 전용 SQL 조회
+├── mcp-postgres/            # 레포별 계정·스키마 프로필로 읽기 전용 조회·점검
 ├── mcp-git/                 # 저장소 이력·diff 조회
 ├── mcp-docs/                # Markdown 문서 검색
 ├── mcp-dart/                # OpenDART 공시 조회 (vibe-post-it와 공유)
@@ -75,20 +76,22 @@ DB를 에이전트에게 여는 서버라 가장 먼저, 가장 엄격하게 만
 flowchart LR
     Client["Claude Code · Cursor · engine-process"] -->|.mcp.json| Reg["registry"]
     Reg --> MySQL["mcp-mysql<br/>read"]
+    Reg --> PG["mcp-postgres<br/>read"]
     Reg --> Git["mcp-git<br/>read"]
     Reg --> Docs["mcp-docs<br/>read"]
     Reg --> Dart["mcp-dart<br/>external"]
     Reg --> Slack["mcp-slack<br/>write"]
-    MySQL & Git & Docs & Dart & Slack --> Audit[("shared 감사 로그")]
+    MySQL & PG & Git & Docs & Dart & Slack --> Audit[("shared 감사 로그")]
 ```
 
 </DiagramFrame>
 
 ## 로드맵
 
-1. 저장소 생성, 루트 Makefile과 템플릿
-2. mcp-mysql 구현과 테스트(쓰기 쿼리 거부 케이스부터)
-3. mcp-dart: vibe-post-it 사업보고서 비교와 연결
-4. write 등급 서버는 사람 승인을 거치도록 engine-process 승인 게이트와 연결
+1. 저장소 생성, 루트 Makefile과 템플릿 — **완료**
+2. mcp-mysql 구현과 테스트(쓰기 쿼리 거부 케이스부터) — **완료**
+3. mcp-postgres: 레포 하나 = 계정·DB 하나인 서버를 프로필로 조회하고, 규칙과 어긋난 role·DB를 점검 — **완료**
+4. mcp-dart: vibe-post-it 사업보고서 비교와 연결
+5. write 등급 서버는 사람 승인을 거치도록 engine-process 승인 게이트와 연결
 
 </div>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useData } from 'vitepress'
-import work from '../../../lab-projects.js'
+import work from '../../../lab-projects'
 
 const { frontmatter } = useData()
 const index = computed(() => work.findIndex((w) => w.id === frontmatter.value.lab))

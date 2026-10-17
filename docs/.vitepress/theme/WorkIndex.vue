@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { data as posts } from '../../posts.data.js'
 import platforms from '../../selected-projects.js'
-import products from '../../lab-projects.js'
+import products from '../../lab-projects'
 import ProductList from './lab/ProductList.vue'
 import ProductPreview from './lab/ProductPreview.vue'
 

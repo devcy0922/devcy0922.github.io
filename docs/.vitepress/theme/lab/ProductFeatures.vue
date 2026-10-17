@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useData } from 'vitepress'
-import products from '../../../lab-projects.js'
+import products from '../../../lab-projects'
 
 const { frontmatter } = useData()
 const features = computed(() => products.find((x) => x.id === frontmatter.value.lab)?.features ?? [])

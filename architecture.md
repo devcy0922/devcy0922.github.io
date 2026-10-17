@@ -44,7 +44,7 @@ flowchart TB
 
 ### 데이터
 
-- `docs/lab-projects.js` — 작업 목록의 단일 출처(SSOT). id, 제목, 상태, 영역, 한 줄 설명, 스택, 바로 써보기 여부.
+- `docs/lab-projects.ts` — 작업 목록의 단일 출처(SSOT). id, 제목, 상태, 영역, 한 줄 설명, 스택, 바로 써보기 여부.
 - 홈(`WorkIndex.vue`)과 `/lab/` 목록, 각 상세 헤더(`LabHeader.vue`)가 모두 이 파일만 읽는다.
 
 ### 프로토타입 원칙

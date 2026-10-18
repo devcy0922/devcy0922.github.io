@@ -1,6 +1,6 @@
 ---
 title: "Lingo 도메인 번역"
-description: "용어집과 번역 메모리로 업계 용어를 고정하고, 문장이 이 분야의 말인지 먼저 판정하는 LLM 없는 번역 단계."
+description: "용어집과 번역 메모리로 업계 용어를 고정하고, LLM에는 용어를 잠근 문장만 보내 번역한 뒤 규칙 QA로 검사하는 번역 단계."
 lab: lingo-domain
 layout: page
 pageClass: product-page
@@ -8,7 +8,7 @@ pageClass: product-page
 
 <div class="product-body vp-doc">
 
-위 그림의 앞 세 단계를 브라우저에서 돌려볼 수 있습니다. 용어집은 네트워크 보안 업계의 일반 용어만 담았습니다.
+도메인 판정·용어 고정·번역 메모리는 브라우저에서 규칙으로 돌고, **LLM으로 번역**을 누르면 용어를 잠근 문장만 GoVail Gateway로 한 번 보냅니다. 돌아온 번역은 용어를 되돌리고 규칙 QA로 검사합니다. 용어집은 네트워크 보안 업계의 일반 용어만 담았습니다.
 
 <DomainChecker />
 
@@ -50,9 +50,10 @@ flowchart LR
 
 ## 로드맵
 
-1. 용어집을 YAML로 분리하고 Lingo CLI에 `--glossary` 옵션 추가
-2. 번역 메모리 저장소(SQLite) 연결
-3. OPUS-MT ko→en 모델을 CTranslate2로 띄워 LLM 대비 품질·속도 측정
-4. 용어 후보 검토 화면
+1. 미리 써보기에 LLM 번역과 규칙 QA 연결 — **완료**
+2. 용어집을 YAML로 분리하고 Lingo CLI에 `--glossary` 옵션 추가
+3. 번역 메모리 저장소(SQLite) 연결
+4. OPUS-MT ko→en 모델을 CTranslate2로 띄워 LLM 대비 품질·속도 측정
+5. 용어 후보 검토 화면
 
 </div>

@@ -1,5 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { streamGateway } from '../../../gateway-client.js'
+import { MAX_SOURCE, buildTranslateRequest, checkTranslation, cleanOutput, restoreTerms } from '../../../lingo-core.js'
 
 // 네트워크 보안 업계의 일반 용어. general은 도메인을 모르는 번역기가 흔히 내는 번역.
 const GLOSSARY = [
@@ -112,14 +114,55 @@ const result = computed(() => {
   // 용어집에 없는 약어는 추가 후보로 올린다.
   const candidates = [...new Set((src.match(/\b[A-Z][A-Z0-9-]{1,9}\b/g) ?? []).filter((w) => !KNOWN.has(w)))]
 
+  // 자리표시자 번호마다 어떤 용어인지 남겨 번역 뒤 되돌릴 때 쓴다.
+  const slots = segments.filter((s) => s.term).map((s) => s.term)
   let n = 0
   const masked = segments.map((s) => (s.term ? `⟦T${++n}⟧` : s.text)).join('')
   const locks = distinct.map((d) => ({ ko: d.ko, en: d.en }))
 
   const tm = TM.map((e) => ({ ...e, score: similarity(src, e.ko) })).sort((a, b) => b.score - a.score)[0]
 
-  return { segments, distinct, density, verdict, candidates, masked, locks, tm }
+  return { segments, distinct, density, verdict, candidates, masked, slots, locks, tm }
 })
+
+// LLM 번역은 버튼을 누를 때만 한 번 부른다. 문장을 고치면 이전 결과는 지운다.
+const llm = ref({ state: 'idle', raw: '', error: '' })
+let controller = null
+
+const llmResult = computed(() => {
+  if (llm.value.state !== 'done') return null
+  const raw = cleanOutput(llm.value.raw)
+  const { masked, slots } = result.value
+  return { raw, restored: restoreTerms(raw, slots), qa: checkTranslation({ masked, raw, slots }) }
+})
+
+async function translate() {
+  if (llm.value.state === 'running' || !text.value.trim()) return
+  controller = new AbortController()
+  llm.value = { state: 'running', raw: '', error: '' }
+  try {
+    await streamGateway({
+      body: buildTranslateRequest(result.value.masked),
+      signal: controller.signal,
+      onEvent: (event, data) => {
+        if (event === 'token' && data?.delta) llm.value.raw += String(data.delta)
+        if (event === 'error') llm.value.error = String(data?.message || '응답 스트림이 중단되었습니다.')
+      },
+    })
+    llm.value.state = llm.value.error ? 'error' : llm.value.raw.trim() ? 'done' : 'error'
+    if (llm.value.state === 'error' && !llm.value.error) llm.value.error = '번역 결과가 비어 있습니다.'
+  } catch (err) {
+    llm.value = { state: err?.kind === 'aborted' ? 'idle' : 'error', raw: '', error: err?.message || '번역 요청이 실패했습니다.' }
+  } finally {
+    controller = null
+  }
+}
+
+watch(text, () => {
+  controller?.abort()
+  llm.value = { state: 'idle', raw: '', error: '' }
+})
+onBeforeUnmount(() => controller?.abort())
 
 const VERDICT = {
   domain: { title: '보안 도메인 문장', note: '용어집을 고정하고 도메인 번역 규칙을 적용합니다.' },
@@ -132,14 +175,14 @@ const VERDICT = {
   <div class="proto proto--wide" id="checker">
     <div class="proto__bar">
       <strong>도메인 용어 검사</strong>
-      <span>LLM을 호출하지 않습니다. 용어집 {{ GLOSSARY.length }}개와 번역 메모리 {{ TM.length }}건으로만 판정합니다.</span>
+      <span>판정·용어 고정·번역 메모리는 규칙(용어집 {{ GLOSSARY.length }}개, 메모리 {{ TM.length }}건)으로 처리합니다. LLM은 번역 버튼을 누를 때 한 번만 부릅니다.</span>
     </div>
     <div class="proto__body">
       <div class="samples" role="group" aria-label="예시 문장">
         <button v-for="s in SAMPLES" :key="s.label" type="button" class="btn" @click="text = s.text">{{ s.label }}</button>
       </div>
       <label class="lbl" for="domain-in">번역할 문장</label>
-      <textarea id="domain-in" v-model="text" class="field" rows="3" />
+      <textarea id="domain-in" v-model="text" class="field" rows="3" :maxlength="MAX_SOURCE" />
 
       <div class="verdict" :class="`verdict--${result.verdict}`">
         <strong>{{ VERDICT[result.verdict].title }}</strong>
@@ -175,6 +218,34 @@ const VERDICT = {
           <p v-else class="muted">비슷한 기존 번역이 없습니다. 새로 번역하고 메모리에 추가합니다.</p>
         </section>
       </div>
+
+      <section class="llm" aria-live="polite">
+        <div class="llm__head">
+          <h4>LLM 번역</h4>
+          <span class="muted">자리표시자 문장만 보냅니다 · GoVail Gateway · 한 번 호출</span>
+          <button type="button" class="btn btn--primary" :disabled="llm.state === 'running' || !text.trim()" @click="translate">
+            {{ llm.state === 'running' ? '번역 중…' : llm.state === 'done' ? '다시 번역' : 'LLM으로 번역' }}
+          </button>
+        </div>
+        <p v-if="llm.state === 'running'" class="masked mono">{{ llm.raw || '응답 기다리는 중…' }}</p>
+        <template v-else-if="llmResult">
+          <dl class="llm__out">
+            <dt>LLM 출력</dt><dd class="mono">{{ llmResult.raw }}</dd>
+            <dt>용어 복원</dt><dd class="restored">{{ llmResult.restored }}</dd>
+          </dl>
+          <p :class="['qa', llmResult.qa.ok ? 'qa--ok' : 'qa--bad']">
+            <b>{{ llmResult.qa.ok ? '규칙 QA 통과' : '규칙 QA 실패' }}</b>
+            <template v-if="llmResult.qa.ok">자리표시자 {{ result.slots.length }}개와 숫자가 모두 남았습니다. 승인하면 번역 메모리에 넣습니다.</template>
+            <template v-else>
+              <span v-if="llmResult.qa.missing.length">빠진 용어 {{ llmResult.qa.missing.join(' ') }}</span>
+              <span v-if="llmResult.qa.extra.length">중복·모르는 자리표시자 {{ llmResult.qa.extra.join(' ') }}</span>
+              <span v-if="llmResult.qa.missingNumbers.length">빠진 숫자 {{ llmResult.qa.missingNumbers.join(', ') }}</span>
+              — 메모리에 넣지 않고 사람이 검토합니다.
+            </template>
+          </p>
+        </template>
+        <p v-else-if="llm.state === 'error'" class="qa qa--bad"><b>번역하지 못했습니다</b> {{ llm.error }}</p>
+      </section>
     </div>
   </div>
 </template>
@@ -202,5 +273,19 @@ td.wrong { color: #a12c2c; text-decoration: line-through; text-decoration-thickn
 .tm-title { margin-top: 18px !important; }
 .tm { margin: 0 !important; font-size: 14px !important; }
 .tm b { margin-right: 8px; }
+.llm { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--mist); }
+.llm__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 10px; }
+.llm__head h4 { margin: 0 !important; }
+.llm__head .muted { margin: 0 !important; }
+.llm__head .btn { margin-left: auto; }
+.llm__out { display: grid; grid-template-columns: 76px 1fr; gap: 6px 12px; margin: 0; font-size: 14px; }
+.llm__out dt { color: var(--slate); font-size: 13px; }
+.llm__out dd { margin: 0; color: var(--ink); }
+.restored { font-size: 16px; font-weight: 600; }
+.qa { margin: 12px 0 0 !important; padding: 10px 12px; border-radius: 8px; font-size: 13px !important; }
+.qa b { margin-right: 8px; }
+.qa span { margin-right: 8px; }
+.qa--ok { background: var(--wash); }
+.qa--bad { background: #fff3f3; }
 @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 </style>

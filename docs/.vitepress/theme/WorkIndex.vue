@@ -19,10 +19,10 @@ function showTryable() {
   <main class="home">
     <header class="hero">
       <div class="hero__text">
-        <h1>업무에 AI를 붙여<br />실제로 돌려봅니다.</h1>
+        <h1>일하다 막힌 곳마다<br />작은 제품을 만듭니다.</h1>
         <p class="hero__lead">
-          사업보고서 비교, 공개자료 안내 챗봇, 대리점 정산, 금연 앱까지.
-          일하다 막힌 곳마다 작은 제품을 만들고 있습니다. 그중 {{ tryable }}개는 지금 이 페이지에서 바로 써볼 수 있습니다.
+          사업보고서 비교, 도메인 RAG, 업계 용어 번역, 금연 앱까지.
+          그중 {{ tryable }}개는 지금 이 페이지에서 바로 써볼 수 있습니다.
         </p>
         <div class="hero__cta">
           <button type="button" class="btn btn--primary btn--lg" @click="showTryable">바로 써볼 수 있는 제품</button>
@@ -58,7 +58,7 @@ function showTryable() {
       <div>
         <h2 id="maker-title">만든 사람</h2>
         <p>
-          devcy0922. 10년차 백엔드·AI 플랫폼 엔지니어입니다. 그룹웨어·B2B·백오피스를 만들고 운영해 왔고,
+          devcy0922. 백엔드·AI 플랫폼 엔지니어입니다. 그룹웨어·B2B·백오피스를 만들고 운영해 왔고,
           지금은 AI가 실제 업무를 맡을 때 필요한 실행 경계와 검증, 운영 기반을 만듭니다.
         </p>
         <p class="maker__links">

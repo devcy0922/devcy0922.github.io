@@ -6,16 +6,16 @@ defineProps({ id: { type: String, required: true }, large: { type: Boolean, defa
 
 <template>
   <div :class="['pv', `pv--${id}`, { 'pv--large': large }]" aria-hidden="true">
-    <!-- 공개자료 챗봇: 근거가 없으면 멈추는 순간 -->
-    <template v-if="id === 'genians-rag'">
-      <p class="q">최근 사업보고서의 매출 구성은?</p>
+    <!-- 도메인 RAG: 도메인을 고르면 출처 달린 답이 나오는 순간 -->
+    <template v-if="id === 'domain-rag'">
+      <p class="chips"><span class="on">사내 규정</span><span>보안 제품 안내</span><span>이 사이트 제품</span><span>직접 넣기</span></p>
+      <p class="q">재택근무는 일주일에 며칠까지?</p>
       <ol class="trace">
-        <li class="ok">질문 범위 확인 <span>공개자료 범위</span></li>
-        <li class="ok">검색 범위 고정 <span>genians-public</span></li>
-        <li class="stop">문서 검색 <span>근거 0건</span></li>
+        <li class="ok">범위 가드 <span>통과</span></li>
+        <li class="ok">검색 <span>상위 3개 조각</span></li>
+        <li class="ok">인용 검증 <span>원문과 일치</span></li>
       </ol>
-      <p class="a">근거가 없어 답하지 않습니다. 출처를 댈 수 있는 자료가 생기면 그때 답합니다.</p>
-      <p class="chips"><span>홈페이지</span><span>보도자료</span><span>DART 공시</span><span>IR 자료</span></p>
+      <p class="a">재택근무는 일주일에 2일까지 쓸 수 있습니다.<sup>[1]</sup></p>
     </template>
 
     <!-- 금연 타이머: 잠금화면 알림 -->
@@ -133,15 +133,18 @@ mcp-slack      <em class="w">write</em>
 .pv--large { font-size: 16px; }
 .pv p { margin: 0; }
 
-/* 공개자료 챗봇 */
-.pv--genians-rag .q { width: fit-content; margin-left: auto; padding: .5em .9em; border-radius: 1em 1em .3em 1em; background: var(--ink); color: #fff; }
+/* 도메인 RAG */
+.pv--domain-rag .q { width: fit-content; margin-left: auto; padding: .5em .9em; border-radius: 1em 1em .3em 1em; background: var(--ink); color: #fff; }
 .trace { margin: .9em 0 0; padding: 0; list-style: none; }
 .trace li { display: flex; align-items: center; gap: .6em; padding: .2em 0; color: var(--ink); font-weight: 600; }
 .trace li::before { width: .6em; height: .6em; border-radius: 50%; content: ""; }
 .trace li span { color: var(--slate); font-weight: 400; }
 .trace .ok::before { background: var(--live); }
 .trace .stop::before { background: #c53030; }
-.pv--genians-rag .a { margin-top: .8em; padding: .7em .9em; border-radius: .3em 1em 1em 1em; background: #fff; border: 1px solid var(--line); }
+.pv--domain-rag .chips { margin: 0 0 .9em !important; }
+.pv--domain-rag .chips .on { box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--ink); font-weight: 600; }
+.pv--domain-rag sup { margin-left: .15em; color: var(--cobalt); font-weight: 700; }
+.pv--domain-rag .a { margin-top: .8em; padding: .7em .9em; border-radius: .3em 1em 1em 1em; background: #fff; border: 1px solid var(--line); }
 .chips { display: flex; flex-wrap: wrap; gap: .4em; margin-top: .8em !important; }
 .chips span { padding: .1em .6em; border-radius: .4em; box-shadow: inset 0 0 0 1px #c9cdd4; color: var(--slate); font-size: .9em; }
 

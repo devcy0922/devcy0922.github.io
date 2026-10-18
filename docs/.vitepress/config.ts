@@ -19,7 +19,7 @@ export default withMermaid(
   defineConfig({
     title: 'devcy0922',
     titleTemplate: ':title · devcy0922',
-    description: '10년차 Backend & AI Platform Engineer devcy0922. 업무에 AI를 붙여 실제로 돌려본 작업과 브라우저에서 바로 써볼 수 있는 프로토타입.',
+    description: 'devcy0922가 만드는 제품 목록. 브라우저에서 바로 써볼 수 있는 프로토타입과 준비 중인 제품의 설계.',
     lang: 'ko-KR',
     cleanUrls: true,
     appearance: false,
@@ -130,7 +130,6 @@ export default withMermaid(
       },
 
       footer: {
-        message: '업무에 AI를 붙여 실제로 돌려봅니다.',
         copyright: 'Copyright © 2026 devcy0922',
       },
     },

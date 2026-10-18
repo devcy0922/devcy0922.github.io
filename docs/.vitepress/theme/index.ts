@@ -19,7 +19,7 @@ import PageBuilder from './lab/PageBuilder.vue'
 import DomainChecker from './lab/DomainChecker.vue'
 import QuitSimulator from './lab/QuitSimulator.vue'
 import SandboxPolicy from './lab/SandboxPolicy.vue'
-import RagSkeleton from './lab/RagSkeleton.vue'
+import DomainRag from './lab/DomainRag.vue'
 import './custom.css'
 import './workbench/workbench.css'
 
@@ -34,7 +34,7 @@ export default {
     const components = {
       WorkIndex, PostArchive, AutoProjects, SelectedProjects, OtherProjects, DiagramFrame,
       Workbench, RedirectNotice, LabIndex, CaptureSlot, ReportDiff, SlackBlocks,
-      PageBuilder, DomainChecker, ProductFeatures, QuitSimulator, SandboxPolicy, RagSkeleton,
+      PageBuilder, DomainChecker, ProductFeatures, QuitSimulator, SandboxPolicy, DomainRag,
     }
     for (const [name, component] of Object.entries(components)) app.component(name, component)
   },

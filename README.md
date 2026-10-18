@@ -1,6 +1,6 @@
 # devcy0922.github.io
 
-10년차 Backend & AI Platform Engineer의 대표 시스템, 설계 판단, 공개 데모를 담은 VitePress 포트폴리오입니다.
+devcy0922가 만드는 제품 목록과 공개 데모를 담은 VitePress 사이트입니다.
 
 - Site: https://devcy0922.github.io
 - Language: Korean first

@@ -1,12 +1,12 @@
 ---
 title: "경력과 설계 관점"
-description: "10년차 Backend & AI Platform Engineer. 업무 시스템 개발과 운영에서 AI 실행 경계 설계까지."
+description: "Backend & AI Platform Engineer. 업무 시스템 개발과 운영에서 AI 실행 경계 설계까지."
 outline: [2, 3]
 ---
 
 # Backend & AI Platform Engineer
 
-10년차 개발자로, 그룹웨어·B2B 서비스·백오피스의 백엔드 개발과 운영을 해왔습니다. 지금은 그 경험을 바탕으로 AI가 실제 업무를 수행하는 데 필요한 Gateway, Agent Runtime, 검증과 운영 기반을 설계합니다.
+그룹웨어·B2B 서비스·백오피스의 백엔드 개발과 운영을 해왔습니다. 지금은 그 경험을 바탕으로 AI가 실제 업무를 수행하는 데 필요한 Gateway, Agent Runtime, 검증과 운영 기반을 설계합니다.
 
 PHP와 JavaScript 기반 화면·API 개발에서 시작해 Node.js, React, Docker, AWS를 활용한 서비스 구축과 운영으로 책임 범위를 넓혔습니다. 기능 구현뿐 아니라 배포 이후의 성능, 접근 제어, 장애 대응과 유지보수 비용을 함께 다룹니다.
 

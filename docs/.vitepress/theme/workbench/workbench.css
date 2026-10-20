@@ -1,11 +1,10 @@
-/* 콘솔(Workbench). 기존 Paper / Ink / Cobalt 토큰을 쓰고, 상태는 점과 글자로 표시한다. */
+/* 콘솔(Workbench). 사이트와 같은 흑백 토큰을 쓰고, 파랑(cobalt)은 글자 링크와 '실행 중' 상태에만 쓴다. 상태는 점과 글자로 표시한다. */
 
 :root {
   --wb-muted: #5a6578;
   --wb-ok: #0f7a4d;
   --wb-err: #b42318;
   --wb-err-bg: #fef3f2;
-  --wb-on-cobalt: #ffffff;
 }
 
 .dark {
@@ -13,13 +12,12 @@
   --wb-ok: #4cc38a;
   --wb-err: #ff8b80;
   --wb-err-bg: #2a1311;
-  --wb-on-cobalt: #0b1220;
 }
 
 .wb {
-  width: min(1440px, calc(100% - 40px));
+  width: min(var(--page-max), calc(100% - var(--page-gutter) * 2));
   margin: 0 auto;
-  padding: 40px 0 84px;
+  padding: 56px 0 96px;
   color: var(--ink);
 }
 
@@ -53,21 +51,18 @@
 }
 
 .wb-eyebrow {
-  color: var(--wb-muted);
-  font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--slate);
+  font-size: 14px;
+  font-weight: 550;
 }
 
 .wb h1 {
   margin-top: 10px;
   color: var(--ink);
-  font-size: clamp(26px, 3.4vw, 38px);
-  font-weight: 750;
-  letter-spacing: -0.04em;
-  line-height: 1.25;
+  font-size: clamp(30px, 3.6vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
   word-break: keep-all;
   border: 0;
 }
@@ -75,8 +70,9 @@
 .wb-lead {
   margin-top: 12px;
   color: var(--ink-soft);
-  font-size: 14.5px;
-  line-height: 1.7;
+  max-width: 40em;
+  font-size: 16px;
+  line-height: 1.75;
   word-break: keep-all;
 }
 
@@ -88,19 +84,17 @@
   gap: 4px 12px;
   margin: 22px 0 20px;
   padding: 11px 16px;
-  border-left: 3px solid var(--cobalt);
-  background: var(--cobalt-soft);
+  border-left: 3px solid var(--ink);
+  background: var(--wash);
   color: var(--ink);
   font-size: 14px;
   line-height: 1.6;
 }
 
 .wb-next-label {
-  color: var(--cobalt);
-  font-family: var(--vp-font-family-mono);
-  font-size: 11.5px;
+  color: var(--ink);
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 /* ── 레이아웃 ───────────────────────────────────────── */
@@ -134,7 +128,7 @@
 
 @media (min-width: 1080px) {
   .wb-grid {
-    grid-template-columns: 250px minmax(0, 1fr) 360px;
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
     grid-template-areas: 'rail main side';
     align-items: start;
   }
@@ -219,7 +213,7 @@
   height: 38px;
   padding: 0 16px;
   border: 1px solid var(--mist-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--paper-raised);
   color: var(--ink);
   font: inherit;
@@ -230,18 +224,17 @@
 }
 
 .wb-btn:hover:not(:disabled) {
-  background: var(--mist);
+  border-color: var(--ink);
 }
 
 .wb-btn-primary {
-  border-color: var(--cobalt);
-  background: var(--cobalt);
-  color: var(--wb-on-cobalt);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
 }
 
 .wb-btn-primary:hover:not(:disabled) {
-  background: var(--cobalt);
-  filter: brightness(0.92);
+  background: #2d313a;
 }
 
 .wb-btn-sm {
@@ -404,52 +397,58 @@
   margin-top: 6px;
 }
 
-.wb-scenarios {
+.wb-examples {
+  margin-top: 12px;
+  border-top: 1px solid var(--mist);
+}
+
+.wb-example {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.wb-scenario {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--mist-strong);
-  border-radius: 8px;
-  background: var(--paper);
-}
-
-@media (min-width: 620px) {
-  .wb-scenario:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-  }
-}
-
-.wb-scenario p {
-  color: var(--ink-soft);
-  font-size: 13.5px;
-  line-height: 1.6;
-  word-break: keep-all;
-}
-
-.wb-scenario .wb-scenario-prompt {
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.wb-scenario .wb-scenario-tools {
-  color: var(--wb-muted);
-  font-size: 12.5px;
-}
-
-.wb-scenario-actions {
-  display: flex;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  margin-top: auto;
-  padding-top: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--mist);
+}
+
+.wb-example-tool {
+  color: var(--wb-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wb-example-prompt {
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wb-example-prompt:hover {
+  background: linear-gradient(transparent 60%, var(--marker) 60%);
+}
+
+@media (max-width: 620px) {
+  .wb-example {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .wb-example-tool {
+    grid-column: 1 / -1;
+  }
+
+  .wb-example-prompt {
+    white-space: normal;
+  }
 }
 
 /* ── 작업 화면 ──────────────────────────────────────── */
@@ -746,7 +745,7 @@
 }
 
 .wb-source:hover {
-  border-color: var(--cobalt);
+  border-color: var(--ink);
 }
 
 .wb-source strong {
@@ -785,8 +784,8 @@
 }
 
 .wb-runitem.active {
-  border-color: var(--cobalt);
-  background: var(--cobalt-soft);
+  border-color: var(--ink);
+  background: var(--wash);
 }
 
 .wb-runitem-main {
@@ -834,8 +833,7 @@
 /* ── 좁은 화면 ──────────────────────────────────────── */
 @media (max-width: 720px) {
   .wb {
-    width: calc(100% - 32px);
-    padding: 24px 0 64px;
+    padding: 40px 0 64px;
   }
 
   .wb-head > .wb-btn {

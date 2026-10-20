@@ -31,17 +31,23 @@ export interface Product {
   tools?: Link[]
   /** 외부·관련 링크 */
   links?: Link[]
+  /** 홈 '대표 제품'에 노출(최대 3개) */
+  featured?: boolean
 }
 
 export const STATUS: Record<Status, { label: string; hint: string }> = {
   live: { label: '운영 중', hint: '실제 환경에서 돌아가는 중' },
-  prototype: { label: '미리 써보기', hint: '이 사이트에서 바로 써볼 수 있음' },
+  prototype: { label: '미리 써보기', hint: '브라우저에서 바로 써볼 수 있음' },
   design: { label: '준비 중', hint: '설계와 화면 뼈대까지 공개' },
 }
 
-const products = [
+// 목록 순서: 운영 중 → 미리 써보기 → 준비 중. 같은 상태 안에서는 아래 배열 순서를 따른다.
+export const STATUS_ORDER: Status[] = ['live', 'prototype', 'design']
+
+const catalog = [
   {
     id: 'domain-rag',
+    featured: true,
     title: '도메인 RAG',
     area: '출처를 대는 RAG 빌더',
     status: 'prototype',
@@ -91,6 +97,7 @@ const products = [
   },
   {
     id: 'vibe-post-it',
+    featured: true,
     title: 'vibe-post-it',
     area: '업무 자동화 도구 모음',
     status: 'prototype',
@@ -125,9 +132,12 @@ const products = [
     status: 'prototype',
     tagline: '클릭해서 고치고, HTML 한 장으로 받는 페이지 편집기',
     summary: '영역을 고르고 오른쪽 패널에서 글자·여백·색을 바꾼 뒤 그대로 내려받습니다.',
-    stack: ['GrapesJS', 'Vue'],
+    stack: ['GrapesJS', 'Vue', 'Vite'],
     href: '/lab/page-builder',
-    demo: '#editor',
+    links: [
+      { label: '지금 써보기', href: 'https://devcy0922.github.io/page-builder/' },
+      { label: 'GitHub 저장소', href: 'https://github.com/devcy0922/page-builder' },
+    ],
     problem: '소개 페이지 문구 하나, 글자 크기 하나를 바꾸려고 개발자를 기다립니다. 노코드 도구는 많지만 결과를 내 서버에 그대로 올릴 HTML 한 장으로 주는 것은 드뭅니다.',
     plan: [
       { state: 'done', text: 'GrapesJS 기반 영역 편집과 HTML 내려받기' },
@@ -215,6 +225,7 @@ const products = [
   },
   {
     id: 'govail-renewal',
+    featured: true,
     title: 'GoVail',
     area: 'AI Gateway와 운영 콘솔',
     status: 'live',
@@ -283,5 +294,10 @@ const products = [
     ],
   },
 ] satisfies Product[]
+
+const products: Product[] = [...catalog].sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))
+
+/** 홈에 보이는 대표 제품. 목록 순서를 그대로 따른다. */
+export const featured = products.filter((p) => p.featured).slice(0, 3)
 
 export default products

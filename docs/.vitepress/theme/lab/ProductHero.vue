@@ -18,7 +18,8 @@ const p = computed(() => products.find((x) => x.id === frontmatter.value.lab))
       <p class="ph__summary">{{ p.summary }}</p>
       <div class="ph__cta">
         <a v-if="p.demo" class="btn btn--primary btn--lg" :href="p.demo">{{ p.status === 'design' ? '화면 미리 보기' : '지금 써보기' }}</a>
-        <a v-for="l in p.links ?? []" :key="l.href" class="btn btn--primary btn--lg" :href="l.href" target="_blank" rel="noopener">{{ l.label }} ↗</a>
+        <!-- 주 버튼은 하나만: 데모가 없으면 첫 외부 링크가 주 버튼이다 -->
+        <a v-for="(l, i) in p.links ?? []" :key="l.href" :class="['btn', 'btn--lg', { 'btn--primary': !p.demo && i === 0 }]" :href="l.href" target="_blank" rel="noopener">{{ l.label }} ↗</a>
         <a class="btn btn--lg" href="#how">동작 방식</a>
       </div>
       <ul class="ph__stack" aria-label="사용 기술">
@@ -32,7 +33,7 @@ const p = computed(() => products.find((x) => x.id === frontmatter.value.lab))
 </template>
 
 <style scoped>
-.ph { width: min(1200px, calc(100% - 48px)); margin: 0 auto; padding: 48px 0 0; }
+.ph { width: min(var(--page-max), calc(100% - var(--page-gutter) * 2)); margin: 0 auto; padding: 48px 0 0; }
 .ph__back { color: var(--slate); font-size: 14px; text-decoration: none; }
 .ph__back::before { content: "← "; }
 .ph__back:hover { color: var(--ink); }
@@ -46,7 +47,7 @@ const p = computed(() => products.find((x) => x.id === frontmatter.value.lab))
 .ph__stack li { padding: 3px 10px; border: 1px solid var(--mist-strong); border-radius: 6px; color: var(--slate); font-size: 13px; }
 .ph__show { margin-top: 48px; padding: clamp(20px, 4vw, 48px); border: 1px solid var(--mist-strong); border-radius: 20px; background: var(--wash); }
 @media (max-width: 640px) {
-  .ph { width: calc(100% - 32px); padding-top: 28px; }
+  .ph { padding-top: 28px; }
   .ph__show :deep(.pv--large) { font-size: 12px; }
 }
 </style>

@@ -2,6 +2,7 @@
 title: "경력과 설계 관점"
 description: "Backend & AI Platform Engineer. 업무 시스템 개발과 운영에서 AI 실행 경계 설계까지."
 outline: [2, 3]
+aside: false
 ---
 
 # Backend & AI Platform Engineer

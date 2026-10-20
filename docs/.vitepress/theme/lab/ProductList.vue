@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import products, { STATUS } from '../../../lab-projects'
 import ProductPreview from './ProductPreview.vue'
 import ProductModal from './ProductModal.vue'
@@ -12,7 +12,21 @@ const count = (key) => (key === 'all' ? products.length : products.filter((p) =>
 const shown = computed(() => (active.value === 'all' ? products : products.filter((p) => p.status === active.value)))
 const tryLabel = (p) => (p.status === 'design' ? '화면 미리 보기' : '지금 써보기')
 
-defineExpose({ show: (key) => (active.value = key) })
+// ?status=prototype 처럼 주소로 거른 상태를 열 수 있다(홈의 '바로 써볼 수 있는 제품'). 고르면 주소도 바꿔 공유할 수 있다.
+function select(key) {
+  active.value = key
+  const url = new URL(location.href)
+  if (key === 'all') url.searchParams.delete('status')
+  else url.searchParams.set('status', key)
+  history.replaceState(history.state, '', url)
+}
+
+onMounted(() => {
+  const key = new URLSearchParams(location.search).get('status')
+  if (key && key in STATUS) active.value = key
+})
+
+defineExpose({ show: select })
 </script>
 
 <template>
@@ -24,7 +38,7 @@ defineExpose({ show: (key) => (active.value = key) })
         type="button"
         :class="['chip', f.key !== 'all' && `state state--${f.key}`]"
         :aria-pressed="active === f.key"
-        @click="active = f.key"
+        @click="select(f.key)"
       >
         {{ f.label }} <span>{{ count(f.key) }}</span>
       </button>
@@ -43,6 +57,7 @@ defineExpose({ show: (key) => (active.value = key) })
           <div class="row__cta">
             <button type="button" class="btn btn--primary btn--lg" @click="modal.open(p)">자세히 보기</button>
             <a v-if="p.demo" class="btn btn--lg" :href="p.href + p.demo">{{ tryLabel(p) }}</a>
+            <a v-else-if="p.links?.length" class="btn btn--lg" :href="p.links[0].href" target="_blank" rel="noopener">{{ p.links[0].label }} ↗</a>
             <a v-else class="btn btn--lg" :href="p.href">제품 페이지</a>
           </div>
         </div>

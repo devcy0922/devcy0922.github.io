@@ -18,6 +18,11 @@
   --design: #9aa0aa;
   --terminal: #16181d;
 
+  /* 폭: 넓은 화면은 내비게이션과 같은 폭에서 시작하고, 읽는 페이지는 본문 폭 하나를 쓴다(DESIGN.md 2026-10-20). */
+  --page-max: 1136px;
+  --text-max: 720px;
+  --page-gutter: 24px;
+
   --vp-c-bg: var(--paper);
   --vp-c-bg-alt: var(--wash);
   --vp-c-bg-soft: var(--wash);
@@ -36,10 +41,13 @@
   --vp-code-color: var(--ink);
   --vp-layout-max-width: 1200px;
   --vp-font-family-base: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  --vp-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --vp-font-family-mono: "JetBrains Mono Variable", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
+@media (min-width: 768px) { :root { --page-gutter: 32px; } }
+
 html { scroll-behavior: smooth; }
+.page-wrap { width: min(var(--page-max), calc(100% - var(--page-gutter) * 2)); margin-inline: auto; }
 body { background: var(--paper); letter-spacing: -0.012em; font-feature-settings: "kern" 1, "tnum" 1; -webkit-font-smoothing: antialiased; }
 ::selection { background: var(--marker); color: var(--ink); }
 
@@ -90,7 +98,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .vp-doc .proto h3, .vp-doc .proto h4 { margin: 0; border: 0; padding: 0; letter-spacing: -0.02em; }
 
 /* ── 기록 아카이브 ─────────────────────────────────────────── */
-.archive-page { width: min(880px, calc(100% - 48px)); margin: 0 auto; padding: 80px 0 112px; }
+.archive-page { width: min(var(--text-max), calc(100% - var(--page-gutter) * 2)); margin: 0 auto; padding: 64px 0 112px; }
 .archive-hero { max-width: 640px; padding-bottom: 40px; }
 .archive-hero h1 { margin: 0; color: var(--ink); font-size: clamp(36px, 5vw, 52px); font-weight: 780; letter-spacing: -0.045em; }
 .archive-hero > p:last-child { margin: 18px 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.8; }
@@ -131,7 +139,9 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .auto-project-ledger { margin-top: 0; border-top: 0; }
 
 /* ── 문서 본문 ─────────────────────────────────────────────── */
-.VPDoc:not(.has-sidebar) .content { max-width: 820px; }
+/* 읽는 페이지(기록·플랫폼·소개·글)는 같은 본문 폭. 목차가 있는 글도 본문 폭은 같다. */
+.VPDoc:not(.has-sidebar) .content { max-width: calc(var(--text-max) + 64px); }
+.VPDoc:not(.has-sidebar) .content-container { max-width: var(--text-max); }
 .vp-doc { color: var(--ink-soft); }
 .vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4 { color: var(--ink); letter-spacing: -0.035em; word-break: keep-all; }
 .vp-doc h1 { font-size: clamp(34px, 5vw, 46px); font-weight: 780; line-height: 1.22; }
@@ -152,12 +162,13 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .architecture-diagram figcaption { margin: 0 0 10px; color: var(--slate); font-size: 13px; line-height: 1.6; }
 .architecture-diagram__canvas { overflow-x: auto; border: 1px solid var(--mist-strong); border-radius: 12px; background: var(--paper); padding: 28px; }
 .architecture-diagram__canvas svg { display: block; width: 100%; height: auto; min-height: 180px; }
-.vp-doc .mermaid { display: flex; justify-content: center; letter-spacing: normal; }
-/* mermaid 라벨은 foreignObject 안의 <p>다. 본문 문단 스타일이 섞이면 측정한 크기보다 커져 잘린다. */
-.vp-doc .mermaid p, .vp-doc .mermaid span { margin: 0; font-size: inherit; line-height: 1.5; letter-spacing: normal; word-break: normal; }
+.vp-doc .mermaid { display: flex; justify-content: center; }
+/* mermaid 라벨은 foreignObject 안의 <p>다. mermaid는 라벨 폭을 body 아래 임시 요소로 재므로(자간 -0.012em),
+   그려진 라벨도 같은 자간·크기여야 한다. 자간을 따로 지정하면 측정보다 넓어져 끝 글자가 잘린다. */
+.vp-doc .mermaid p, .vp-doc .mermaid span { margin: 0; font-size: inherit; line-height: 1.5; letter-spacing: inherit; word-break: normal; }
 
 @media (max-width: 760px) {
-  .archive-page { width: calc(100% - 32px); padding-top: 56px; }
+  .archive-page { padding-top: 48px; }
   .ledger-row { grid-template-columns: 1fr; gap: 4px; }
   .project-case { grid-template-columns: 1fr; }
   .project-ledger a { grid-template-columns: 1fr 20px; gap: 4px 12px; }
@@ -174,7 +185,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .capture-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin: 24px 0 8px; }
 
 /* ── 제품 페이지(layout: page + .product-body) ───────────────── */
-.product-body { width: min(1200px, calc(100% - 48px)); margin: 0 auto; padding: 56px 0 0; }
+.product-body { width: min(var(--page-max), calc(100% - var(--page-gutter) * 2)); margin: 0 auto; padding: 56px 0 0; }
 .vp-doc.product-body > :is(p, ul, ol, h2, h3, h4, table, blockquote, div[class*="language-"]) { max-width: 780px; }
 .vp-doc.product-body > :first-child { margin-top: 0; }
 .vp-doc.product-body h2 { margin: 128px 0 0; border-top: 0; padding-top: 0; font-size: clamp(30px, 3.6vw, 44px); font-weight: 800; letter-spacing: -0.045em; line-height: 1.2; }
@@ -184,6 +195,6 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .vp-doc.product-body .proto { margin: 32px 0 0; }
 .vp-doc.product-body .capture-grid { margin-top: 28px; }
 @media (max-width: 640px) {
-  .product-body { width: calc(100% - 32px); padding-top: 40px; }
+  .product-body { padding-top: 40px; }
   .vp-doc.product-body h2 { margin-top: 88px; }
 }

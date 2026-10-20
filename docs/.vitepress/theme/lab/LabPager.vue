@@ -18,8 +18,8 @@ const next = computed(() => (index.value >= 0 && index.value < work.length - 1 ?
 </template>
 
 <style scoped>
-.lab-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(1200px, calc(100% - 48px)); margin: 112px auto 96px; }
-@media (max-width: 640px) { .lab-pager { width: calc(100% - 32px); grid-template-columns: 1fr; } }
+.lab-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(var(--page-max), calc(100% - var(--page-gutter) * 2)); margin: 112px auto 96px; }
+@media (max-width: 640px) { .lab-pager { grid-template-columns: 1fr; } }
 .lab-pager a { display: block; padding: 16px 18px; border: 1px solid var(--mist-strong); border-radius: 10px; color: inherit; text-decoration: none; }
 .lab-pager a:hover { border-color: var(--ink); }
 .lab-pager__next { text-align: right; }

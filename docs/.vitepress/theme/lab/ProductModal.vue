@@ -13,14 +13,14 @@ async function open(item) {
   await nextTick()
   if (!dialog.value?.open) dialog.value?.showModal()
   document.documentElement.style.overflow = 'hidden'
-  history.replaceState(history.state, '', `${location.pathname}#${item.id}`)
+  history.replaceState(history.state, '', `${location.pathname}${location.search}#${item.id}`)
 }
 function close() {
   dialog.value?.close()
 }
 function onClose() {
   document.documentElement.style.overflow = ''
-  if (p.value && location.hash === `#${p.value.id}`) history.replaceState(history.state, '', location.pathname)
+  if (p.value && location.hash === `#${p.value.id}`) history.replaceState(history.state, '', location.pathname + location.search)
 }
 function onBackdrop(e) {
   if (e.target === dialog.value) close()

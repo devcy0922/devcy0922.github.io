@@ -35,8 +35,8 @@ export default withMermaid(
             .map((post) => post.url.replace(/\.html$/, '')),
         )
 
-        // 콘솔로 이동시키는 예전 주소는 검색 색인에서 뺀다.
-        const redirectedPaths = ['live-console', 'runner', 'audit']
+        // 다른 주소로 이동시키는 예전 주소(콘솔·소개)는 검색 색인에서 뺀다.
+        const redirectedPaths = ['live-console', 'runner', 'audit', 'experience']
         return items.filter(
           (item) =>
             ![...futurePostPaths].some((path) => item.url.endsWith(path)) &&
@@ -52,23 +52,6 @@ export default withMermaid(
       ['meta', { property: 'og:locale', content: 'ko_KR' }],
       ['link', { rel: 'alternate', type: 'application/rss+xml', title: 'devcy0922 RSS', href: '/rss.xml' }],
       ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
-      ['link', { rel: 'preconnect', href: 'https://cdn.jsdelivr.net', crossorigin: '' }],
-      ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-      ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-      [
-        'link',
-        {
-          rel: 'stylesheet',
-          href: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css',
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap',
-        },
-      ],
     ],
 
     themeConfig: {
@@ -122,6 +105,8 @@ export default withMermaid(
 
       lastUpdated: {
         text: '마지막 수정',
+        // 사이트 언어(ko-KR) 형식으로 고정한다. 없으면 방문자 브라우저 언어(예: 10/18/26)로 나온다.
+        formatOptions: { dateStyle: 'long', forceLocale: true },
       },
 
       docFooter: {
@@ -134,11 +119,11 @@ export default withMermaid(
       },
     },
 
-    // 다이어그램은 흑백 톤으로 그린다. mermaid는 웹폰트가 로드되기 전에 글자 폭을 재므로
-    // 박스가 잘리지 않도록 이미 설치된 시스템 한글 글꼴을 쓴다.
+    // 다이어그램은 흑백 톤으로 그린다. 본문과 같은 Pretendard로 그리고, 폰트가 늦게 오면
+    // theme/index.ts의 watchDiagramFonts가 폰트를 받은 뒤 다시 그리게 한다.
     mermaid: {
       theme: 'neutral',
-      themeVariables: { fontFamily: '-apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif', fontSize: '14px' },
+      themeVariables: { fontFamily: '"Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif', fontSize: '14px' },
     },
 
     async buildEnd(siteConfig) {

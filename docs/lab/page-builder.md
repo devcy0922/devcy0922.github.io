@@ -8,7 +8,7 @@ pageClass: product-page
 
 <div class="product-body vp-doc">
 
-<PageBuilder />
+편집기는 [page-builder 저장소](https://github.com/devcy0922/page-builder)가 독립 앱으로 관리하고, [devcy0922.github.io/page-builder](https://devcy0922.github.io/page-builder/)에 따로 배포합니다. GrapesJS(약 1.1MB)를 이 사이트의 다른 페이지와 함께 싣지 않기 위해서입니다. 편집기 아이콘과 글꼴도 앱 안에 번들해 외부 CDN 없이 열립니다.
 
 <ProductFeatures />
 
@@ -18,11 +18,11 @@ pageClass: product-page
 
 ## 동작 방식 {#how}
 
-<DiagramFrame caption="편집기는 이 페이지에서만 불러옵니다. 다른 페이지 번들에는 포함되지 않습니다.">
+<DiagramFrame caption="편집기는 page-builder 저장소의 독립 앱입니다. 이 사이트는 소개와 화면 미리보기만 둡니다.">
 
 ```mermaid
 flowchart LR
-    Page["/lab/page-builder"] -->|onMounted 동적 import| GJS["GrapesJS 편집기"]
+    App["page-builder 앱<br/>Vite + Vue"] --> GJS["GrapesJS 편집기"]
     GJS --> Model["컴포넌트 트리 + CSS 규칙"]
     Quick["빠른 조절 막대<br/>글자 크기·기기"] -->|addStyle| Model
     Panel["스타일 관리자<br/>글자·여백·크기"] --> Model

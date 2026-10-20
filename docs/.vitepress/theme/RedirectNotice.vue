@@ -18,7 +18,7 @@ onMounted(() => {
 
 <style scoped>
 .redirect-notice {
-  width: min(720px, calc(100% - 32px));
+  width: min(var(--text-max), calc(100% - var(--page-gutter) * 2));
   margin: 0 auto;
   padding: 96px 0;
   color: var(--ink-soft);

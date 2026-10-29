@@ -1,5 +1,55 @@
 [
   {
+    "name": "office-tone",
+    "title": "office-tone",
+    "description": "오피스톤 — 할 말은 그대로, 톤만 다듬어요",
+    "href": "/projects/office-tone",
+    "repoUrl": "https://github.com/devcy0922/office-tone",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-25T18:56:23Z"
+  },
+  {
+    "name": "lingo-agent",
+    "title": "lingo-agent",
+    "description": "Agentic i18n localization translation & validation pipeline console (ICU parser & LLM-as-a-Judge)",
+    "href": "/projects/lingo-agent",
+    "repoUrl": "https://github.com/devcy0922/lingo-agent",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-25T17:11:30Z"
+  },
+  {
+    "name": "pr-guardian",
+    "title": "pr-guardian",
+    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
+    "href": "/projects/pr-guardian",
+    "repoUrl": "https://github.com/devcy0922/pr-guardian",
+    "language": "TypeScript",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-20T20:17:01Z"
+  },
+  {
+    "name": "ai-gateway-infra-demo",
+    "title": "ai-gateway-infra-demo",
+    "description": "Unified Multi-Node AI Serving Gateway Infrastructure with LiteLLM, Promtail, and Docker Compose.",
+    "href": "/projects/ai-gateway-infra-demo",
+    "repoUrl": "https://github.com/devcy0922/ai-gateway-infra-demo",
+    "language": "Shell",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-20T20:16:46Z"
+  },
+  {
+    "name": "slicerag",
+    "title": "slicerag",
+    "description": "Gateway 인증 기반 프로젝트 격리 RAG 메모리 서비스 (FastAPI + pgvector)",
+    "href": "/projects/slicerag",
+    "repoUrl": "https://github.com/devcy0922/slicerag",
+    "language": "Python",
+    "defaultBranch": "main",
+    "pushedAt": "2026-10-20T20:15:46Z"
+  },
+  {
     "name": "aws-localstack-pipeline",
     "title": "aws-localstack-pipeline",
     "description": "AWS 개인 계정 없이 LocalStack + Serverless Framework + GitHub Actions를 이용한 클라우드 배포 & E2E 통합 테스트 파이프라인 데모",
@@ -70,16 +120,6 @@
     "pushedAt": "2026-10-13T19:47:27Z"
   },
   {
-    "name": "office-tone",
-    "title": "office-tone",
-    "description": "오피스톤 — 할 말은 그대로, 톤만 다듬어요",
-    "href": "/projects/office-tone",
-    "repoUrl": "https://github.com/devcy0922/office-tone",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-10-13T19:47:11Z"
-  },
-  {
     "name": "coexistgate",
     "title": "coexistgate",
     "description": "Cross-artifact release safety engine. Can this change be safely released and rolled back?",
@@ -90,36 +130,6 @@
     "pushedAt": "2026-10-13T19:47:09Z"
   },
   {
-    "name": "pr-guardian",
-    "title": "pr-guardian",
-    "description": "GitHub PR 자동 리뷰 서비스 — 웹훅 트리거",
-    "href": "/projects/pr-guardian",
-    "repoUrl": "https://github.com/devcy0922/pr-guardian",
-    "language": "TypeScript",
-    "defaultBranch": "main",
-    "pushedAt": "2026-10-13T19:47:06Z"
-  },
-  {
-    "name": "lingo-agent",
-    "title": "lingo-agent",
-    "description": "Agentic i18n localization translation & validation pipeline console (ICU parser & LLM-as-a-Judge)",
-    "href": "/projects/lingo-agent",
-    "repoUrl": "https://github.com/devcy0922/lingo-agent",
-    "language": "Python",
-    "defaultBranch": "main",
-    "pushedAt": "2026-10-13T19:47:04Z"
-  },
-  {
-    "name": "ai-gateway-infra-demo",
-    "title": "ai-gateway-infra-demo",
-    "description": "Unified Multi-Node AI Serving Gateway Infrastructure with LiteLLM, Promtail, and Docker Compose.",
-    "href": "/projects/ai-gateway-infra-demo",
-    "repoUrl": "https://github.com/devcy0922/ai-gateway-infra-demo",
-    "language": "Shell",
-    "defaultBranch": "main",
-    "pushedAt": "2026-09-04T16:14:48Z"
-  },
-  {
     "name": "works-agent-demo",
     "title": "works-agent-demo",
     "description": "Interactive demo of an evidence-based agent workflow",
@@ -128,16 +138,6 @@
     "language": "CSS",
     "defaultBranch": "main",
     "pushedAt": "2026-09-04T13:56:05Z"
-  },
-  {
-    "name": "slicerag",
-    "title": "slicerag",
-    "description": "Gateway 인증 기반 프로젝트 격리 RAG 메모리 서비스 (FastAPI + pgvector)",
-    "href": "/projects/slicerag",
-    "repoUrl": "https://github.com/devcy0922/slicerag",
-    "language": "Python",
-    "defaultBranch": "main",
-    "pushedAt": "2026-09-04T13:16:04Z"
   },
   {
     "name": "coexistgate-demo",

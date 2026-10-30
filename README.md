@@ -52,7 +52,7 @@ tags:
 
 ## Information architecture
 
-- `/` — 브랜드 문장과 실제 제품 화면(배경: 인터랙티브 점 격자), 대표 제품 3개, 함께 쓰는 기반, 만든 사람
+- `/` — Senior Backend & Platform Engineer 에디토리얼 포트폴리오. 대표 엔지니어링 사례(GoVail Gateway, AI Service Infra, AI Data Infra), 전문 역량, 제품 및 실험실(Lab), 최근 기술 기록, 만든 사람 소개
 - `/lab/` — 전체 제품 목록(상태 필터, `?status=prototype`처럼 주소로 거르기)과 제품별 페이지. 목록 데이터는 `docs/lab-projects.ts` 하나만 수정하며, 순서는 `운영 중 → 미리 써보기 → 준비 중`으로 자동 정렬된다
 - `/lab/page-builder` — 소개만 둔다. 편집기는 [page-builder](https://github.com/devcy0922/page-builder) 저장소가 소유하고 `/page-builder/`에 따로 배포한다
 - `/playground` — 콘솔. 질문 하나가 GoVail Gateway를 거쳐 도구 호출과 모델 응답으로 처리되는 과정을 실행 증적과 함께 확인하는 라이브 데모 (`/live-console`·`/runner`·`/audit`은 이 주소로 이동)

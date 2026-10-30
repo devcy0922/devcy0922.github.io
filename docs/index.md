@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "제품 & 플랫폼"
-description: "AI 게이트웨이부터 퀀트 트레이딩, 도메인 RAG까지 현장의 막힌 곳을 뚫어온 10대 프로덕트와 플랫폼 아키텍처."
+title: "Senior Backend & Platform Engineer"
+description: "서비스를 만들고, 끝까지 운영하는 엔지니어. 백엔드 시스템 설계, 인증·접근제어, AI Gateway 및 플랫폼 인프라."
 aside: false
 outline: false
 ---

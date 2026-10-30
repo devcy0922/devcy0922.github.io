@@ -1,5 +1,61 @@
 # devcy0922.github.io — Design Direction
 
+## 2026-10-30 방향: Quiet Engineering / Editorial Portfolio (최상위 SSOT)
+
+이 섹션은 아래의 모든 과거 방향보다 항상 우선한다.
+
+### 1. 정체성과 포지셔닝
+- **Primary Identity**: Senior Backend & Platform Engineer
+- **Secondary Identity**: AI Platform & Inference Infrastructure Engineer
+- **핵심 목표**: "기술을 많이 나열하는 개발자가 아니라, 복잡한 시스템의 경계를 명확히 정의하고 실제 환경에서 지속 가능하게 작동하도록 만드는 시니어 엔지니어"라는 깊은 신뢰를 전달한다.
+- **철학**: 화려한 시각적 효과나 기술 키워드 나열보다 아키텍처 판단, 장애 대응, 데이터 무결성, 운영 증거를 우선한다.
+
+### 2. 비주얼 시스템 (Quiet Engineering)
+- **Palette**:
+  - 배경: White (`#ffffff`), 약한 배경 Wash (`#f8fafc`)
+  - 텍스트: Charcoal (`#0f172a`), 부본문 (`#334155`), Slate (`#64748b`)
+  - 포인트: 단일 절제된 Cobalt Blue (`#2563eb`)
+  - 구분선: 1px 단선 (`#e2e8f0`, `#f1f5f9`)
+- **Typography**:
+  - Pretendard Variable & JetBrains Mono
+  - 자간(-0.025em ~ -0.04em)과 절제된 행간(1.7 ~ 1.75)으로 한국어 가독성을 최우선으로 설계
+  - 제목은 굵기와 크기로만 위계를 형성하고 색상 강조를 남용하지 않는다.
+- **Layout & Width**:
+  - 콘텐츠 최대 폭: `--page-max: 1080px`
+  - 긴 텍스트 읽기 폭: `--text-max: 720px`
+  - 좌우 여백: 모바일 24px, 태블릿/데스크톱 32px
+
+### 3. 제거한 패턴 (엄격한 금지 사항)
+- ❌ 가상의 터미널 상태 출력 (`ops-cluster-control.sh`, `0.12ms p99 latency` 등)
+- ❌ 과도한 인터랙티브 Hero 배경 (점 격자 캔버스 왜곡 등)
+- ❌ 형광펜 마커 남용
+- ❌ 가상의 KPI 숫자 카드 나열 (`전체 제품 10개` 등)
+- ❌ 프로젝트마다 반복되는 기술 스택 배지 남발
+- ❌ 불필요한 영어 대문자 라벨 및 `01 / 02 / 03` 장식용 번호
+- ❌ 3열 카드의 무분별한 반복 및 메인 페이지 제품 필터 UI
+- ❌ **ITGC 증적 자동화**: 메인 홈페이지 및 대표 작업에서 전면 제외 (사내 업무 효율화 중심 브랜딩 금지)
+
+### 4. 홈페이지 정보 구조
+1. **Section A — Hero**:
+   - 역할 레이블 (`Senior Backend & Platform Engineer`)
+   - 헤드라인: `서비스를 만들고, 끝까지 운영하는 엔지니어.`
+   - 2~3줄 요약 소개 + 주요 사례 / 경력 링크
+2. **Section B — Selected Engineering Work**:
+   - 세로형 에디토리얼 사례 목록 (Row layout)
+   - 대표 사례 3선:
+     1. `GoVail Gateway` (Model Gateway & Access Control)
+     2. `AI Service Infra` (Inference & Observability Platform)
+     3. `AI Data Infra` (Shared Data Platform)
+   - 각 사례는 [역할/상태] → [제목/요약] → [문제 정의] → [설계 판단] → [상세 링크]의 공통 위계를 갖는다.
+3. **Section C — Engineering Capabilities**:
+   - Backend & System Architecture, Platform & Operations, Identity & Access Control, AI Platform & Infrastructure의 4대 핵심 역량 기술.
+4. **Section D — Products & Experiments (Lab)**:
+   - 개인 제품/실험실 안내 문단 + `/lab/` 이동 링크로 분리.
+5. **Section E — Recent Writing & About**:
+   - 최근 엔지니어링 기록 3편 + 만든 사람 소개 및 `/about` 링크.
+
+---
+
 ## 2026-10 방향: 제품 소개 사이트 (이 섹션이 아래 모든 방향보다 우선)
 
 포트폴리오가 아니라 **제품 라인업 소개**로 읽혀야 한다. 사람 소개는 맨 아래 "만든 사람" 한 블록뿐이다.

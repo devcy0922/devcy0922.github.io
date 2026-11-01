@@ -60,7 +60,6 @@ export default withMermaid(
       nav: [
         { text: '제품', link: '/lab/', activeMatch: '^/lab/' },
         { text: '콘솔', link: '/playground' },
-        { text: '스튜디오', link: '/studio' },
         { text: '플랫폼', link: '/projects/', activeMatch: '^/projects/' },
         { text: '기록', link: '/posts/', activeMatch: '^/posts/' },
         { text: '소개', link: '/about' },

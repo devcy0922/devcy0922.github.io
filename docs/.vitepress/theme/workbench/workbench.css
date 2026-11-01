@@ -540,6 +540,13 @@
   gap: 6px 14px;
 }
 
+.wb-run-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .wb-run-stop {
   margin-left: auto;
 }

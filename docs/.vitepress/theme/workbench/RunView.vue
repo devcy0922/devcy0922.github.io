@@ -4,7 +4,7 @@ import { describeSteps, errorTitle, formatDuration, relativeTime, statusLabel, t
 import { renderMarkdown } from './markdown'
 
 const props = defineProps<{ run: any; now: number }>()
-defineEmits<{ (e: 'stop'): void; (e: 'retry'): void; (e: 'edit'): void }>()
+defineEmits<{ (e: 'stop'): void; (e: 'retry'): void; (e: 'edit'): void; (e: 'remove'): void }>()
 
 const stateWord: Record<string, string> = { done: '완료', active: '진행 중', pending: '대기', error: '실패', skipped: '건너뜀' }
 const steps = computed(() => describeSteps(props.run))
@@ -27,7 +27,10 @@ const metrics = computed(() => {
     <header class="wb-run-head">
       <span class="wb-status wb-status-lg" :data-state="run.status"><i aria-hidden="true"></i>{{ statusLabel(run.status) }}</span>
       <span class="wb-muted">{{ relativeTime(run.createdAt, now) }} · {{ toolSummary(run) }}</span>
-      <button v-if="running" type="button" class="wb-btn wb-btn-sm wb-run-stop" @click="$emit('stop')">중단</button>
+      <div class="wb-run-actions">
+        <button v-if="running" type="button" class="wb-btn wb-btn-sm wb-run-stop" @click="$emit('stop')">중단</button>
+        <button v-else type="button" class="wb-link-btn wb-muted-sm" title="이 대화 삭제" @click="$emit('remove')">삭제</button>
+      </div>
     </header>
 
     <h2 class="wb-run-prompt">{{ run.prompt }}</h2>

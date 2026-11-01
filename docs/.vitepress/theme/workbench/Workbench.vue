@@ -103,6 +103,35 @@ function clearAllSessions() {
   startNewSession()
 }
 
+function removeRun(runId: string) {
+  if (isRunning.value || !currentSession.value) return
+  currentSession.value.runs = currentSession.value.runs.filter((r) => r.id !== runId)
+  if (currentSession.value.runs.length === 0) {
+    currentSession.value.title = '새 대화'
+  }
+  currentSession.value.updatedAt = Date.now()
+  persist()
+}
+
+function clearPriorRuns() {
+  if (isRunning.value || !currentSession.value) return
+  const list = currentSession.value.runs
+  if (list.length <= 1) return
+  currentSession.value.runs = [list[list.length - 1]]
+  currentSession.value.updatedAt = Date.now()
+  persist()
+}
+
+function clearCurrentSession() {
+  if (isRunning.value || !currentSession.value) return
+  if (!window.confirm('현재 대화 내용을 모두 비울까요?')) return
+  currentSession.value.runs = []
+  currentSession.value.title = '새 대화'
+  currentSession.value.updatedAt = Date.now()
+  prompt.value = ''
+  persist()
+}
+
 async function focusPrompt() {
   await nextTick()
   promptEl.value?.focus()
@@ -259,7 +288,7 @@ onBeforeUnmount(() => {
             이전 대화 ({{ sessions.length }})
           </button>
 
-          <!-- 컴팩트한 이전 대화 팝오버 (작업 기록이 길게 늘어지지 않음) -->
+          <!-- 컴팩트한 이전 대화 팝오버 -->
           <div v-if="showHistory" class="wb-history-popover">
             <div class="wb-history-head">
               <strong>대화 목록</strong>
@@ -279,7 +308,7 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="wb-icon-btn"
-                  title="삭제"
+                  title="이 대화 삭제"
                   :disabled="isRunning"
                   @click.stop="deleteSession(s.id)"
                 >
@@ -329,9 +358,20 @@ onBeforeUnmount(() => {
 
         <!-- 세션 내에 실행이 있으면 engine-process 단계와 답변 표시 -->
         <template v-else>
-          <!-- 이전 턴들 (스레드가 2턴 이상인 경우 간결하게 접이식 표시) -->
-          <details v-if="runs.length > 1" class="wb-fold" style="margin-bottom: 12px;">
-            <summary>이전 대화 ({{ runs.length - 1 }}건)</summary>
+          <!-- 이전 턴들 접이식 (개별 삭제 및 전체 비우기 지원) -->
+          <details v-if="runs.length > 1" class="wb-fold" style="margin-bottom: 12px;" open>
+            <summary style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <span>이전 대화 ({{ runs.length - 1 }}건)</span>
+              <button
+                type="button"
+                class="wb-link-btn wb-muted-sm"
+                title="이전 대화 비우기"
+                :disabled="isRunning"
+                @click.stop="clearPriorRuns"
+              >
+                이전 대화 비우기
+              </button>
+            </summary>
             <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
               <RunView
                 v-for="priorRun in runs.slice(0, -1)"
@@ -341,6 +381,7 @@ onBeforeUnmount(() => {
                 @stop="stop"
                 @retry="execute(priorRun.prompt)"
                 @edit="prompt = priorRun.prompt; focusPrompt()"
+                @remove="removeRun(priorRun.id)"
               />
             </div>
           </details>
@@ -352,7 +393,21 @@ onBeforeUnmount(() => {
             @stop="stop"
             @retry="retry"
             @edit="editActive"
+            @remove="removeRun(activeRun.id)"
           />
+
+          <!-- 현재 세션 비우기 바 -->
+          <div class="wb-panel-foot" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="wb-muted-sm">기록은 브라우저에만 저장됩니다.</span>
+            <button
+              type="button"
+              class="wb-link-btn wb-muted-sm"
+              :disabled="isRunning"
+              @click="clearCurrentSession"
+            >
+              현재 대화 모두 비우기
+            </button>
+          </div>
         </template>
       </div>
 

@@ -54,7 +54,13 @@ function patchRun(id: string, update: (run: Run) => Run) {
 
 async function execute(text: string, runPlan: Plan) {
   if (isRunning.value) return
-  const run = createRun({ id: newRunId(), prompt: text, plan: runPlan })
+  // 이전 완료된 대화가 있으면 history에 추가하여 세션을 이어감
+  const history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  if (activeRun.value && activeRun.value.answer) {
+    history.push({ role: 'user', content: activeRun.value.prompt })
+    history.push({ role: 'assistant', content: activeRun.value.answer })
+  }
+  const run = createRun({ id: newRunId(), prompt: text, plan: runPlan, history })
   runs.value.unshift(run)
   activeId.value = run.id
   persist()
@@ -160,28 +166,26 @@ onBeforeUnmount(() => {
   <section class="wb" aria-labelledby="wb-title">
     <header class="wb-head">
       <div class="wb-head-text">
-        <p class="wb-eyebrow">GoVail Gateway · 공개 데모</p>
-        <h1 id="wb-title">질문을 보내고, 실행 증적을 확인하세요</h1>
-        <p class="wb-lead">질문 하나가 게이트웨이를 거쳐 도구 호출과 모델 응답으로 처리되는 과정을 그대로 보여 줍니다. 실행을 누를 때만 relay로 전송되고, 기록은 이 브라우저에만 저장됩니다.</p>
+        <p class="wb-eyebrow">실시간 대화형 콘솔</p>
+        <h1 id="wb-title">AI 어시스턴스 콘솔</h1>
+        <p class="wb-lead">실시간 웹 검색과 URL 본문 조회를 지원하는 대화형 콘솔입니다. 질문을 입력하면 출처를 확인하여 답변합니다.</p>
       </div>
-      <button type="button" class="wb-btn wb-btn-primary" @click="newTask">+ 새 작업</button>
+      <button type="button" class="wb-btn wb-btn-primary" @click="newTask">+ 새 대화</button>
     </header>
 
-    <p class="wb-next" role="status" aria-live="polite">
-      <span class="wb-next-label">다음 행동</span>
-      <span>{{ hint }}</span>
-    </p>
-
-    <div class="wb-grid">
+    <div class="wb-grid wb-grid-chat">
       <div class="wb-main">
+        <RunView v-if="activeRun" :run="activeRun" :now="now" @stop="stop" @retry="retry" @edit="editActive" />
+        <StartPanel v-else :busy="isRunning" @run="runScenario" @fill="fillScenario" />
+
         <form class="wb-composer" @submit.prevent="submit">
-          <label class="wb-label" for="wb-prompt">질문</label>
+          <label class="wb-label wb-sr" for="wb-prompt">질문</label>
           <textarea
             id="wb-prompt"
             ref="promptEl"
             v-model="prompt"
-            rows="3"
-            placeholder="직접 질문을 입력하세요. 예: 최근 LLM Gateway 장애 복구 패턴을 웹 검색해서 정리해줘"
+            rows="2"
+            placeholder="질문을 입력하세요. 예: 최근 AI 기술 동향을 웹 검색해서 알려줘"
             :disabled="isRunning"
             aria-describedby="wb-plan"
             @keydown.ctrl.enter.prevent="submit"
@@ -193,25 +197,19 @@ onBeforeUnmount(() => {
               <label for="wb-tool">도구</label>
               <select id="wb-tool" v-model="toolSelection" :disabled="isRunning">
                 <option value="auto">자동</option>
-                <option v-for="(tool, key) in TOOLS" :key="key" :value="key">{{ tool.label }}</option>
-                <option value="none">사용 안 함</option>
+                <option value="web_search">웹 검색</option>
+                <option value="fetch_url">URL 읽기</option>
+                <option value="none">도구 없음</option>
               </select>
             </div>
             <p id="wb-plan" class="wb-plan">{{ planText }}</p>
             <div class="wb-composer-actions">
               <button v-if="isRunning" type="button" class="wb-btn" @click="stop">중단</button>
-              <button v-else type="submit" class="wb-btn wb-btn-primary" :disabled="!prompt.trim()">실행</button>
+              <button v-else type="submit" class="wb-btn wb-btn-primary" :disabled="!prompt.trim()">전송</button>
             </div>
           </div>
-          <p class="wb-hint">Ctrl/⌘ + Enter로도 실행합니다 · 모델 govail/thinker</p>
+          <p class="wb-hint">Ctrl/⌘ + Enter로도 전송합니다</p>
         </form>
-
-        <StartPanel v-if="!activeRun" :busy="isRunning" @run="runScenario" @fill="fillScenario" />
-        <RunView v-else :run="activeRun" :now="now" @stop="stop" @retry="retry" @edit="editActive" />
-      </div>
-
-      <div class="wb-side" :class="{ 'wb-side-idle': !activeRun }">
-        <EvidencePanel :run="activeRun" />
       </div>
 
       <div class="wb-rail">

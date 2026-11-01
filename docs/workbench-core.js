@@ -10,6 +10,7 @@ const MAX_STORED_OUTPUT_CHARS = 50_000
 
 export const TOOLS = {
   web_search: { label: '웹 검색' },
+  fetch_url: { label: 'URL 읽기' },
   system_metrics: { label: '시스템 메트릭' },
   code_interpreter: { label: '코드 실행' },
   cache_inspector: { label: '캐시 점검' },
@@ -18,43 +19,33 @@ export const TOOLS = {
 // 예시는 요청할 도구를 명시한다. 자동 선택에 기대지 않아 결과가 예측 가능하다.
 export const SCENARIOS = [
   {
-    id: 'web',
-    title: '웹 검색과 출처',
-    summary: '검색 도구를 호출하고, 답변에 쓴 출처 링크를 증적에서 확인합니다.',
-    prompt: '최근 LLM Gateway 장애 복구 패턴을 웹 검색해서 정리해줘',
+    id: 'search',
+    title: '웹 검색과 정보 요약',
+    summary: '웹 검색 도구를 호출하여 최신 기술 문서와 정보를 정리합니다.',
+    prompt: '최근 인공지능 엔지니어링 동향과 거버넌스 기술 변화를 웹 검색해서 정리해줘',
     tools: ['web_search'],
   },
   {
-    id: 'code',
-    title: '코드 실행',
-    summary: '모델이 작성한 코드를 샌드박스에서 실행한 결과를 확인합니다.',
-    prompt: 'Python으로 지연시간 [120, 135, 150, 180, 240, 410] ms의 P50과 P95를 계산해줘',
-    tools: ['code_interpreter'],
+    id: 'url',
+    title: '웹페이지 내용 읽기',
+    summary: '지정된 URL의 본문을 읽어와 핵심 내용을 파악합니다.',
+    prompt: 'https://devcy0922.github.io/about 페이지의 소개와 주요 경험을 읽고 요약해줘',
+    tools: ['fetch_url'],
   },
   {
-    id: 'metrics',
-    title: '시스템 상태 조회',
-    summary: '도구가 돌려준 상태 값을 가공 없이 확인합니다.',
-    prompt: 'GoVail 클러스터의 현재 시스템 상태와 헬스 메트릭을 알려줘',
-    tools: ['system_metrics'],
-  },
-  {
-    id: 'cache',
-    title: '캐시 점검',
-    summary: '시맨틱 캐시 설정과 상태를 조회하는 도구 호출을 확인합니다.',
-    prompt: '시맨틱 캐시 레이어의 임베딩 유사도 임계치와 TTL 상태를 점검해줘',
-    tools: ['cache_inspector'],
-  },
-  {
-    id: 'plain',
+    id: 'general',
     title: '도구 없이 질문',
-    summary: '도구를 쓰지 않고 모델 응답만 받는 가장 단순한 경로입니다.',
-    prompt: 'LLM Gateway를 단순하게 유지해야 하는 이유를 세 문장으로 설명해줘',
+    summary: '도구 없이 모델 지식 기반으로 직접 답변을 받습니다.',
+    prompt: '신뢰성 있는 LLM 서빙과 게이트웨이 설계를 위한 핵심 원칙 3가지를 설명해줘',
     tools: [],
   },
 ]
 
 const AUTO_RULES = [
+  {
+    tool: 'fetch_url',
+    signals: ['http://', 'https://', 'www.', '링크', 'url', '주소', '페이지', '웹페이지'],
+  },
   {
     tool: 'web_search',
     signals: [
@@ -105,10 +96,11 @@ export function titleFromPrompt(prompt, max = 40) {
   return line.length > max ? `${line.slice(0, max)}…` : line || '(빈 질문)'
 }
 
-export function createRun({ id, prompt, plan, now = Date.now() }) {
+export function createRun({ id, prompt, plan, history = [], now = Date.now() }) {
   return {
     id,
     prompt,
+    history: Array.isArray(history) ? [...history] : [],
     tools: [...plan.tools],
     toolMode: plan.mode,
     status: 'running',
@@ -122,15 +114,18 @@ export function createRun({ id, prompt, plan, now = Date.now() }) {
   }
 }
 
-// 게이트웨이로 보내는 요청 본문. 증적 패널에도 그대로 보여 준다.
+// 게이트웨이로 보내는 요청 본문.
 export function buildRequestBody(run) {
-  return {
+  const body = {
     prompt: run.prompt,
     model: MODEL,
-    // 선택한 도구만 전달한다. 전체를 넘기면 최신 정보 질문이 명시 도구 경로로 고정될 수 있다.
     tools: run.tools,
     enableThinking: true,
   }
+  if (Array.isArray(run.history) && run.history.length > 0) {
+    body.history = run.history
+  }
+  return body
 }
 
 const str = (value) => (value === undefined || value === null ? '' : String(value))
@@ -416,6 +411,7 @@ function normalizeRun(raw) {
   return {
     id: raw.id,
     prompt: raw.prompt,
+    history: Array.isArray(raw.history) ? raw.history : [],
     tools: Array.isArray(raw.tools) ? raw.tools.map(str) : [],
     toolMode: str(raw.toolMode) || 'auto',
     // 새로고침으로 끊긴 실행을 계속 "실행 중"으로 보이게 두지 않는다.

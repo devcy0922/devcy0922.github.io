@@ -2,7 +2,7 @@
 // 화면은 이 모듈이 돌려준 상태를 그리기만 한다. 네트워크는 gateway-client.js, 여기서는 I/O를 하지 않는다.
 // 한 번의 실행을 Run으로 다룬다: 질문 → 도구 호출(증적) → 답변. 후속 질문은 새 Run이다.
 
-export const MODEL = 'govail/thinker'
+export const MODEL = 'govail/worker'
 export const STORAGE_KEY = 'govail_console_runs_v1'
 export const LEGACY_STORAGE_KEY = 'govail_playground_browser_cache_v5'
 export const MAX_STORED_RUNS = 30
@@ -121,14 +121,45 @@ export function createRun({ id, prompt, plan, history = [], now = Date.now() }) 
 export function buildRequestBody(run) {
   const body = {
     prompt: run.prompt,
-    model: MODEL,
+    model: run.model || MODEL,
     tools: run.tools,
-    enableThinking: true,
+    enableThinking: run.enableThinking !== undefined ? run.enableThinking : false,
   }
   if (Array.isArray(run.history) && run.history.length > 0) {
     body.history = run.history
   }
   return body
+}
+
+/**
+ * 세션 내 이전 대화 턴들을 토큰 효율적인 압축 형태로 변환한다.
+ * 원문을 그대로 전송하지 않고, 최근 턴 위주로 핵심 질문과 요약 답변만 추출한다.
+ */
+export function compressHistory(runs, maxTurns = 3) {
+  if (!Array.isArray(runs) || runs.length === 0) return []
+  const doneTurns = runs.filter((r) => r.status === 'done' && r.answer && r.prompt)
+  if (doneTurns.length === 0) return []
+
+  const recent = doneTurns.slice(-maxTurns)
+  const history = []
+
+  for (let i = 0; i < recent.length; i++) {
+    const t = recent[i]
+    // 질문: 공백 정리 및 최대 100자 압축
+    const cleanPrompt = String(t.prompt).trim().replace(/\s+/g, ' ')
+    const promptSummary = cleanPrompt.length > 100 ? `${cleanPrompt.slice(0, 100)}…` : cleanPrompt
+
+    // 답변: 줄바꿈 정리 및 핵심 요약 (직전 턴은 최대 220자, 이전 턴은 120자로 차등 압축)
+    const isLatest = i === recent.length - 1
+    const maxChars = isLatest ? 220 : 120
+    const cleanAnswer = String(t.answer).trim().replace(/\s+/g, ' ')
+    const answerSummary = cleanAnswer.length > maxChars ? `${cleanAnswer.slice(0, maxChars)}…` : cleanAnswer
+
+    history.push({ role: 'user', content: promptSummary })
+    history.push({ role: 'assistant', content: answerSummary })
+  }
+
+  return history
 }
 
 const str = (value) => (value === undefined || value === null ? '' : String(value))

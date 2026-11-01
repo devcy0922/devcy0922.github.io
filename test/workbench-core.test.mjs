@@ -3,10 +3,12 @@ import assert from 'node:assert/strict'
 import {
   LEGACY_STORAGE_KEY,
   MAX_STORED_RUNS,
+  MODEL,
   SCENARIOS,
   STORAGE_KEY,
   TOOLS,
   buildRequestBody,
+  compressHistory,
   createRun,
   describeSteps,
   describeToolPlan,
@@ -67,9 +69,23 @@ test('예시는 존재하는 도구만 명시하고 질문이 비어 있지 않�
   assert.ok(SCENARIOS.some((s) => s.tools.length === 0), '도구 없는 경로 예시가 있어야 한다')
 })
 
-test('요청 본문은 선택한 도구만 담는다', () => {
+test('요청 본문은 선택한 도구와 모델을 담는다', () => {
   const run = newRun('질문', ['web_search'])
-  assert.deepEqual(buildRequestBody(run), { prompt: '질문', model: 'govail/thinker', tools: ['web_search'], enableThinking: true })
+  assert.deepEqual(buildRequestBody(run), { prompt: '질문', model: 'govail/worker', tools: ['web_search'], enableThinking: false })
+})
+
+test('이전 대화는 핵심 질문과 축약 답변으로 압축된다', () => {
+  const runs = [
+    { status: 'done', prompt: '첫 번째 질문입니다. '.repeat(10), answer: '첫 번째 답변 내용입니다. '.repeat(20) },
+    { status: 'done', prompt: '두 번째 질문', answer: '두 번째 답변' },
+  ]
+  const compressed = compressHistory(runs)
+  assert.equal(compressed.length, 4)
+  assert.equal(compressed[0].role, 'user')
+  assert.ok(compressed[0].content.length <= 101)
+  assert.ok(compressed[1].content.length <= 125)
+  assert.equal(compressed[2].content, '두 번째 질문')
+  assert.equal(compressed[3].content, '두 번째 답변')
 })
 
 // ── 이벤트 → Run ──────────────────────────────────────────

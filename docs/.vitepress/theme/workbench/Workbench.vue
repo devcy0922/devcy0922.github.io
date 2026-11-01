@@ -4,6 +4,7 @@ import { streamGateway } from '../../../gateway-client.js'
 import {
   ALL_PUBLIC_TOOLS,
   buildRequestBody,
+  compressHistory,
   createRun,
   failRun,
   newRunId,
@@ -159,15 +160,8 @@ async function execute(text: string) {
     session.title = titleFromPrompt(text, 24)
   }
 
-  // 이전 대화 턴들의 Q&A를 압축하여 history 구성
-  const history: Array<{ role: string; content: string }> = []
-  for (const r of session.runs) {
-    if (r.status === 'done' && r.answer) {
-      history.push({ role: 'user', content: r.prompt })
-      const shortAnswer = r.answer.length > 500 ? `${r.answer.slice(0, 500)}…` : r.answer
-      history.push({ role: 'assistant', content: shortAnswer })
-    }
-  }
+  // 이전 대화 턴들의 Q&A를 토큰 효율적인 압축 형태로 변환
+  const history = compressHistory(session.runs)
 
   // 도구는 사용자에게 묻지 않고 지원 가능한 전체 도구를 모아서 제공
   const run = createRun({

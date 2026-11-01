@@ -238,9 +238,43 @@ async function execute(text: string) {
 }
 
 function submit() {
+  if (promptEl.value) {
+    prompt.value = promptEl.value.value
+  }
   const text = prompt.value.trim()
   if (!text || isRunning.value) return
   execute(text)
+}
+
+const isComposing = ref(false)
+
+function onInput(e: Event) {
+  const target = e.target as HTMLTextAreaElement
+  prompt.value = target.value
+}
+
+function onCompositionStart() {
+  isComposing.value = true
+}
+
+function onCompositionEnd(e: Event) {
+  isComposing.value = false
+  const target = e.target as HTMLTextAreaElement
+  prompt.value = target.value
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    if (e.shiftKey) {
+      return
+    }
+    // 한글 IME 조합 중이거나 229 코드면 전송 보류
+    if (e.isComposing || isComposing.value || e.keyCode === 229) {
+      return
+    }
+    e.preventDefault()
+    submit()
+  }
 }
 
 function runScenario(scenario: { prompt: string }) {
@@ -368,16 +402,18 @@ onBeforeUnmount(() => {
           <textarea
             id="wb-prompt"
             ref="promptEl"
-            v-model="prompt"
+            :value="prompt"
             rows="3"
             placeholder="질문을 입력하세요. 웹 검색이나 링크 조회가 필요하면 엔진이 자동으로 도구를 호출합니다."
             :disabled="isRunning"
-            @keydown.ctrl.enter.prevent="submit"
-            @keydown.meta.enter.prevent="submit"
+            @input="onInput"
+            @compositionstart="onCompositionStart"
+            @compositionend="onCompositionEnd"
+            @keydown="handleKeyDown"
           ></textarea>
 
           <div class="wb-composer-foot-clean">
-            <span class="wb-hint">Ctrl/⌘ + Enter로 전송</span>
+            <span class="wb-hint">Enter로 전송 · Shift+Enter 줄바꿈</span>
             <div class="wb-composer-actions">
               <button v-if="isRunning" type="button" class="wb-btn" @click="stop">중단</button>
               <button v-else type="submit" class="wb-btn wb-btn-primary" :disabled="!prompt.trim()">전송</button>

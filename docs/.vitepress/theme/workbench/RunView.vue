@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
+  describeSteps,
   errorTitle,
   formatDuration,
   relativeTime,
@@ -15,6 +16,8 @@ import { renderMarkdown } from './markdown'
 const props = defineProps<{ run: any; now: number }>()
 defineEmits<{ (e: 'stop'): void; (e: 'retry'): void; (e: 'edit'): void }>()
 
+const stateWord: Record<string, string> = { done: '완료', active: '진행 중', pending: '대기', error: '실패', skipped: '건너뜀' }
+const steps = computed(() => describeSteps(props.run))
 const html = computed(() => renderMarkdown(props.run.answer))
 const running = computed(() => props.run.status === 'running')
 const metrics = computed(() => {
@@ -38,13 +41,22 @@ const metrics = computed(() => {
       <button v-if="running" type="button" class="wb-btn wb-btn-sm wb-run-stop" @click="$emit('stop')">중단</button>
     </header>
 
-    <!-- 사용자 질문 카드 -->
+    <!-- 사용자 질문 -->
     <div class="wb-msg wb-msg-user">
       <span class="wb-msg-sender">질문</span>
       <p class="wb-msg-prompt">{{ run.prompt }}</p>
     </div>
 
-    <!-- 실행 증적 (도구 호출 디버깅 아코디언) -->
+    <!-- engine-process 오케스트레이션 진행 단계 -->
+    <ol class="wb-steps" aria-label="진행 단계">
+      <li v-for="step in steps" :key="step.id" class="wb-step" :data-state="step.state">
+        <span class="wb-step-mark" aria-hidden="true"></span>
+        <span class="wb-step-label">{{ step.label }}<span class="wb-sr"> — {{ stateWord[step.state] }}</span></span>
+        <span v-if="step.detail" class="wb-step-detail">{{ step.detail }}</span>
+      </li>
+    </ol>
+
+    <!-- 실행 증적 (도구 호출 카드) -->
     <div v-if="run.toolCalls && run.toolCalls.length" class="wb-evidence-block">
       <article v-for="call in run.toolCalls" :key="call.callId" class="wb-evidence-card" :data-state="call.status">
         <!-- 1. 웹 검색 출처 -->

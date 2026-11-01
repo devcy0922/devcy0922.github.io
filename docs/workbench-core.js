@@ -16,6 +16,9 @@ export const TOOLS = {
   cache_inspector: { label: '캐시 점검' },
 }
 
+// 공개 콘솔에서 제공되는 전체 도구 목록. 사용자가 수동 선택하지 않고 일괄 제공된다.
+export const ALL_PUBLIC_TOOLS = ['web_search', 'fetch_url']
+
 // 예시는 요청할 도구를 명시한다. 자동 선택에 기대지 않아 결과가 예측 가능하다.
 export const SCENARIOS = [
   {

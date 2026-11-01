@@ -48,10 +48,14 @@ const activeRun = computed(() => {
 })
 const isRunning = computed(() => runs.value.some((r) => r.status === 'running'))
 const hint = computed(() => nextActionHint(activeRun.value))
+// 대화 기록이 1건 이상 존재하는 유효 세션만 이전 대화 목록과 카운트에 반영
+const savedSessions = computed(() => sessions.value.filter((s) => s.runs.length > 0))
 
 function persist() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.value.slice(0, 20)))
+    // 대화가 있는 세션 및 현재 활성 세션만 영속화
+    const toSave = sessions.value.filter((s) => s.runs.length > 0 || s.id === currentSessionId.value)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave.slice(0, 20)))
   } catch {
     // 시크릿 모드 등 예외 방어
   }
@@ -68,7 +72,19 @@ function createNewSession(): Session {
 }
 
 function startNewSession() {
-  if (isRunning.value) return
+  stop()
+
+  // 대화가 없는 빈 세션들을 정리
+  sessions.value = sessions.value.filter((s) => s.runs.length > 0)
+
+  // 이미 현재 세션에 대화가 없는 빈 세션 상태라면 추가 생성하지 않고 유지
+  if (currentSession.value && currentSession.value.runs.length === 0) {
+    prompt.value = ''
+    showHistory.value = false
+    focusPrompt()
+    return
+  }
+
   const session = createNewSession()
   sessions.value.unshift(session)
   currentSessionId.value = session.id
@@ -79,13 +95,17 @@ function startNewSession() {
 }
 
 function selectSession(id: string) {
-  if (isRunning.value) return
+  if (currentSessionId.value !== id) {
+    stop()
+  }
   currentSessionId.value = id
   showHistory.value = false
 }
 
 function deleteSession(id: string) {
-  if (isRunning.value) return
+  if (currentSessionId.value === id) {
+    stop()
+  }
   sessions.value = sessions.value.filter((s) => s.id !== id)
   if (currentSessionId.value === id) {
     if (sessions.value.length > 0) {
@@ -98,14 +118,35 @@ function deleteSession(id: string) {
 }
 
 function clearAllSessions() {
-  if (isRunning.value) return
+  stop()
   if (!window.confirm('이 브라우저에 저장된 이전 대화 기록을 모두 삭제할까요?')) return
   sessions.value = []
   startNewSession()
 }
 
+function stop() {
+  if (controller) {
+    controller.abort()
+    controller = null
+  }
+  // 현재 세션의 실행 중 런들을 즉시 aborted로 마감하여 락을 즉각 해제
+  if (currentSession.value) {
+    for (const r of currentSession.value.runs) {
+      if (r.status === 'running') {
+        r.status = 'aborted'
+        r.error = null
+      }
+    }
+    currentSession.value.updatedAt = Date.now()
+  }
+  persist()
+}
+
 function removeRun(runId: string) {
-  if (isRunning.value || !currentSession.value) return
+  if (activeRun.value?.id === runId && isRunning.value) {
+    stop()
+  }
+  if (!currentSession.value) return
   currentSession.value.runs = currentSession.value.runs.filter((r) => r.id !== runId)
   if (currentSession.value.runs.length === 0) {
     currentSession.value.title = '새 대화'
@@ -115,7 +156,7 @@ function removeRun(runId: string) {
 }
 
 function clearPriorRuns() {
-  if (isRunning.value || !currentSession.value) return
+  if (!currentSession.value) return
   const list = currentSession.value.runs
   if (list.length <= 1) return
   currentSession.value.runs = [list[list.length - 1]]
@@ -124,8 +165,9 @@ function clearPriorRuns() {
 }
 
 function clearCurrentSession() {
-  if (isRunning.value || !currentSession.value) return
+  stop()
   if (!window.confirm('현재 대화 내용을 모두 비울까요?')) return
+  if (!currentSession.value) return
   currentSession.value.runs = []
   currentSession.value.title = '새 대화'
   currentSession.value.updatedAt = Date.now()
@@ -210,10 +252,6 @@ function fillScenario(scenario: { prompt: string }) {
   focusPrompt()
 }
 
-function stop() {
-  controller?.abort()
-}
-
 function retry() {
   if (activeRun.value) execute(activeRun.value.prompt)
 }
@@ -279,7 +317,7 @@ onBeforeUnmount(() => {
             :aria-expanded="showHistory"
             @click="showHistory = !showHistory"
           >
-            이전 대화 ({{ sessions.length }})
+            이전 대화 ({{ savedSessions.length }})
           </button>
 
           <!-- 컴팩트한 이전 대화 팝오버 -->
@@ -288,9 +326,9 @@ onBeforeUnmount(() => {
               <strong>대화 목록</strong>
               <button type="button" class="wb-link-btn wb-muted-sm" @click="clearAllSessions">모두 비우기</button>
             </div>
-            <ul v-if="sessions.length" class="wb-history-items">
+            <ul v-if="savedSessions.length" class="wb-history-items">
               <li
-                v-for="s in sessions"
+                v-for="s in savedSessions"
                 :key="s.id"
                 class="wb-history-item"
                 :class="{ active: s.id === currentSessionId }"

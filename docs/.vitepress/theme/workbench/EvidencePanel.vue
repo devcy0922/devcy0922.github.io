@@ -54,6 +54,10 @@ const emptyCalls = computed(() => {
             <p v-if="result.snippet">{{ result.snippet }}</p>
           </a>
         </div>
+        <details v-else-if="call.tool === 'fetch_url' && call.output && call.output.content" class="wb-fold" open>
+          <summary>웹페이지 본문 ({{ call.output.url || '조회 내용' }})</summary>
+          <pre class="wb-json" style="white-space: pre-wrap; font-family: inherit; font-size: 12.5px; line-height: 1.6;"><code>{{ call.output.content }}</code></pre>
+        </details>
         <details v-else-if="call.output !== undefined" class="wb-fold" open>
           <summary>결과</summary>
           <pre class="wb-json"><code>{{ pretty(call.output) }}</code></pre>

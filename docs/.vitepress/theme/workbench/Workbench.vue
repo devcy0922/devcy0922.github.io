@@ -7,53 +7,58 @@ import {
   createRun,
   failRun,
   newRunId,
+  nextActionHint,
   reduceStreamEvent,
+  relativeTime,
   settleRun,
   titleFromPrompt,
-  relativeTime,
 } from '../../../workbench-core.js'
 import EvidencePanel from './EvidencePanel.vue'
 import RunView from './RunView.vue'
 import StartPanel from './StartPanel.vue'
 
-interface ChatSession {
+type Run = ReturnType<typeof createRun>
+
+interface Session {
   id: string
   title: string
   createdAt: number
   updatedAt: number
-  runs: Array<ReturnType<typeof createRun>>
+  runs: Run[]
 }
 
-const STORAGE_SESSIONS_KEY = 'govail_console_sessions_v1'
+const STORAGE_KEY = 'govail_console_sessions_v2'
 
-const sessions = ref<ChatSession[]>([])
+const sessions = ref<Session[]>([])
 const currentSessionId = ref<string | null>(null)
 const prompt = ref('')
 const now = ref(Date.now())
 const promptEl = ref<HTMLTextAreaElement | null>(null)
-const showHistoryMenu = ref(false)
+const showHistory = ref(false)
 
 let controller: AbortController | null = null
 let clock: ReturnType<typeof setInterval> | undefined
 
 const currentSession = computed(() => sessions.value.find((s) => s.id === currentSessionId.value) ?? null)
-const isRunning = computed(() => currentSession.value?.runs.some((r) => r.status === 'running') ?? false)
-const latestRun = computed(() => {
-  const r = currentSession.value?.runs
-  return r && r.length > 0 ? r[r.length - 1] : null
+const runs = computed(() => currentSession.value?.runs ?? [])
+const activeRun = computed(() => {
+  const list = runs.value
+  return list.length > 0 ? list[list.length - 1] : null
 })
+const isRunning = computed(() => runs.value.some((r) => r.status === 'running'))
+const hint = computed(() => nextActionHint(activeRun.value))
 
 function persist() {
   try {
-    window.localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(sessions.value.slice(0, 20)))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.value.slice(0, 20)))
   } catch {
     // 시크릿 모드 등 예외 방어
   }
 }
 
-function createNewSession(): ChatSession {
+function createNewSession(): Session {
   return {
-    id: `session_${Date.now().toString(36)}`,
+    id: `sess_${Date.now().toString(36)}`,
     title: '새 대화',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -67,7 +72,7 @@ function startNewSession() {
   sessions.value.unshift(session)
   currentSessionId.value = session.id
   prompt.value = ''
-  showHistoryMenu.value = false
+  showHistory.value = false
   persist()
   focusPrompt()
 }
@@ -75,7 +80,7 @@ function startNewSession() {
 function selectSession(id: string) {
   if (isRunning.value) return
   currentSessionId.value = id
-  showHistoryMenu.value = false
+  showHistory.value = false
 }
 
 function deleteSession(id: string) {
@@ -103,25 +108,12 @@ async function focusPrompt() {
   promptEl.value?.focus()
 }
 
-function buildHistoryContext(session: ChatSession) {
-  // 이전 완료된 턴들의 Q&A를 추출하여 압축
-  const turns = session.runs.filter((r) => r.status === 'done' && r.answer)
-  const history: Array<{ role: string; content: string }> = []
-  for (const t of turns) {
-    history.push({ role: 'user', content: t.prompt })
-    // 긴 답변은 압축(최대 600자)하여 컨텍스트 윈도우 보존
-    const shortAnswer = t.answer.length > 600 ? `${t.answer.slice(0, 600)}…` : t.answer
-    history.push({ role: 'assistant', content: shortAnswer })
-  }
-  return history
-}
-
-function patchCurrentRun(runId: string, update: (run: any) => any) {
+function patchActiveRun(runId: string, update: (run: Run) => Run) {
   if (!currentSession.value) return
-  const runs = currentSession.value.runs
-  const index = runs.findIndex((r) => r.id === runId)
+  const list = currentSession.value.runs
+  const index = list.findIndex((r) => r.id === runId)
   if (index >= 0) {
-    runs[index] = update(runs[index])
+    list[index] = update(list[index])
     currentSession.value.updatedAt = Date.now()
   }
 }
@@ -134,13 +126,19 @@ async function execute(text: string) {
   }
   const session = currentSession.value!
 
-  // 세션의 첫 질문이면 제목 갱신
   if (session.runs.length === 0 || session.title === '새 대화') {
     session.title = titleFromPrompt(text, 24)
   }
 
-  // 이전 대화 내용을 압축하여 history 구성
-  const history = buildHistoryContext(session)
+  // 이전 대화 턴들의 Q&A를 압축하여 history 구성
+  const history: Array<{ role: string; content: string }> = []
+  for (const r of session.runs) {
+    if (r.status === 'done' && r.answer) {
+      history.push({ role: 'user', content: r.prompt })
+      const shortAnswer = r.answer.length > 500 ? `${r.answer.slice(0, 500)}…` : r.answer
+      history.push({ role: 'assistant', content: shortAnswer })
+    }
+  }
 
   // 도구는 사용자에게 묻지 않고 지원 가능한 전체 도구를 모아서 제공
   const run = createRun({
@@ -161,13 +159,13 @@ async function execute(text: string) {
       body: buildRequestBody(run),
       signal: controller.signal,
       onEvent: (event: string, data: Record<string, unknown>) => {
-        patchCurrentRun(run.id, (cur) => reduceStreamEvent(cur, event, data))
+        patchActiveRun(run.id, (cur) => reduceStreamEvent(cur, event, data))
       },
     })
-    patchCurrentRun(run.id, settleRun)
+    patchActiveRun(run.id, settleRun)
   } catch (err) {
     if ((err as { name?: string })?.name !== 'GatewayError') console.error('콘솔 처리 오류', err)
-    patchCurrentRun(run.id, (cur) => failRun(cur, err))
+    patchActiveRun(run.id, (cur) => failRun(cur, err))
   } finally {
     controller = null
     persist()
@@ -193,20 +191,20 @@ function stop() {
   controller?.abort()
 }
 
-function retry(run: any) {
-  if (run?.prompt) execute(run.prompt)
+function retry() {
+  if (activeRun.value) execute(activeRun.value.prompt)
 }
 
-function editPrompt(run: any) {
-  if (run?.prompt) {
-    prompt.value = run.prompt
+function editActive() {
+  if (activeRun.value) {
+    prompt.value = activeRun.value.prompt
     focusPrompt()
   }
 }
 
 onMounted(() => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_SESSIONS_KEY)
+    const raw = window.localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -237,46 +235,45 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="wb" aria-labelledby="wb-title">
-    <!-- 상단 헤더: 타이틀 + 세션 제어 + 이전 기록 드롭다운 -->
     <header class="wb-head">
       <div class="wb-head-text">
         <p class="wb-eyebrow">GoVail AI Assistance Engine</p>
         <h1 id="wb-title">AI 어시스턴스 콘솔</h1>
         <p class="wb-lead">
-          웹 검색과 실시간 링크 조회를 지원하며, 대화 맥락을 압축해 세션을 이어갑니다.
+          웹 검색과 실시간 URL 본문 조회를 지원하며, 대화 맥락을 압축해 세션을 이어갑니다.
         </p>
       </div>
 
-      <div class="wb-session-controls">
+      <div class="wb-head-actions">
         <button type="button" class="wb-btn wb-btn-primary" :disabled="isRunning" @click="startNewSession">
           + 새 대화 시작
         </button>
 
-        <div class="wb-history-dropdown-wrapper">
+        <div class="wb-history-dropdown">
           <button
             type="button"
-            class="wb-btn wb-btn-secondary"
-            :aria-expanded="showHistoryMenu"
-            @click="showHistoryMenu = !showHistoryMenu"
+            class="wb-btn"
+            :aria-expanded="showHistory"
+            @click="showHistory = !showHistory"
           >
             이전 대화 ({{ sessions.length }})
           </button>
 
-          <!-- 컴팩트한 이전 대화 팝오버 (작업 기록이 화면을 길게 차지하지 않음) -->
-          <div v-if="showHistoryMenu" class="wb-history-menu">
-            <div class="wb-history-menu-head">
+          <!-- 컴팩트한 이전 대화 팝오버 (작업 기록이 길게 늘어지지 않음) -->
+          <div v-if="showHistory" class="wb-history-popover">
+            <div class="wb-history-head">
               <strong>대화 목록</strong>
               <button type="button" class="wb-link-btn wb-muted-sm" @click="clearAllSessions">모두 비우기</button>
             </div>
-            <ul v-if="sessions.length" class="wb-history-menu-list">
+            <ul v-if="sessions.length" class="wb-history-items">
               <li
                 v-for="s in sessions"
                 :key="s.id"
-                class="wb-history-menu-item"
+                class="wb-history-item"
                 :class="{ active: s.id === currentSessionId }"
               >
-                <button type="button" class="wb-history-menu-title" @click="selectSession(s.id)">
-                  <span class="wb-history-name">{{ s.title }}</span>
+                <button type="button" class="wb-history-item-btn" @click="selectSession(s.id)">
+                  <span class="wb-history-item-title">{{ s.title }}</span>
                   <span class="wb-muted-sm">{{ relativeTime(s.updatedAt || s.createdAt, now) }} · {{ s.runs.length }}턴</span>
                 </button>
                 <button
@@ -296,33 +293,17 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- 2단 레이아웃: 메인 대화 스레드 (70%) + engine-process 실행 증적 (30%) -->
-    <div class="wb-grid-2col">
-      <main class="wb-main-col">
-        <!-- 대화가 없을 때: 추천 질문 안내 -->
-        <StartPanel
-          v-if="!currentSession || currentSession.runs.length === 0"
-          :busy="isRunning"
-          @run="runScenario"
-          @fill="fillScenario"
-        />
+    <p class="wb-next" role="status" aria-live="polite">
+      <span class="wb-next-label">상태</span>
+      <span>{{ hint }}</span>
+    </p>
 
-        <!-- 대화 세션 스레드: 한 세션 안의 모든 턴을 순서대로 표시 -->
-        <div v-else class="wb-turns-container">
-          <RunView
-            v-for="run in currentSession.runs"
-            :key="run.id"
-            :run="run"
-            :now="now"
-            @stop="stop"
-            @retry="retry(run)"
-            @edit="editPrompt(run)"
-          />
-        </div>
-
-        <!-- 질문 작성기: 도구 선택 UI 전면 제거, 단정하고 깔끔한 입력창 -->
-        <form class="wb-composer wb-composer-clean" @submit.prevent="submit">
-          <label class="wb-label" for="wb-prompt">질문 입력</label>
+    <!-- 2단 그리드: 메인 대화창 + engine-process 실행 증적 (EvidencePanel) -->
+    <div class="wb-grid">
+      <div class="wb-main">
+        <!-- 질문 입력창: 도구 선택 UI 없이 깔끔한 폼 -->
+        <form class="wb-composer" @submit.prevent="submit">
+          <label class="wb-label" for="wb-prompt">질문</label>
           <textarea
             id="wb-prompt"
             ref="promptEl"
@@ -334,22 +315,51 @@ onBeforeUnmount(() => {
             @keydown.meta.enter.prevent="submit"
           ></textarea>
 
-          <div class="wb-composer-foot">
-            <span class="wb-composer-hint">Ctrl + Enter 또는 ⌘ + Enter로 전송</span>
-            <div class="wb-composer-buttons">
+          <div class="wb-composer-foot-clean">
+            <span class="wb-hint">Ctrl/⌘ + Enter로 전송</span>
+            <div class="wb-composer-actions">
               <button v-if="isRunning" type="button" class="wb-btn" @click="stop">중단</button>
-              <button v-else type="submit" class="wb-btn wb-btn-primary" :disabled="!prompt.trim()">
-                전송
-              </button>
+              <button v-else type="submit" class="wb-btn wb-btn-primary" :disabled="!prompt.trim()">전송</button>
             </div>
           </div>
         </form>
-      </main>
 
-      <!-- 우측 사이드: engine-process 오케스트레이션 실행 증적 (EvidencePanel) -->
-      <aside class="wb-side-col">
-        <EvidencePanel :run="latestRun" />
-      </aside>
+        <!-- 세션 내에 실행이 없으면 추천 질문 표시 -->
+        <StartPanel v-if="!activeRun" :busy="isRunning" @run="runScenario" @fill="fillScenario" />
+
+        <!-- 세션 내에 실행이 있으면 engine-process 단계와 답변 표시 -->
+        <template v-else>
+          <!-- 이전 턴들 (스레드가 2턴 이상인 경우 간결하게 접이식 표시) -->
+          <details v-if="runs.length > 1" class="wb-fold" style="margin-bottom: 12px;">
+            <summary>이전 대화 ({{ runs.length - 1 }}건)</summary>
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
+              <RunView
+                v-for="priorRun in runs.slice(0, -1)"
+                :key="priorRun.id"
+                :run="priorRun"
+                :now="now"
+                @stop="stop"
+                @retry="execute(priorRun.prompt)"
+                @edit="prompt = priorRun.prompt; focusPrompt()"
+              />
+            </div>
+          </details>
+
+          <!-- 현재 활성 턴 -->
+          <RunView
+            :run="activeRun"
+            :now="now"
+            @stop="stop"
+            @retry="retry"
+            @edit="editActive"
+          />
+        </template>
+      </div>
+
+      <!-- 우측 증적 패널: engine-process 오케스트레이션 실행 증적 -->
+      <div class="wb-side" :class="{ 'wb-side-idle': !activeRun }">
+        <EvidencePanel :run="activeRun" />
+      </div>
     </div>
   </section>
 </template>

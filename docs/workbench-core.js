@@ -23,21 +23,21 @@ export const ALL_PUBLIC_TOOLS = ['web_search', 'fetch_url']
 export const SCENARIOS = [
   {
     id: 'search',
-    title: '웹 검색과 정보 요약',
+    title: '웹 검색',
     summary: '웹 검색 도구를 호출하여 최신 기술 문서와 정보를 정리합니다.',
     prompt: '최근 인공지능 엔지니어링 동향과 거버넌스 기술 변화를 웹 검색해서 정리해줘',
     tools: ['web_search'],
   },
   {
     id: 'url',
-    title: '웹페이지 내용 읽기',
+    title: 'URL 읽기',
     summary: '지정된 URL의 본문을 읽어와 핵심 내용을 파악합니다.',
     prompt: 'https://devcy0922.github.io/about 페이지의 소개와 주요 경험을 읽고 요약해줘',
     tools: ['fetch_url'],
   },
   {
     id: 'general',
-    title: '도구 없이 질문',
+    title: '일반 질문',
     summary: '도구 없이 모델 지식 기반으로 직접 답변을 받습니다.',
     prompt: '신뢰성 있는 LLM 서빙과 게이트웨이 설계를 위한 핵심 원칙 3가지를 설명해줘',
     tools: [],

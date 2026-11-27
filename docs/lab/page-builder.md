@@ -1,6 +1,6 @@
 ---
 title: "웹페이지 빌더"
-description: "영역을 클릭해 글자 크기와 색을 바꾸고 HTML 파일로 받는 GrapesJS 기반 편집기."
+description: "데스크톱·태블릿·모바일을 확인하고, SEO 기초와 사이트 파일을 로컬에서 준비하는 GrapesJS 페이지 편집기."
 lab: page-builder
 layout: page
 pageClass: product-page
@@ -8,47 +8,55 @@ pageClass: product-page
 
 <div class="product-body vp-doc">
 
-편집기는 [page-builder 저장소](https://github.com/devcy0922/page-builder)가 독립 앱으로 관리하고, [devcy0922.github.io/page-builder](https://devcy0922.github.io/page-builder/)에 따로 배포합니다. GrapesJS(약 1.1MB)를 이 사이트의 다른 페이지와 함께 싣지 않기 위해서입니다. 편집기 아이콘과 글꼴도 앱 안에 번들해 외부 CDN 없이 열립니다.
+[page-builder 저장소](https://github.com/devcy0922/page-builder)의 독립 앱이며, [브라우저에서 바로 열 수 있습니다](https://devcy0922.github.io/page-builder/). 이 사이트에는 제품 설명만 두고 GrapesJS 편집기와 이미지는 따로 싣지 않습니다.
 
-<ProductFeatures />
+## 직접 고치고, 원하는 형태로 저장
 
-## 이런 문제를 풉니다
+대장간 예시를 열어 영역을 고치거나 블록을 더합니다. 데스크톱·태블릿·모바일 폭으로 전환하고, 모바일에서 가로로 넘치는지 확인합니다. 작은 화면에서는 편집 패널을 열어 속성을 조절할 수 있습니다.
 
-간단한 소개 페이지 하나를 고치려고 개발자를 부르는 일을 줄입니다. 캔버스에서 영역을 고르고, 포토샵 속성 패널처럼 오른쪽에서 글자·여백·배경을 바꾸고, 끝나면 **HTML 파일 하나**로 받습니다. 받은 파일은 어디에 올려도 그대로 열립니다.
+- **HTML:** CSS와 로컬 이미지를 안에 포함한 한 파일
+- **사이트 ZIP:** index.html과 assets/를 나눈 정적 사이트 묶음. 대표 주소를 넣으면 sitemap.xml과 robots.txt도 포함
+- **프로젝트 JSON:** 편집 화면과 메타데이터를 보관해 나중에 다시 열기
+
+이미지와 페이지 내용은 브라우저 안에서 처리합니다. 계정이나 편집 내용 업로드 API가 없습니다. 이 앱은 사이트를 게시하지 않으며, 내려받은 파일을 원하는 호스팅이나 미리보기 도구에 직접 올립니다.
+
+## 검색과 공유를 위한 점검
+
+페이지 제목과 설명, canonical 주소, 공유 이미지, h1과 소제목 순서, 이미지 대체 텍스트, 링크 이름, 본문 설명을 내보내기 전에 살핍니다. JSON-LD는 선택 사항이며, 직접 입력한 올바른 JSON만 내보냅니다.
+
+GEO는 별도 AI 태그나 점수로 해결되지 않습니다. 질문에 답하는 본문, 사실을 확인할 수 있는 작성자·업체 정보와 출처, 공개된 사이트의 크롤링 설정을 챙기는 편집 보조를 제공합니다. [Google의 검색 AI 기능 안내](https://developers.google.com/search/docs/appearance/ai-features)도 SEO 기본 원칙이 계속 적용되며, AI 기능을 위한 특별한 마크업은 없다고 설명합니다. 이 도구는 검색 순위나 AI 답변 수록을 보장하지 않습니다.
+
+사이트를 ZIP으로 받아 배포하는 흐름은 준비되어 있습니다. web-preview 코드를 가져오거나 연결하지 않으며, 미리보기 도구와의 직접 전송은 이후 공개·인증 경계와 사용 방식을 정한 뒤 검토할 항목입니다.
 
 ## 동작 방식 {#how}
 
-<DiagramFrame caption="편집기는 page-builder 저장소의 독립 앱입니다. 이 사이트는 소개와 화면 미리보기만 둡니다.">
+<DiagramFrame caption="편집과 저장은 브라우저 안에서 이뤄집니다. 게시 위치는 사용자가 선택합니다.">
 
 ```mermaid
 flowchart LR
-    App["page-builder 앱<br/>Vite + Vue"] --> GJS["GrapesJS 편집기"]
-    GJS --> Model["컴포넌트 트리 + CSS 규칙"]
-    Quick["빠른 조절 막대<br/>글자 크기·기기"] -->|addStyle| Model
-    Panel["스타일 관리자<br/>글자·여백·크기"] --> Model
-    Model -->|getHtml + getCss| File["page.html 내려받기"]
+    User["편집자"] --> App["page-builder<br/>Vue + GrapesJS"]
+    App -->|기기 폭·콘텐츠·스타일| Canvas["데스크톱 / 태블릿 / 모바일"]
+    Local["로컬 이미지"] -->|브라우저 안에서 읽기| App
+    App --> Project["프로젝트 JSON"]
+    App --> HTML["단일 HTML"]
+    App --> ZIP["사이트 ZIP<br/>index.html + assets/ + 선택 sitemap/robots"]
+    Project -->|사용자가 파일 열기| App
+    HTML --> Hosting["원하는 호스팅"]
+    ZIP --> Hosting
 ```
 
 </DiagramFrame>
 
-## 왜 GrapesJS인가
+## 현재 범위
 
-직접 만들기 전에 오픈소스를 먼저 비교했습니다.
+| 영역 | 현재 기능 |
+|---|---|
+| 편집 | 영역 선택, 텍스트·스타일·이미지 조절, 기본 섹션 블록 |
+| 반응형 | 데스크톱·태블릿·모바일 프리뷰와 가로 넘침 점검 |
+| 검색 기초 | 제목·설명·canonical·공유 미리보기·제목 구조·alt 점검 |
+| 저장 | HTML, 여러 파일 사이트 ZIP, 편집 프로젝트 JSON |
+| 범위 | 브라우저 로컬 처리. 계정, 서버 저장, 게시 기능 없음 |
 
-| 후보 | 장점 | 이 작업에 안 맞는 점 |
-|---|---|---|
-| **GrapesJS** (BSD-3) | 프레임워크 무관, 스타일 관리자·레이어·기기별 미리보기 내장, HTML/CSS 내보내기 | 기본 UI가 무거워 테마를 덮어써야 함 |
-| Craft.js (MIT) | React 컴포넌트 단위 편집이 깔끔 | 편집 UI를 거의 다 직접 만들어야 함 |
-| Puck (MIT) | 데이터(JSON) 중심 페이지 구성 | 결과가 React 렌더링 전제라 HTML 파일 한 장과 거리가 있음 |
-| Editor.js (Apache-2.0) | 블록 문서 편집에 강함 | 레이아웃·스타일 편집이 목적이 아님 |
-
-"영역 선택 → 스타일 조절 → HTML로 받기"가 기본 기능으로 있는 것은 GrapesJS뿐이었습니다. 그래서 편집 엔진은 GrapesJS를 그대로 쓰고, 이 사이트의 톤에 맞춰 패널 색과 블록 목록, 위쪽 빠른 조절 막대만 손봤습니다.
-
-## 로드맵
-
-1. 프로젝트 JSON 저장과 불러오기
-2. 이미지 업로드(지금은 주소 입력만)
-3. 자주 쓰는 섹션 템플릿: 가격표, 자주 묻는 질문, 연락처
-4. 내보내기 옵션: Tailwind 클래스로 변환
+다음은 실제로 써 보며 자주 쓰는 섹션 템플릿과 여러 페이지 구성, 내보낸 파일의 게시·미리보기 인계 흐름을 다듬습니다.
 
 </div>
